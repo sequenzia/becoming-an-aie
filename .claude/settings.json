@@ -1,0 +1,8 @@
+{
+  "enabledPlugins": {
+    "agent-alchemy-core-tools@agent-alchemy": true,
+    "agent-alchemy-dev-tools@agent-alchemy": true,
+    "agent-alchemy-git-tools@agent-alchemy": true,
+    "agent-alchemy-sdd-tools@agent-alchemy": true
+  }
+}
