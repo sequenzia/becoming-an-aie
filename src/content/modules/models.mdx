@@ -9,29 +9,125 @@ prerequisites: [foundations]
 talkBeats: ["2.1"]
 bookChapters: [6, 7, 10]
 draft: true
-updatedOn: 2026-09-16
-checkedOn: 2026-09-16
+updatedOn: 2026-10-03
+checkedOn: 2026-10-03
 staleAfterDays: 90
 takeaway: "The model is a versioned, expiring dependency. Treat it like one."
 pitfall: "A hardcoded model ID with no eval suite behind it"
 transferRows: [testing]
-artifacts: []
-outcomes: []
-selfCheck: []
-sources: []
+artifacts: [models-fixture-trace]
+outcomes:
+  - id: select-axes
+    text: Name the six axes the talk gives for selecting a model on your own tasks.
+  - id: measure-own-cases
+    text: Measure your product on representative cases instead of trusting a public benchmark.
+  - id: pin-or-alias
+    text: Choose between a pinned version and a moving alias and say what each one costs.
+  - id: eval-before-replace
+    text: Replace a model only with an eval suite behind the decision.
+selfCheck:
+  - id: q1-axes
+    outcome: select-axes
+    question: "Which of these is one of the talk's six selection axes for a model?"
+    options:
+      - "Cost per completed task"
+      - "Parameter count"
+      - "Release date"
+    correct: [0]
+    feedback:
+      - "Correct. The six axes are capability on your tasks, cost per completed task, latency at p95, context window, tool-use reliability, and data residency."
+      - "Not yet. Parameter count is not one of the six. Reread Select, measure, replace."
+      - "Not yet. Release date is not one of the six. Reread Select, measure, replace."
+  - id: q2-residency
+    outcome: select-axes
+    question: "Which axis can override every other axis for an enterprise deployment, according to the talk's research?"
+    options:
+      - "Latency at p95"
+      - "Data residency"
+      - "Context window"
+    correct: [1]
+    feedback:
+      - "Not yet. Latency matters, but it is not the axis that can override the rest. Reread Select, measure, replace."
+      - "Correct. Data residency can override every other axis for enterprise."
+      - "Not yet. The context window is one axis among six. Reread Select, measure, replace."
+  - id: q3-benchmark
+    outcome: measure-own-cases
+    question: "A public benchmark reports a high score for a model. What does the talk say that score measures?"
+    options:
+      - "Your product's behavior under its operating conditions"
+      - "A task population and harness you did not choose"
+      - "The model's behavior on your traffic"
+    correct: [1]
+    feedback:
+      - "Not yet. Benchmarks use their task population and harness. Measure your product on representative cases. Reread Select, measure, replace."
+      - "Correct. A public benchmark measures a population you did not choose, on a harness you do not control. Your eval suite measures your traffic."
+      - "Not yet. Only your own eval suite measures your traffic. Reread Select, measure, replace."
+  - id: q4-pinned
+    outcome: pin-or-alias
+    question: "What does a pinned model version buy you, in the talk's words?"
+    options:
+      - "Automatic updates and regression monitoring"
+      - "Controlled migration and lifecycle management"
+      - "Freedom from measuring the replacement"
+    correct: [1]
+    feedback:
+      - "Not yet. Automatic updates and regression monitoring describe a moving alias. Reread Select, measure, replace."
+      - "Correct. Pinned version: controlled migration and lifecycle management. Moving alias: automatic updates and regression monitoring."
+      - "Not yet. A pinned version still expires, and the replacement still has to be measured. Reread the pitfall."
+  - id: q5-snapshot
+    outcome: pin-or-alias
+    question: "A snapshot controls one source of variation. What else affects behavior, according to the talk?"
+    options:
+      - "Nothing. A pinned snapshot fixes the behavior."
+      - "Prompts, tools, retrieval, and the environment"
+      - "Only the temperature setting"
+    correct: [1]
+    feedback:
+      - "Not yet. A snapshot controls one source of variation. Reread Select, measure, replace."
+      - "Correct. Prompts, tools, retrieval, and the environment also affect behavior."
+      - "Not yet. Sampling parameters are one input among many, and some vendors have deprecated them. Reread Select, measure, replace."
+  - id: q6-pitfall
+    outcome: eval-before-replace
+    question: "What is the Models pitfall?"
+    options:
+      - "A moving alias with regression monitoring"
+      - "A hardcoded model ID with no eval suite behind it"
+      - "Routing cheap calls to a small model"
+    correct: [1]
+    feedback:
+      - "Not yet. That is one of the two defensible replacement strategies. Reread the pitfall."
+      - "Correct. That leaves you choosing a replacement without evidence when the deprecation notice arrives."
+      - "Not yet. Routing is a configuration to measure, not the pitfall. Reread the pitfall."
+sources:
+  - title: Model deprecations
+    org: Anthropic
+    date: "2026"
+    url: https://platform.claude.com/docs/en/about-claude/model-deprecations
+    checkedOn: 2026-09-14
+    note: "Lifecycle states and the notice period. Date checked is the talk research's check date."
+  - title: "How Is ChatGPT's Behavior Changing over Time?"
+    author: Lingjiao Chen, Matei Zaharia, James Zou
+    date: "2023-07"
+    url: https://arxiv.org/html/2307.09009v3
+    checkedOn: 2026-09-15
+    note: "arXiv 2307.09009, revised version 3. Task-specific evidence of behavior across versions, not overall model quality. Date checked is the talk research's check date."
 ---
 
 ## Transfer connection
 
-This module is planned. It is not yet written. This page holds its place in the catalog until it is.
+This is the Phase 1 fixture draft of the Models module. Its prose is placeholder text that exercises the module layout, the artifact card, the workshop and failure forms, and the self-check. Phase 2 replaces every paragraph. The frontmatter, the structure, and the self-check questions are real.
 
-It will expand one row of the talk's transfer table. You already do this: Testing discipline. It becomes this: Eval discipline. The module will say what stays the same and what changes.
+This module expands one row of the talk's transfer table: testing discipline becomes eval discipline. What stays the same: the habit of checking before accepting a result, and the refusal to ship on a green run you did not read. What changes: the unit of measurement. A test checks one path you wrote. An eval measures a model's behavior across a population of your own cases, and that population is the evidence behind every selection and every replacement.
 
 ## Topics and learning outcomes
 
 <Outcomes />
 
-The module draws on talk beat 2.1 and on book chapters 6, 7, 10. Each concept arrives with its outcome. Each gets a coding-agent worked example: what the user touched, what the vendor engineered. Each cites a public incident or a first-hand account, with its checked-on date.
+Fixture draft. The real section arrives in Phase 2 with the coding-agent worked example (what the user touched, what the vendor engineered), a sourced public incident, and every tool fact dated.
+
+### Select, measure, replace
+
+Fixture draft. When you are the owner, the model is a component you select, measure, and replace. Select on six axes: capability on your tasks, cost per completed task, latency at p95, context window, tool-use reliability, and data residency. Measure your product on representative cases under its operating conditions, because public benchmarks use a task population and a harness you did not choose. Replace with one of two strategies: a pinned version, which gives you controlled migration and lifecycle management, or a moving alias, which gives you automatic updates and regression monitoring. A snapshot controls one source of variation. Prompts, tools, retrieval, and the environment also affect behavior.
 
 <Takeaway />
 
@@ -39,7 +135,13 @@ The module draws on talk beat 2.1 and on book chapters 6, 7, 10. Each concept ar
 
 <Workshop>
 
-The workshop will be an analysis exercise on provided artifacts. No code. It will state the task in one paragraph and give a rubric.
+<Artifact id="models-fixture-trace" />
+
+Fixture task. Read the trace and the config it points at. In a few sentences, say which of the six selection axes this system can answer for today, which it cannot, and what evidence you would need before the retirement date to choose between the two replacement strategies.
+
+- Names at least two selection axes and says whether the trace gives evidence for them.
+- Distinguishes a pinned version from a moving alias and names a cost of each.
+- Names the evidence a replacement decision needs and where it would come from.
 
 </Workshop>
 
@@ -47,11 +149,13 @@ The workshop will be an analysis exercise on provided artifacts. No code. It wil
 
 <FailureExercise>
 
-The failure exercise will plant a failure in an artifact and ask you to find it and explain it.
+<Artifact id="models-fixture-trace" />
+
+Fixture exercise. Something in this trace will cause a migration with no evidence behind it. Find it and explain it in a few sentences.
 
 <Fragment slot="explanation">
 
-The explanation appears here after a response is saved.
+The request model is a hardcoded id in a config file, the vendor has started returning a deprecation header with a retirement date, and the harness has no eval suite and no last eval run. When the retirement date arrives, the team will choose a replacement it has never measured. The fix is not a different model id. It is an eval suite over representative cases, run against the current model today and against the replacement before the switch.
 
 </Fragment>
 

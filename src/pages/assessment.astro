@@ -1,11 +1,107 @@
 ---
-// placeholder, D replaces (blueprint section 9.7). Guarded by the middleware; 404 when accounts are off.
+// src/pages/assessment.astro
+// The guided self-assessment (blueprint sections 8, 9.7; spec 5.10). On demand and guarded: the middleware
+// redirects a signed-out visitor to sign-in and answers 404 when the build disabled accounts; both checks
+// are repeated here so the page cannot render without them. The closing module's frontmatter supplies the
+// spec, so the tool and the readable module at /modules/self-assessment cannot drift apart (decision 18).
+// A draft closing module means 404 until Phase 3 opens it, except under PREVIEW_DRAFTS.
+//
+// The feedback form is anonymous and optional (decision 31). It posts to submitFeedback as a plain HTML
+// form. Success redirects back here with ?feedback=sent so the ?_action= query never survives in the
+// address bar and a reload cannot resubmit (the section 14.3 rule, applied to this page; docs/decisions.md,
+// 2026-10-03). An error re-renders the form with the message.
+import { actions, isInputError } from 'astro:actions';
 import Base from '../layouts/Base.astro';
+import PageHeader from '../components/site/PageHeader.astro';
+import SelfAssessment from '../components/islands/SelfAssessment';
+import { getDb } from '../db';
+import { SERVER_ERROR_MESSAGE } from '../lib/actions-guard';
+import { getAssessment, listVersions } from '../lib/assessment';
+import { CLOSING_SLUG } from '../lib/content-schema';
 import { env } from '../lib/env';
+import { signInPath } from '../lib/guard';
+import { FEEDBACK_MAX_CHARS } from '../lib/limits';
+import { getPublishedModule, getPublishedModules } from '../lib/modules';
+import { listProgress } from '../lib/progress';
 
 if (!env.featureAccounts) return new Response(null, { status: 404 });
+const user = Astro.locals.user;
+if (!user) return Astro.redirect(signInPath('/assessment'), 302);
+
+const entry = await getPublishedModule(CLOSING_SLUG);
+const spec = entry?.data.assessment;
+if (!entry || !spec) return new Response(null, { status: 404 });
+
+const feedbackResult = Astro.getActionResult(actions.submitFeedback);
+let feedbackError: string | undefined;
+if (feedbackResult) {
+  if (!feedbackResult.error) return Astro.redirect('/assessment?feedback=sent#feedback', 303);
+  const error = feedbackResult.error;
+  if (isInputError(error)) {
+    feedbackError = `Write something first, at most ${FEEDBACK_MAX_CHARS.toLocaleString('en-US')} characters.`;
+  } else if (error.status >= 500) {
+    if (error.message !== SERVER_ERROR_MESSAGE) console.error(`[assessment] submitFeedback failed: ${error.code} ${error.message}`);
+    feedbackError = SERVER_ERROR_MESSAGE;
+  } else {
+    feedbackError = error.message;
+  }
+}
+const feedbackSent = Astro.url.searchParams.get('feedback') === 'sent';
+
+const { db } = await getDb();
+const [latestRow, versionRows, progress, published] = await Promise.all([
+  getAssessment(db, user.id),
+  listVersions(db, user.id),
+  listProgress(db, user.id),
+  getPublishedModules(),
+]);
+
+const missingModules = published
+  .filter((m) => m.data.kind === 'area' && progress[m.id]?.status !== 'completed')
+  .map((m) => ({ slug: m.id, title: m.data.title }));
+const latest = latestRow
+  ? {
+      version: latestRow.version,
+      ratings: latestRow.ratings,
+      context: latestRow.context,
+      plan: latestRow.plan,
+      planText: latestRow.planText,
+      createdAt: latestRow.createdAt.toISOString(),
+    }
+  : null;
+const versions = versionRows.map((v) => ({ version: v.version, createdAt: v.createdAt.toISOString() }));
 ---
 
-<Base title="Self-assessment" area="transition">
-  <div data-placeholder="D:src/pages/assessment.astro"></div>
+<Base title="Self-assessment" area="transition" description="Rate yourself on what transfers and what is new in each area, then get a four-step plan for the areas with the largest gaps.">
+  <PageHeader kicker="Self-assessment" area="The transition" minimap="all" title="Rate yourself, then plan" />
+  <div class="prose">
+    <p>
+      Six areas, one short step each. For every item you say where you stand: Not yet, Aware, Practiced, or Confident. The plan ranks the areas by
+      gap, with what is new weighing more than what transfers, and applies the talk's four steps to the AI feature you are closest to.
+    </p>
+    <p>"You are not starting over. You are adding a layer." The reading behind this tool is the closing module, <a href={`/modules/${CLOSING_SLUG}`}>{entry.data.title}</a>.</p>
+  </div>
+  <SelfAssessment client:load spec={spec} latest={latest} versions={versions} missingModules={missingModules} />
+  <section class="assessment-feedback" id="feedback" aria-labelledby="feedback-title">
+    <h2 id="feedback-title">Feedback</h2>
+    <div class="prose">
+      <p>Optional and anonymous. It is stored without your account and is not shown on your account page. Tell us what the program changed for you, or what it missed.</p>
+    </div>
+    {feedbackSent && <p class="field-help" role="status">Thank you. Your feedback is anonymous.</p>}
+    <form method="POST" action={actions.submitFeedback}>
+      <label class="field-label" for="feedback-body">Feedback, optional and anonymous</label>
+      <textarea
+        class="field"
+        id="feedback-body"
+        name="body"
+        required
+        maxlength={FEEDBACK_MAX_CHARS}
+        aria-describedby={feedbackError ? 'feedback-help feedback-error' : 'feedback-help'}
+        aria-invalid={feedbackError ? 'true' : undefined}
+      />
+      <p class="field-help" id="feedback-help">Plain text, at most {FEEDBACK_MAX_CHARS.toLocaleString('en-US')} characters. No name, no email.</p>
+      {feedbackError && <p class="field-error" id="feedback-error"><b>Fix:</b> {feedbackError}</p>}
+      <button class="btn btn-outline" type="submit">Send feedback</button>
+    </form>
+  </section>
 </Base>

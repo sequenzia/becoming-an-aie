@@ -4,41 +4,480 @@ kind: orientation
 area: none
 order: 0
 summary: "The thesis, the map, what transfers, what is new, the seven pitfalls, and the four-step roadmap. Read it first. No account needed."
-readingMinutes: 25
+readingMinutes: 30
 prerequisites: []
 talkBeats: ["1.3", "1.4", "3.1", "3.2", "3.3", "3.4"]
 bookChapters: [1, 2]
-draft: true
-updatedOn: 2026-09-16
-checkedOn: 2026-09-16
+draft: false
+updatedOn: 2026-10-03
+checkedOn: 2026-10-03
 staleAfterDays: 90
-artifacts: []
-outcomes: []
-selfCheck: []
-sources: []
+artifacts: [orientation-transfer-table]
+outcomes:
+  - id: thesis
+    text: State the difference between using AI and engineering systems that depend on it, and define owner in the talk's words.
+  - id: prototype-evidence
+    text: Explain why a compelling prototype is not evidence of production readiness.
+  - id: four-layers
+    text: Name the four layers of the anatomy diagram and place the six areas on it.
+  - id: what-transfers
+    text: Match each row of the transfer table to what it becomes.
+  - id: what-is-new
+    text: Name the seven competencies and the three steps of the ladder, and say why the competencies are unranked.
+  - id: pitfalls
+    text: Recognize the seven pitfalls as one mistake with seven faces.
+  - id: roadmap
+    text: Order the four roadmap steps and say what pays for each step up in autonomy.
+  - id: look-before-you-build
+    text: Say what the book's first two chapters ask you to decide before you build.
+selfCheck:
+  - id: q1-thesis
+    outcome: thesis
+    question: "Which sentence describes an AI engineer, in the talk's words?"
+    options:
+      - "Using AI makes you an AI engineer."
+      - "Engineering systems that depend on AI makes you an AI engineer."
+      - "Training models makes you an AI engineer."
+    correct: [1]
+    feedback:
+      - "Not yet. Using AI makes you an AI-enabled software engineer. Reread the thesis under Transfer connection."
+      - "Correct. The difference is not the tools. It is what you are responsible for."
+      - "Not yet. ML engineers typically focus on models and the pipelines that produce them. AI engineers typically focus on products around models. Reread the thesis under Transfer connection."
+  - id: q2-owner
+    outcome: thesis
+    question: "Who is the owner, in the talk's definition?"
+    options:
+      - "The vendor that operates the model API"
+      - "The engineer or team accountable for the delivered product's behavior and operating limits"
+      - "The user who approves each action the agent takes"
+    correct: [1]
+    feedback:
+      - "Not yet. The vendor operates the platform you use to build. In the product you deliver, your team owns the behavior and the operating limits. Reread the three-row table."
+      - "Correct. The talk defines owner once, and every area module uses the word that way."
+      - "Not yet. Human review can be part of either system. Ownership is accountability for the delivered product, not a click on a prompt. Reread the three-row table."
+  - id: q3-prototype
+    outcome: prototype-evidence
+    question: "A prototype answered every question in the demo. What does that establish, according to the talk?"
+    options:
+      - "The product is ready for production."
+      - "A useful path exists."
+      - "Traditional tests are now sufficient."
+    correct: [1]
+    feedback:
+      - "Not yet. A compelling prototype is not evidence of production readiness. Reread works.any() and works.all()."
+      - "Correct. A demo proves that a useful path exists. A product needs reliable behavior across its intended use, with a safe response when it cannot complete the task."
+      - "Not yet. Traditional tests are necessary but no longer sufficient. Reread the three commitments."
+  - id: q4-harness
+    outcome: four-layers
+    question: "Which boxes sit inside the harness on the anatomy diagram?"
+    options:
+      - "Orchestration"
+      - "Tools"
+      - "Observability"
+      - "Guardrails"
+      - "Identity and access"
+    correct: [0, 1, 3]
+    feedback:
+      - "Correct. Orchestration is one of the six harness boxes: loop, hooks, workflows."
+      - "Correct. Tools is one of the six harness boxes: files, shell, web, MCP."
+      - "Not yet. Observability sits in the across-runs band, below the run. Reread The map."
+      - "Correct. Guardrails is one of the six harness boxes: limits on actions."
+      - "Not yet. Identity and access is a per-run service, above the run. Reread The map."
+  - id: q5-transfers
+    outcome: what-transfers
+    question: "In the talk's transfer table, what does testing discipline become?"
+    options:
+      - "Harness design"
+      - "Tool design"
+      - "Eval discipline"
+      - "Least privilege for tools"
+    correct: [2]
+    feedback:
+      - "Not yet. Harness design is what decomposition and systems thinking become. Reread What transfers."
+      - "Not yet. Tool design is what interface design becomes. Reread What transfers."
+      - "Correct. The habit of checking before accepting a result transfers. The unit of measurement changes."
+      - "Not yet. Least privilege for tools is what security and least privilege become. Reread What transfers."
+  - id: q6-competencies
+    outcome: what-is-new
+    question: "How does the talk present the seven competencies?"
+    options:
+      - "Ranked by importance, with evals first"
+      - "In display order, unranked"
+      - "As a chronology from 2023 to 2026"
+    correct: [1]
+    feedback:
+      - "Not yet. No source ranks them. The talk lists these without ranking them. Reread What is new."
+      - "Correct. The competencies are unranked. The ladder is the only ordered element in that section, and it is a teaching frame."
+      - "Not yet. The years belong to the ladder, and they mark vocabulary in cited posts, not the invention of these practices. Reread What is new."
+  - id: q7-pitfalls
+    outcome: pitfalls
+    question: "What do the seven pitfalls have in common, in the talk's words?"
+    options:
+      - "Each is a missing framework."
+      - "Each is a demo mistaken for a product."
+      - "Each is a model that was retired."
+    correct: [1]
+    feedback:
+      - "Not yet. The seventh pitfall is reaching for a framework before understanding the loop, which is the opposite. Reread The seven pitfalls."
+      - "Correct. Every one is a symptom of the same thing: treating the demo as the product."
+      - "Not yet. Retirement is the Models pitfall's trigger, not the common thread. Reread The seven pitfalls."
+  - id: q8-roadmap
+    outcome: roadmap
+    question: "What pays for each step up in autonomy?"
+    options:
+      - "A bigger model"
+      - "A framework"
+      - "A check that catches what it breaks"
+    correct: [2]
+    feedback:
+      - "Not yet. Autonomy is earned by evals, one step at a time. Reread The roadmap."
+      - "Not yet. Learn the loop before a framework. Reread step 3, Own the harness."
+      - "Correct. Every step up is paid for by a check that catches what it breaks."
+  - id: q9-decision
+    outcome: look-before-you-build
+    question: "The book's Chapter 2 ends with a decision. Which one?"
+    options:
+      - "Which framework to adopt"
+      - "Proceed, restrict, or reject"
+      - "Which model to pin"
+    correct: [1]
+    feedback:
+      - "Not yet. Frameworks come after the loop, and the loop comes after the problem brief. Reread Look before you build."
+      - "Correct. Chapter 2 asks for users, baseline, acceptance criteria, failure costs, and a reasoned proceed, restrict, or reject decision."
+      - "Not yet. Model selection is the Models module. Chapter 2 asks whether a model belongs in the product at all. Reread Look before you build."
+sources:
+  - title: Beyond the Coding Agent, the talk repository
+    author: Stephen Sequenzia
+    date: "2026-09"
+    url: https://github.com/sequenzia/beyond-the-coding-agent
+    checkedOn: 2026-10-03
+    note: "Slides 1 to 26, the outline, and the Section 1 and Section 3 research files, at commit 323bc2e. Slides 7 to 19 supply the map's harness label, the six owner titles, and the Section 2 wrap line."
+  - title: Becoming an AI Engineer, the book blueprint
+    date: "2026-09"
+    checkedOn: 2026-10-03
+    note: "Chapters 1 and 2 of the blueprint, at commit b929064. The public link is pending."
+  - title: Software Is Changing (Again)
+    author: Andrej Karpathy
+    date: "2025-06-17"
+    url: https://www.latent.space/p/s3
+    checkedOn: 2026-09-15
+    note: "YC AI Startup School. Quoted from the Latent Space transcript. Date checked is the talk research's check date."
+  - title: Context engineering, a post on X
+    author: Andrej Karpathy
+    date: "2025-06-25"
+    url: https://x.com/karpathy/status/1937902205765607626
+    checkedOn: 2026-09-15
+    note: "The talk's 2025 marker on the vocabulary ladder. The headline sentence is confirmed through Simon Willison's post of 2025-06-27; the full thread was not read. Date checked is the talk research's check date."
+  - title: Building effective agents
+    org: Anthropic
+    author: Erik Schluntz and Barry Zhang
+    date: "2024-12-19"
+    url: https://www.anthropic.com/engineering/building-effective-agents
+    checkedOn: 2026-09-15
+    note: "Date checked is the talk research's check date."
+  - title: Some thoughts on LLMs and Software Development
+    author: Martin Fowler
+    date: "2025-08-28"
+    url: https://www.martinfowler.com/articles/202508-ai-thoughts.html
+    checkedOn: 2026-09-15
+    note: "Date checked is the talk research's check date."
+  - title: "Who Validates the Validators? Aligning LLM-Assisted Evaluation of LLM Outputs with Human Preferences"
+    author: Shreya Shankar, J.D. Zamfirescu-Pereira, Björn Hartmann, Aditya G. Parameswaran, Ian Arawjo
+    date: "2024-04-18"
+    url: https://arxiv.org/abs/2404.12272
+    checkedOn: 2026-09-15
+    note: "UIST 2024. Quoted from the abstract. Date checked is the talk research's check date."
+  - title: Agent Harness Engineering
+    author: Addy Osmani
+    date: "2026-04-19"
+    url: https://addyosmani.com/blog/agent-harness-engineering/
+    checkedOn: 2026-09-15
+    note: "The line quoting Viv Trivedy is Trivedy's; Osmani spread it. Date checked is the talk research's check date."
+  - title: "Harness engineering: leveraging Codex in an agent-first world"
+    org: OpenAI
+    date: "2026-02"
+    url: https://openai.com/index/harness-engineering/
+    note: "The talk's February 2026 marker on the vocabulary ladder, used here as a date only. The talk research could not fetch the page and marks it unverified, so it carries no checked-on date and nothing from it is quoted."
+  - title: "Codex as a platform: build on the open agent harness"
+    org: OpenAI Developers
+    date: "2026-08-19"
+    url: https://developers.openai.com/blog/codex-as-a-platform
+    checkedOn: 2026-09-15
+    note: "Date checked is the talk research's check date."
+  - title: Effective context engineering for AI agents
+    org: Anthropic
+    date: "2025-09-29"
+    url: https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents
+    checkedOn: 2026-09-15
+    note: "Date checked is the talk research's check date."
+  - title: AI Engineering in the real world
+    author: Gergely Orosz
+    date: "2025-03-25"
+    url: https://newsletter.pragmaticengineer.com/p/ai-engineering-in-the-real-world
+    checkedOn: 2026-09-15
+    note: "The Pragmatic Engineer. The Morgis and McNairn quotes and the field evidence. Date checked is the talk research's check date."
+  - title: "AI Evals: Everything You Need to Know"
+    author: Hamel Husain
+    date: "2026-09-01"
+    url: https://hamel.dev/blog/posts/evals-faq/
+    checkedOn: 2026-09-15
+    note: "Last modified date. Date checked is the talk research's check date."
+  - title: My AI Adoption Journey
+    author: Mitchell Hashimoto
+    date: "2026-02-05"
+    url: https://mitchellh.com/writing/my-ai-adoption-journey
+    checkedOn: 2026-09-15
+    note: "The six-step arc is paraphrased. Date checked is the talk research's check date."
 ---
+
+Orientation is the talk in reading form. It covers the ground of the talk's Section 1 and Section 3: the thesis, the map, what transfers, what is new, the pitfalls, and the roadmap. It adds the book's advice on what to decide before you build. If you attended the talk, skim the list below and jump to the self-check. If you did not, read it top to bottom. It takes about thirty minutes.
+
+In this module:
+
+1. The thesis. Using AI and engineering AI are different jobs. Owner is the word that separates them.
+2. A compelling prototype is not evidence of production readiness. works.any() is not works.all().
+3. The map. Four layers on one picture. Every box exists inside the coding agent you already use.
+4. What transfers. Six rows of things you already do, and what each one becomes.
+5. What is new. A ladder from prompt engineering to context engineering to harness engineering, and seven competencies, unranked.
+6. The seven pitfalls. Six from the areas and one about frameworks. All of them are the same mistake.
+7. The roadmap. Four steps, each paid for by a check.
+8. Look before you build. What the book's first two chapters ask you to decide first.
 
 ## Transfer connection
 
-This module is planned. It is not yet written. This page holds its place in the catalog until it is. It opens first.
+The talk opens with two sentences and closes with the same two.
 
-The talk's thesis, verbatim: "Using AI makes you an AI-enabled software engineer." "Engineering systems that depend on AI makes you an AI engineer." Owner means the engineer or team accountable for the delivered product's behavior and operating limits. The module will start from those two sentences and that definition.
+> Using AI makes you an AI-enabled software engineer.
+>
+> Engineering systems that depend on AI makes you an AI engineer.
+
+Everything in this program hangs on the second sentence. You already use AI. Most readers have watched a coding agent do something impressive this week. That experience is the starting point, not the destination. The destination is a system other people depend on, whose behavior you answer for.
+
+The talk defines one word early and uses it the same way for the rest of its 35 minutes of content: "Owner means the engineer or team accountable for the delivered product's behavior and operating limits." Keep that definition. Every area module in this program has a section called "When you are the owner", and it means exactly this.
+
+Your software engineering is not the thing that changes. In the talk's words: "Your software engineering skills are the foundation. The additional responsibility is measuring and controlling model-dependent behavior." The talk focuses on building products around foundation models. ML engineers typically focus on models and the pipelines that produce them. AI engineers typically focus on products around models. The roles overlap, including adaptation and fine-tuning. This program sits on the product side of that overlap.
+
+Where does the model-dependent behavior live? That is the question the talk's comparison table answers. The table is reproduced here word for word.
+
+| AI in your development workflow | AI in the product you deliver |
+|---|---|
+| You use model output to help build an artifact | Users depend on model output or decisions during operation |
+| You decide what to accept and ship | You design checks, approval steps, and failure handling |
+| Your coding-tool provider operates the agent platform | Your team owns the product's behavior and operating limits |
+
+Read the left column as a description of your week. You ask an agent for code. You read what comes back. You decide what to accept and ship. A vendor runs the platform, pays for its failures, and migrates you when a model retires. Now read the right column as a description of the job this program prepares you for. Users depend on model output during operation. You design the checks, the approval steps, and the failure handling. Your team owns the behavior and its operating limits. Human review can be part of either system. What changes is who is accountable for what the system does.
+
+The talk's takeaway for this beat: "Using AI changes how you build. Engineering AI changes what you are responsible for."
 
 ## Topics and learning outcomes
 
 <Outcomes />
 
-The module runs in this order:
+### A compelling prototype is not evidence
 
-- why a compelling prototype is not evidence of production readiness;
-- the six-area map, with the anatomy diagram;
-- what transfers: the six-row table;
-- what is new: the seven competencies, and the ladder from prompt engineering to context engineering to harness engineering;
-- the seven pitfalls;
-- the four-step roadmap;
-- the book's advice to look before you build.
+In June 2025, Andrej Karpathy put the whole problem in one line: "Demo is works.any(), product is works.all()". The talk reads the line this way: "A demo proves that a useful path exists. A product needs reliable behavior across its intended use, with a safe response when it cannot complete the task." That is not a claim of exhaustive correctness. Intended use has edges. A product has to behave inside them and fail safely at them.
 
-It draws on talk beats 1.3, 1.4, and 3.1 to 3.4 and on book chapters 1 and 2.
+The talk turns the line into three commitments. They are the spine of everything that follows, and they are quoted here as the talk states them.
+
+1. A compelling prototype is not evidence of production readiness. works.any() is not works.all().
+2. Traditional tests are necessary but no longer sufficient.
+3. Evaluation does not stop at deployment.
+
+Why are tests no longer sufficient? Because of where the control flow comes from. Anthropic distinguishes workflows, where models and tools run on predefined code paths, from agents, where the model directs its own process and tool use. The talk's framing of that distinction: "An agent adds model-selected actions to control flow. Ordinary code can still enforce permissions, limits, and other guarantees." A test checks one path you wrote. When the model chooses the path, you need something that measures behavior across the paths it might choose. That is why the talk examines the system around the model, and why ordinary code keeps its job of enforcing limits.
+
+Martin Fowler compares this moment to other engineering disciplines that build tolerances for variability. A structural engineer builds in tolerance for the factors she cannot measure. Fowler writes that LLMs may mark the point where software joins its engineering peers in "a world on non-determinism". Reliable behavior across intended use includes a safe response when the system cannot complete a task. That response is designed. It does not appear on its own.
+
+Fowler also records the small daily version of the problem. "I find LLMs are quite happy to say 'all tests green', yet when I run them, there are failures." The talk's rule for it: "Run the check before accepting the claim." A hook can enforce that check. A model reporting success cannot substitute for it. Scale that rule up from one coding session to a product and you have the evals area in one sentence.
+
+One more thing changes, and it is subtle. Shreya Shankar and colleagues studied how people grade model outputs and found that "users need criteria to grade outputs, but grading outputs helps users define criteria." They call it criteria drift. Some checks are known from the start. Others only appear when you watch the system fail. The talk's one-line version: "Watching failures can expose missing requirements." So the order you are used to, spec then tests then code, partly inverts. You learn part of the spec by watching the system.
+
+The book's first chapter makes the same point as a failure exercise. Its scenario: "A persuasive demonstration answers one question correctly but fails on outdated documentation and has no accountable owner." The chapter's completion evidence asks you to "explain what the demonstration did and did not establish." Hold on to that phrasing. A demonstration establishes that a useful path exists. It does not establish reliability across intended use, and it does not name an owner.
+
+### The map
+
+The talk puts the whole discipline on one picture. Here it is.
+
+<AnatomyMap variant="base" />
+
+Walk it from the inside out. There are four layers.
+
+1. **The model.** It decides what to do.
+2. **The harness** around it: instructions, context and memory, tools, orchestration, guardrails, verification. The diagram describes the harness as what "Carries state across turns".
+3. **Per-run services**, the platform services every run draws on: identity and access, security, data and knowledge.
+4. **Across-run services**, the ones that let you learn from and control many runs: observability, evaluations, governance.
+
+A goal comes in from a user, a trigger, or a schedule. The agent runs until a stopping condition is met. Who writes the stopping condition? You do.
+
+At the center, an agent is a model plus a harness. The line that stuck in spring 2026 came from Viv Trivedy, spread by Addy Osmani: "Agent = Model + Harness. If you're not the model, you're the harness." OpenAI's August 2026 definition fills in what the harness does. A capable agent "needs a way to understand a task, maintain context over time, inspect relevant information, call tools, expose progress, handle failures, request human approval when necessary, and return a useful result. That surrounding execution system is the harness."
+
+The talk's takeaway for the map: "Agent equals model plus harness. Everything that is not the model is what you engineer."
+
+The six areas of this program are regions of this picture. The mini-map at the top of each area module lights the boxes that module takes apart.
+
+- **Models**: the Model box.
+- **Context and knowledge**: Context and memory, Instructions, and Data and knowledge.
+- **Tools and extensibility**: the Tools box.
+- **Orchestration**: the Orchestration box, which is the loop, hooks, and workflows. It is the harness box that runs the other five.
+- **Verification and evals**: Verification inside the run, and Evaluations across runs.
+- **Operating it**: Identity and access, Security, Guardrails, Observability, and Governance.
+
+Every box on this picture exists inside the coding agent you used this morning. Someone built each one. Each area module follows the talk's three beats: when you are the user, what someone engineered, and when you are the owner. The talk ends its Section 2 by bringing the picture back with an amber badge on every box except Goal. The badge reads "yours". On the Model box it reads "yours to select". The <a href="/map">map page</a> shows both versions. The talk's wrap line: "Every box is something you can engineer, because most of it is engineering you already know how to do."
+
+#### The six areas in one pass
+
+Here is the tour the talk gives in its middle 25 minutes, compressed to one paragraph per area. Each paragraph names what you touched as a user, what someone engineered behind it, and the title the talk gives the owner's responsibility. The area modules take each one apart.
+
+**Models.** You have used the model picker and the reasoning-effort setting. Reasoning effort is a cost and latency dial. Behind the picker, the provider manages defaults, model-specific tuning, failover, price changes, and retirement handling. Model retirement creates migration work. The owner's title: "The model is a component you select, measure, and replace."
+
+**Context and knowledge.** You have read an instructions file and watched a session compact and drop something that mattered. Behind those surfaces someone engineered a system prompt, a compaction policy, a memory convention, and a retrieval strategy. Anthropic calls context "a finite resource with diminishing marginal returns". The owner's title: "Every token in the window is now your decision."
+
+**Tools and extensibility.** You have connected a tool server and answered a permission prompt. Behind the prompt is a policy, and behind each tool is a description a model reads every time. In the talk's words, "A tool is a contract between code and a model caller." A model can recommend approving an action, but "that recommendation does not establish permission". The owner's title: "You write the contract. You build the gate."
+
+**Orchestration.** You have used plan mode, subagents, hooks, compaction, resume, and fork. Underneath all of it is one loop: gather context, take action, verify, repeat. Someone decided when the loop stops, what carries between turns, when it compacts, when it spawns a subagent, and where a hook fires. The owner's title: "Start with the workflow. Own the loop."
+
+**Verification and evals.** You have watched an agent run the repository's checks: write, run, read the failure, retry. It works because the repository already contains ground truth. Behind it, someone decided which checks run inside the loop and how behavior is measured across many runs outside it. The owner's title: "Verify one. Evaluate many. Keep evaluating."
+
+**Operating it.** You have run a usage command, worked inside a sandbox, and signed in through OAuth to connect a tool. Behind them are observability, guardrails, security, identity, and governance, plus a trust and safety team you have never met. The owner's title: "You own the approval process."
+
+Six times over, the pattern is the same. You were the user of something someone engineered. When you are the owner, that engineering is yours.
+
+### What transfers
+
+Everything in the talk's six areas is engineering. In the talk's words: "Most of it is engineering you already do." The six-row table says what you already do and what it becomes. It is the talk's own framing, and the card below reproduces it verbatim.
+
+<Artifact id="orientation-transfer-table" level={4} />
+
+Rows 1 to 3 are transformations. Rows 4 to 6 are near-identities, and the wording "the same" on the right makes that visible.
+
+**Decomposition and systems thinking transfer whole.** The harness is a systems design problem. Matt Morgis of Elsevier, profiled by Gergely Orosz: "For experienced engineers who know how to break problems down, AI tools are an incredible force multiplier."
+
+**Interface design becomes tool design.** The same instincts about contracts, naming, granularity, and error handling. The caller changed. It now reads the description every time and can still get it wrong.
+
+**Testing discipline extends to evals.** The habit of checking before accepting a result transfers. Ordinary tests remain part of the machinery. What changes is the unit of measurement. A test checks one path. An eval measures behavior across a population of cases.
+
+Observability transfers with a new schema: traces, spans, p95s. Security transfers: least privilege now applies to tools. Operations transfer: cost, latency, incident response, rollback. The units changed to tokens. Take "the same" as a near-identity, not an identity. The habits carry over. The failure modes widen, because the system now takes actions you did not script.
+
+Field evidence, from Orosz's March 2025 profiles: engineers at incident.io, Sentry, Elsevier, and others crossed over in months, not years. One twenty-five-year veteran became his company's generative AI expert in about two months, by reading and prototyping. Treat that as one person's experience, not a schedule.
+
+The talk's takeaway: "You are not starting over. You are adding a layer."
+
+This program uses the table as its spine. Each area module opens with a Transfer connection section that expands one or more rows and says what stays the same and what changes. The assignment is the program's own, recorded in its decisions log, because six rows do not map one to one onto six areas:
+
+- Models expands testing discipline, because choosing and measuring a model is a testing problem.
+- Context and knowledge expands decomposition and systems thinking.
+- Tools and extensibility expands interface design.
+- Orchestration expands decomposition and systems thinking.
+- Verification and evals expands testing discipline.
+- Operating it expands observability, security and least privilege, and operations.
+
+### What is new
+
+The talk gives the new part a ladder and a list.
+
+The ladder has three steps, each with a year beneath it: prompt engineering (2023), context engineering (2025), harness engineering (2026). The talk's one line under it: "Each one absorbs the last." The talk is careful about what the ladder is: "This is a teaching frame for expanding responsibility. The years mark vocabulary in cited posts, not the invention of these practices." Prompt engineering is the 2023 vocabulary. Context engineering is the 2025 vocabulary: the talk dates it to Karpathy's post of June 2025 and Anthropic's article of September 2025, which defines it as "the set of strategies for curating and maintaining the optimal set of tokens (information) during LLM inference", as against prompt engineering, "methods for writing and organizing LLM instructions". Harness engineering is the 2026 vocabulary: the talk dates it to OpenAI's post of February 2026 and Osmani's post of April 2026, and OpenAI's definition of August 2026 follows them. A harness, in Osmani's words, is "every piece of code, configuration, and execution logic that isn't the model itself".
+
+The list is what you add. The talk lists these without ranking them. The order below is the talk's display order.
+
+- Model behavior intuition. Informed by reading outputs.
+- Context engineering.
+- Tool design, for a caller that reads the description every time.
+- Harness and loop design.
+- Evals and error analysis.
+- AI security. The attack surface is the model's reasoning.
+- Cost and latency as design constraints.
+
+No source ranks these seven. If the program ever adopts an order of its own, this page will say so and label it as the program's. Until then, read them as a set.
+
+The one most engineers find hardest, from Ross McNairn of Wordsmith, via Orosz: "Getting comfortable with evaluations and iterating on non-deterministic outputs is the biggest challenge most devs have."
+
+The talk's takeaway: "The new skill is not prompting. It is being comfortable measuring a system you cannot fully specify."
+
+Each competency has a home in this program. The closing self-assessment rates you on them area by area, so the mapping is worth knowing now. Models covers model behavior intuition and cost and latency. Context and knowledge covers context engineering. Tools and extensibility covers tool design. Orchestration covers harness and loop design. Verification and evals covers evals and error analysis. Operating it covers AI security and cost and latency. Cost and latency appears twice by design, because the talk spreads it across selection, cache economics, budgets, and production metrics.
+
+### The seven pitfalls
+
+Each area module ends its owner section with one pitfall, and each failure exercise plants that pitfall in an artifact for you to find. The talk collects the six on one slide. Here they are, word for word.
+
+1. Models: a hardcoded model ID with no eval suite behind it.
+2. Context: adding instead of curating.
+3. Tools: copying the API surface without evaluating task fit.
+4. Orchestration: multi-agent before a workflow was tried.
+5. Evals: a generic judge instead of error analysis. Trusting the success claim without checking the result.
+6. Operating: the lethal trifecta, assembled one integration at a time.
+
+Each line is the short form of a fuller sentence from the owner section of its area. Models: the deprecation notice arrives with a replacement you have never measured. Context: a big window is not permission to fill it. Tools: evaluate granularity, descriptions, payloads, and safe boundaries against representative tasks before you mirror an API. Orchestration: a human is waiting, latency is a product requirement, and "an unbounded loop is an outage". Evals: check the result and inspect the trace, because a success sentence in a transcript is not an outcome. Operating: count capabilities, not products, because a web fetch can already communicate externally and one integration can supply more than one corner of the trifecta.
+
+The seventh is not on the map. In the talk's words: "One more that is not on the map: reaching for a framework before understanding the loop." Anthropic's warning is that frameworks "often create extra layers of abstraction that can obscure the underlying prompts and responses, making them harder to debug." Learn the loop first. A framework you adopt after that is a convenience you can evaluate. A framework you adopt before it is a black box you depend on.
+
+Read the six again and notice what they share. "Every one is a symptom of the same thing: treating the demo as the product." A hardcoded model ID worked in the demo. An over-filled context window worked in the demo. A tool set that mirrors an API worked in the demo. A multi-agent design, a generic judge, a web fetch bolted onto a system that already reads private data: each worked once. works.any() shipped as works.all().
+
+The talk's takeaway: "Every pitfall on this list is a demo mistaken for a product."
+
+### The roadmap
+
+Four steps. The step names and their sublines are the talk's, verbatim.
+
+1. **Look before you build.** Monday: review 20 to 50 outputs by hand.
+2. **Start constrained.** One call. Then a workflow. Then a loop, only when it earns it.
+3. **Own the harness.** Prompts, context window, control flow. Learn the loop before a framework.
+4. **Add autonomy as your evals earn it.**
+
+Step 1 is the one you can do this week. Take whatever AI feature you are closest to. Review twenty to fifty of its outputs by hand. Write down what is wrong with each one. In the talk's words: "That is your first eval. Do it before any infrastructure." Hamel Husain's version is the single best "do this Monday" line in the research behind the talk: "Start with error analysis, not infrastructure. Spend 30 minutes manually reviewing 20-50 LLM outputs."
+
+Step 2 is Anthropic's advice, which the talk quotes: "we recommend finding the simplest solution possible". For many applications, "optimizing single LLM calls with retrieval and in-context examples is usually enough", and you should consider "adding complexity only when it demonstrably improves outcomes." A single call with retrieval and examples. Then a workflow on predefined code paths. Then a loop, only when it earns it. Step 2 is a place you may stay. A constrained workflow that meets its requirement is a finished system, not a stop on the way to an agent.
+
+Step 3 is ownership of the things the vendor chose for you while you were the user: your prompts, your context window, your control flow. Learn the loop before you adopt a framework for it, so the framework is a convenience you can evaluate rather than a black box you depend on.
+
+Step 4 is the rule that ties the roadmap to the evals area. "Every step up is paid for by a check that catches what it breaks." Autonomy is not a setting you turn up. It is earned, one verifier or one eval at a time.
+
+The talk shows one person's climb as the shape of the roadmap: Mitchell Hashimoto's own year, in six steps, each earned by the last. Paraphrased: chat, then an agent reproducing manual work, then background agents, then delegating what he was confident in, then building verification tools, then continuous operation. His story is about adopting AI tools, so take it as the shape of a climb and not as evidence about shipping a product.
+
+The talk's takeaway: "Autonomy is earned by evals, one step at a time."
+
+The closing module of this program turns these four steps into a plan for your own feature. It rates you on what transfers and what is new, area by area, and writes the four steps out for the areas with the largest gap.
+
+### Look before you build
+
+The book that pairs with the talk is a blueprint for a textbook. It is written for experienced software engineers who are new to machine learning. Its intended reader "can already program, test, debug, work with APIs and databases, and deploy ordinary applications." The blueprint says what the book teaches in one sentence: "The book teaches experienced software engineers to take responsibility for systems whose behavior depends on foundation models." It also says what it does not promise. Its standard is "an educational standard chosen for the book. It is not a universal credential or a promise of employment." This program adopts both the audience statement and the limit.
+
+Two chapters feed this orientation.
+
+**Chapter 1, What an AI Engineer Is Responsible For.** Its transfer statement: "Architecture, ownership, interface design, and operational accountability remain the starting point." Its four topics, as the blueprint lists them:
+
+- Distinguish using AI during software development from building software whose behavior depends on AI.
+- Map the overlapping responsibilities of software engineers, AI engineers, ML engineers, data engineers, researchers, and domain specialists.
+- Introduce the system lifecycle: problem definition, evidence, implementation, operation, and improvement.
+- Explain why a successful demonstration establishes only limited evidence of capability.
+
+Its workshop asks you to annotate a support application's architecture and assign responsibility "for data, decisions, measurements, user outcomes, and incidents." Its completion evidence is "an ownership map that covers model behavior and the surrounding system". Notice how closely that tracks the talk's definition of owner. Responsibility is assigned box by box. Nothing on the map is nobody's.
+
+**Chapter 2, Choosing a Problem Worth Solving.** Its transfer statement: "Requirements analysis becomes the basis for deciding which uncertainty the product can tolerate." Its four topics:
+
+- Translate a user need into a bounded task with observable outcomes.
+- Compare conventional software, search, classical ML, and foundation-model approaches.
+- Identify error costs, acceptable latency, human review needs, data availability, and circumstances where automation should stop.
+- Separate business success from model metrics and convenient proxies.
+
+Its failure exercise is the one to remember: "A team maximizes automated ticket closure while customers repeatedly reopen incorrectly resolved tickets." The metric went up. The product got worse. The proxy was convenient and wrong. Its completion evidence: "Specify users, baseline, acceptance criteria, failure costs, and a reasoned proceed, restrict, or reject decision."
+
+Put the two chapters together with the roadmap's first step and you have what to do before you build anything.
+
+1. Pick the AI feature you are closest to, or the one you are about to be asked for.
+2. Review twenty to fifty of its outputs by hand. Write down what is wrong with each one.
+3. Write the problem brief: who the users are, what the baseline is without a model, what acceptance means, and what each kind of failure costs.
+4. Decide: proceed, restrict, or reject. A reasoned reject is a valid outcome. So is a restricted version that a conventional baseline or a human review step makes safe.
+
+That is "look before you build". The rest of this program is what to do when the answer is proceed.
+
+### How this program works
+
+Every module after this one follows one template, in this order: Transfer connection, Topics and learning outcomes, Workshop, Failure exercise, an optional lab, Completion evidence, and Sources. The Transfer connection starts from something you already do. The Topics section carries the concepts, each with a stated outcome, a coding-agent worked example, and a sourced public incident or first-hand account. The Workshop is an analysis exercise on provided artifacts, with no code to run. You write a short response and it is saved to your account. The Failure exercise plants the area's pitfall in an artifact and asks you to find it. The explanation appears after you save a response. Completion evidence is a passed self-check plus a saved workshop response. Sources list every source with its date.
+
+Artifacts carry a label: captured from the author's own sessions, synthetic and written for the exercise with the failure planted on purpose, or public and quoted from a published source. Every artifact and every vendor fact carries the date it was last checked, and a card shows a notice when that date is more than ninety days old. Read the label before you decide how far to generalize from an artifact.
+
+Reading never needs an account. Signing in adds three things: your workshop and failure responses are saved, your self-check results persist, and the catalog shows your status on each module. Orientation is the exception. Its self-check stays in your browser for everyone, and you mark it complete by hand with the control at the end of this page.
+
+Where to go next. Foundations is recommended before Verification and evals. The six areas follow the talk's order: Models, Context and knowledge, Tools and extensibility, Orchestration, Verification and evals, Operating it. The closing self-assessment and the electives come last. The <a href="/modules">catalog</a> lists every module with its reading time and prerequisites. Prerequisites are recommendations, never locks.
 
 ## Completion evidence
 

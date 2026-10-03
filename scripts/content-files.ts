@@ -65,14 +65,47 @@ export function walkScanFiles(root: string, display = ''): Array<[path: string, 
   return out;
 }
 
-/** Names in <root>/<sub> with the extension, skipping files that start with `_` or `.`, sorted. */
+/**
+ * Every file Astro's glob loader would load from <root>/<sub>, as paths relative to that directory, sorted.
+ * The loaders use `**\/[^_]*.<ext>` (src/content.config.ts), which tinyglobby reads as: any depth, including
+ * directories that start with `_`, and dotfiles too; only a file whose own name starts with `_` is skipped
+ * (verified against tinyglobby 2026-10-03). The check lists the same set so a file in a subdirectory or a
+ * dotfile is seen and rejected (misplacedContentFile) instead of shipping as an entry no route serves
+ * (docs/decisions.md, 2026-10-03, Phase 1 review round 2). The SCAN_SKIP_NAMES directories are skipped here
+ * as in the whole-tree scans.
+ */
 export function listContentFiles(root: string, sub: ContentSubdir, ext: string): string[] {
   const dir = join(root, sub);
   if (!existsSync(dir)) return [];
-  return readdirSync(dir)
-    .filter((name) => name.endsWith(ext) && !name.startsWith('_') && !name.startsWith('.'))
-    .filter((name) => statSync(join(dir, name)).isFile())
-    .sort();
+  const out: string[] = [];
+  const walk = (rel: string) => {
+    for (const name of readdirSync(join(dir, rel))) {
+      if (SCAN_SKIP_NAMES.has(name)) continue;
+      const relPath = rel ? `${rel}/${name}` : name;
+      const stat = statSync(join(dir, relPath));
+      if (stat.isDirectory()) walk(relPath);
+      else if (stat.isFile() && name.endsWith(ext) && !name.startsWith('_')) out.push(relPath);
+    }
+  };
+  walk('');
+  return out.sort();
+}
+
+/**
+ * Why a listed file is not a usable entry, or null. A nested file gets an id with a slash, a dotfile an id that
+ * starts with a dot; neither is a slug any route serves, so both are errors for the check and skipped by the
+ * drift review. A scratch file keeps its `_` prefix and is never listed.
+ */
+export function misplacedContentFile(sub: ContentSubdir, name: string): string | null {
+  const base = name.split('/').at(-1) ?? name;
+  const id = name.replace(/\.[a-z]+$/, '');
+  if (name.includes('/')) {
+    return `nested file; Astro loads it as "${id}", an id no route serves. ${sub} files sit directly under ${sub}/; a scratch file starts with _`;
+  }
+  if (base.startsWith('.')) {
+    return `dotfile; Astro loads it as "${id}", an id no route serves. A scratch file starts with _`;
+  }
+  return null;
 }
 
 export function readContentFile(root: string, sub: ContentSubdir, name: string): ContentFile {

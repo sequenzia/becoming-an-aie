@@ -16,11 +16,7 @@ export function moduleHref(slug: string, headingId?: string): string {
 }
 
 /**
- * Only same-site relative paths are accepted as a return target. S ships this copy first;
- * it becomes a re-export from src/lib/guard.ts once B lands (section 14.1).
+ * Only same-site relative paths are accepted as a return target. One implementation, in src/lib/guard.ts;
+ * S shipped a copy here in Phase 0 and B made it this re-export in Phase 1 (section 14.1, docs/decisions.md).
  */
-export function safeNextPath(candidate: string | null | undefined): string {
-  if (!candidate) return '/account';
-  if (!candidate.startsWith('/') || candidate.startsWith('//') || candidate.includes('\\') || candidate.includes('://')) return '/account';
-  return candidate;
-}
+export { safeNextPath } from './guard';

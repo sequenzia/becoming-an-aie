@@ -2,11 +2,12 @@
 // Phase 0 checks on the landing page and on the middleware contract (blueprint sections 6.4, 8, 12.3;
 // acceptance rows AC-5.1.1, AC-5.1.2, AC-5.1.5, AC-5.1.6, NFR-6.1.1, NFR-6.4.3). Read-only: nothing here
 // submits the notify form, so the per-IP count in notify.spec.ts stays exact.
+import { createHmac } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { expect, test } from '@playwright/test';
 import matter from 'gray-matter';
-import { E2E_BASE_URL } from './env';
+import { E2E_BASE_URL, E2E_ENV } from './env';
 
 /** The two thesis sentences, verbatim from the talk (docs/research/talk-kb.md A.1). */
 const THESIS = [
@@ -141,6 +142,30 @@ test.describe('server contract', () => {
     expect(html).toContain('That page does not exist.');
     expect(html).toContain('href="/modules"');
     expect((html.match(/<h1/g) ?? []).length).toBe(1);
+  });
+
+  test('an anonymous module page varies by cookie and is not marked publicly cacheable (Phase 1 review round 2)', async ({ request }) => {
+    const res = await request.get('/modules/models');
+    expect(res.status()).toBe(200);
+    const headers = res.headers();
+    expect(headers['vary'] ?? '').toMatch(/cookie/i);
+    expect(headers['cache-control'] ?? '').not.toMatch(/public/);
+  });
+
+  test('a signed but unknown session token makes /modules private, no-store with the expiring cookie (Phase 1 review round 2)', async ({ request }) => {
+    // The cookie Better Auth sets is the token, a dot, and a base64 HMAC-SHA256 of the token under the secret
+    // (better-call signCookieValue). A correctly signed token for no session row reaches the session lookup,
+    // which answers null and sets the expiring cookies; that response must never carry the catalog's public cache.
+    const token = 'e2e-no-such-session';
+    const signature = createHmac('sha256', E2E_ENV.BETTER_AUTH_SECRET).update(token).digest('base64');
+    const cookie = `better-auth.session_token=${encodeURIComponent(`${token}.${signature}`)}`;
+    const res = await request.get('/modules', { headers: { cookie } });
+    expect(res.status()).toBe(200);
+    const headers = res.headers();
+    expect(headers['cache-control']).toBe('private, no-store');
+    expect(headers['vary'] ?? '').toMatch(/cookie/i);
+    const setCookies = res.headersArray().filter((h) => h.name.toLowerCase() === 'set-cookie').map((h) => h.value);
+    expect(setCookies.some((c) => c.startsWith('better-auth.session_token=') && /max-age=0/i.test(c))).toBe(true);
   });
 
   test('/modules without a session is publicly cacheable for five minutes and carries the security headers', async ({ request }) => {

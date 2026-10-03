@@ -7,7 +7,7 @@ import { KIND_ORDER, MODULE_SLUGS } from './content-schema';
 import { compareModules, getAllModules, getPublishedModule, getPublishedModules } from './modules';
 
 describe('modules over astro:content', () => {
-  test('getAllModules returns the fourteen skeletons in catalog order', async () => {
+  test('getAllModules returns the fourteen modules in catalog order', async () => {
     const modules = await getAllModules();
     expect(modules).toHaveLength(14);
     // MODULE_SLUGS is written in catalog order (content-schema.ts), so the sorted ids must equal it exactly.
@@ -25,12 +25,18 @@ describe('modules over astro:content', () => {
     expect(shuffled.sort(compareModules).map((m) => m.id)).toEqual([...MODULE_SLUGS]);
   });
 
-  test('every Phase 0 module is a draft and resolves by slug', async () => {
+  test('orientation is published and the thirteen Phase 2 and 3 modules are drafts', async () => {
     const modules = await getAllModules();
-    expect(modules.every((m) => m.data.draft)).toBe(true);
+    // Phase 1 (blueprint section 1.3): orientation is real content with draft: false. Foundations, the six
+    // area modules (models is the fixture), the closing module, and the five electives stay drafts.
+    const drafts = modules.filter((m) => m.data.draft).map((m) => m.id);
+    expect(drafts).toHaveLength(13);
+    expect(drafts).not.toContain('orientation');
+    expect(modules.find((m) => m.id === 'orientation')?.data.draft).toBe(false);
     // vitest.config.ts sets PREVIEW_DRAFTS, so drafts count as published here, as in the e2e build.
     expect(await getPublishedModules()).toHaveLength(14);
     expect((await getPublishedModule('orientation'))?.id).toBe('orientation');
+    expect((await getPublishedModule('models'))?.id).toBe('models');
   });
 
   test('a slug outside MODULE_SLUGS is null before any content-layer lookup', async () => {

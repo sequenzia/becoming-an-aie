@@ -1,11 +1,84 @@
 ---
-// placeholder, B replaces (blueprint section 6.5). Returns 404 when the build disabled accounts (section 1.3).
+// src/pages/sign-in.astro
+// Sign-in with GitHub or Google (blueprint section 6.5). On demand, not guarded. Returns 404 when the
+// build disabled accounts (section 14.7). A signed-in learner is sent on to the safe return path. The
+// buttons need JavaScript: the bundled script below starts the OAuth flow through the Better Auth client,
+// and Better Auth sends the browser back here with ?error=<code> when a callback fails.
 import Base from '../layouts/Base.astro';
+import PageHeader from '../components/site/PageHeader.astro';
 import { env } from '../lib/env';
+import { safeNextPath } from '../lib/guard';
+import { applyPrivateCache } from '../lib/headers';
+import { signInMessage } from '../lib/sign-in-copy';
 
 if (!env.featureAccounts) return new Response(null, { status: 404 });
+
+const next = safeNextPath(Astro.url.searchParams.get('next'));
+if (Astro.locals.user) return Astro.redirect(next, 302);
+
+const message = signInMessage(Astro.url.searchParams.get('error'));
+// The page depends on the query and on the session, so no cache may keep it.
+applyPrivateCache(Astro.response.headers);
 ---
 
-<Base title="Sign in">
-  <div data-placeholder="B:src/pages/sign-in.astro"></div>
+<Base title="Sign in" description="Sign in with GitHub or Google to save your progress across devices.">
+  <PageHeader kicker="Account" title="Sign in" />
+  <div class="prose">
+    {message && <p class="notice notice-neutral" role="alert">{message}</p>}
+    <p>
+      Sign in to save your progress, your workshop responses, and your self-assessment plan across devices. Reading
+      the modules needs no account.
+    </p>
+    <div class="sign-in-actions" data-next={next}>
+      <button class="btn btn-primary" type="button" data-provider="github">Sign in with GitHub</button>
+      <button class="btn btn-primary" type="button" data-provider="google">Sign in with Google</button>
+    </div>
+    <p class="small secondary" id="sign-in-status" role="status" aria-live="polite"></p>
+    <p>
+      We store your provider account id, your email, and your display name. Nothing else. Read the
+      <a href="/privacy">privacy notice</a>.
+    </p>
+    <noscript>
+      <p>Sign-in needs JavaScript. Turn it on for this site and reload the page.</p>
+    </noscript>
+  </div>
 </Base>
+
+<style>
+  .sign-in-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+</style>
+
+<script>
+  import { authClient } from '../lib/auth-client';
+
+  // errorCallbackURL carries no query: Better Auth appends ?error=<code> itself, and a fixed error
+  // parameter would shadow it (blueprint fact 0.2.7). next was passed through safeNextPath server-side.
+  const actions = document.querySelector<HTMLElement>('.sign-in-actions');
+  const status = document.getElementById('sign-in-status');
+  const next = actions?.dataset.next || '/account';
+
+  // The button is never disabled: disabling the focused element drops focus to body, and a keyboard or
+  // screen-reader user would be left with no focused control when the call fails. aria-busy guards
+  // re-entry instead, the way the response forms do, so focus stays on the button and the status line
+  // is announced from where the learner is.
+  for (const button of document.querySelectorAll<HTMLButtonElement>('button[data-provider]')) {
+    button.addEventListener('click', async () => {
+      if (button.getAttribute('aria-busy') === 'true') return;
+      const provider = button.dataset.provider === 'google' ? 'google' : 'github';
+      button.setAttribute('aria-busy', 'true');
+      if (status) status.textContent = '';
+      try {
+        const { error } = await authClient.signIn.social({ provider, callbackURL: next, errorCallbackURL: '/sign-in' });
+        if (error && status) status.textContent = 'Sign-in did not start. Try again.';
+      } catch {
+        if (status) status.textContent = 'Sign-in did not start. Try again.';
+      } finally {
+        button.removeAttribute('aria-busy');
+      }
+    });
+  }
+</script>

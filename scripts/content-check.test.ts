@@ -161,6 +161,28 @@ describe('content-check: invalid variants', () => {
 
   const lineOf = (text: string, needle: string) => text.split('\n').findIndex((l) => l.includes(needle)) + 1;
 
+  test('a file in a subdirectory or a dotfile, which Astro would load, is an error; a _ scratch file is not listed (Phase 1 review round 2)', () => {
+    // src/content.config.ts loads `**\/[^_]*.mdx`: any depth, dotfiles included, only a `_` file name skipped. A
+    // nested copy used to pass the check unseen, build, and reach the catalog as /modules/drafts/models, a 404.
+    const dir = tempRoot({
+      'modules/models.mdx': validModule(),
+      'modules/drafts/models.mdx': validModule(),
+      'modules/_drafts/models.mdx': validModule(),
+      'modules/.models.mdx': validModule(),
+      'modules/_scratch.mdx': 'not frontmatter at all',
+      'modules/drafts/_scratch.mdx': 'not frontmatter at all',
+    });
+    const r = run(dir);
+    expect(r.status).toBe(1);
+    expect(has(r.errors, 'modules/drafts/models.mdx', 'nested file; Astro loads it as "drafts/models", an id no route serves')).toBe(true);
+    expect(has(r.errors, 'modules/_drafts/models.mdx', 'nested file; Astro loads it as "_drafts/models"')).toBe(true);
+    expect(has(r.errors, 'modules/.models.mdx', 'dotfile; Astro loads it as ".models"')).toBe(true);
+    expect(r.errors.some((f) => f.file.includes('_scratch'))).toBe(false);
+    // One error per misplaced file, nothing else about it, and the top-level file is still checked.
+    expect(r.errors.filter((f) => f.file === 'modules/drafts/models.mdx')).toHaveLength(1);
+    expect(r.errors.filter((f) => f.file === 'modules/models.mdx')).toEqual([]);
+  });
+
   test('an em-dash anywhere under the root is an error naming the file and line', () => {
     const emDash = String.fromCharCode(0x2014);
     const text = validModule(`\n\nA line with an em-dash ${emDash} here.\n`);

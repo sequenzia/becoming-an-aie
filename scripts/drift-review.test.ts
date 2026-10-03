@@ -87,7 +87,7 @@ describe('drift-review', () => {
   test('draft modules are marked (draft)', () => {
     const r = run(['--dir', join(ROOT, 'src', 'content'), '--today', '2027-06-01']);
     expect(r.status).toBe(0);
-    expect(r.stdout).toMatch(/^orientation \(draft\) \(checkedOn \d{4}-\d{2}-\d{2}, \d+ days\)$/m);
+    expect(r.stdout).toMatch(/^foundations \(draft\) \(checkedOn \d{4}-\d{2}-\d{2}, \d+ days\)$/m);
   });
 
   test('an unreadable directory exits 2', () => {

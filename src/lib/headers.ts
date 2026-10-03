@@ -9,9 +9,11 @@ export function applySecurityHeaders(headers: Headers) {
 
 /**
  * Adds Cookie to Vary. Values already there stay, Cookie is written once, and a `*` is left alone because it
- * already covers every header. A page and the middleware may both call this on one response.
+ * already covers every header. A page and the middleware may both call this on one response. Exported for the
+ * module page, whose anonymous response carries no cache directive but still varies by the session cookie
+ * (docs/decisions.md, 2026-10-03, Phase 1 review round 2).
  */
-function varyOnCookie(headers: Headers) {
+export function varyOnCookie(headers: Headers) {
   const values = (headers.get('Vary') ?? '')
     .split(',')
     .map((v) => v.trim())

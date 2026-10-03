@@ -1,5 +1,60 @@
 ---
-// placeholder, A replaces (blueprint section 1.1)
+// src/components/module/PrerequisiteNotice.astro
+// Lists only the prerequisites the learner has not completed (blueprint 10.4, AC-5.2.4). Signed out,
+// every prerequisite is unmet; signed in, those whose progress row is not completed. Renders nothing
+// when none is unmet. The notice reads as a recommendation, never a block: every module opens.
+// The left edge takes the prerequisite's own area color when every unmet prerequisite shares one
+// area; otherwise the neutral edge. Each name is Bold in the notice's text color, not in its area text
+// color: at 16px the area colors are small text, and blue on the dark surface is 2.56:1 and pink 4.09:1
+// against the 4.5:1 that WCAG 1.4.3 asks for (docs/decisions.md, 2026-10-03). The edge carries the area.
+import Notice from '../site/Notice.astro';
+import { moduleHref } from '../../lib/paths';
+import type { PrerequisiteSummary } from '../../lib/types';
+
+export interface Props {
+  prerequisites: PrerequisiteSummary[];
+}
+
+const { prerequisites } = Astro.props;
+const learner = Astro.locals.learner;
+const unmet = learner
+  ? prerequisites.filter((p) => learner.progressBySlug[p.slug]?.status !== 'completed')
+  : prerequisites;
+const areas = new Set(unmet.map((p) => p.area));
+const singleArea = areas.size === 1 && !areas.has('none') ? unmet[0]!.area : null;
 ---
 
-<div data-placeholder="A:src/components/module/PrerequisiteNotice.astro"></div>
+{unmet.length > 0 && (
+  <div class:list={['prerequisite-notice', singleArea && `edge-${singleArea}`]}>
+    <Notice label="Before this module" ariaLabel="Prerequisite" neutral={singleArea === null}>
+      <p>
+        {learner ? 'Still open on your account: ' : 'Read '}
+        {unmet.map((p, i) => (
+          <>
+            {i > 0 && (i === unmet.length - 1 ? ' and ' : ', ')}
+            <a href={moduleHref(p.slug)}><b>{p.title}</b></a>
+          </>
+        ))}
+        {learner ? '.' : ' first.'}
+        {' '}Each one is a recommendation, never a lock. Every module opens.
+      </p>
+    </Notice>
+  </div>
+)}
+
+<style>
+  .edge-models :global(.notice) {
+    border-left-color: var(--color-blue-text);
+  }
+  .edge-context :global(.notice),
+  .edge-tools :global(.notice),
+  .edge-orchestration :global(.notice) {
+    border-left-color: var(--color-pink-text);
+  }
+  .edge-evals :global(.notice) {
+    border-left-color: var(--color-green-text);
+  }
+  .edge-operating :global(.notice) {
+    border-left-color: var(--color-amber-text);
+  }
+</style>

@@ -1,2 +1,73 @@
 /* src/styles/islands.css */
-/* placeholder, D replaces (blueprint section 10.4). Self-check and self-assessment styles. */
+/* Self-check and self-assessment styles (blueprint sections 10.4, 10.5, 14.4). Every class here is
+   prefixed self-check- or assessment-, plus the one 10.4 selector rating-group. Tokens only; the words
+   carry the state and the color restates it (docs/research/design-tokens.md, section 5). Imported by the
+   two islands, so any page that renders one gets the sheet. */
+
+/* self-check */
+.self-check { display: grid; gap: var(--space-4); margin-block-start: var(--space-4); }
+.self-check-note { font-size: var(--size-small); color: var(--color-text-secondary); }
+.self-check-question {
+  /* Rows are spaced by margins, not gap, so the empty feedback region below the button takes no space while it
+     stays rendered: a live region is announced only when it is in the accessibility tree before its first
+     update, and display: none would remove it (ARIA 1.2, aria-live). */
+  display: grid;
+  background: var(--color-surface);
+  border: 2px solid transparent;
+  border-radius: var(--radius-card);
+  padding: var(--space-4) 1.25rem;
+  font-size: var(--size-compact);
+  line-height: 1.5;
+}
+.self-check-title { margin: 0; }
+.self-check-hint { display: block; font-size: var(--size-compact); color: var(--color-text-secondary); margin-block-end: var(--space-2); }
+.self-check-options legend { padding: 0; }
+.self-check-question[data-state="correct"] { background: var(--color-green-tint); border-color: var(--color-green-text); }
+.self-check-question[data-state="incorrect"] { background: var(--color-amber-tint); border-color: var(--color-amber-text); }
+.self-check-question[data-state="correct"] .option-row[data-selected="true"] { border-color: var(--color-green-text); }
+.self-check-question[data-state="incorrect"] .option-row[data-selected="true"] { border-color: var(--color-amber-text); }
+.self-check-question .btn { justify-self: start; }
+/* A neutral page (orientation) sets no data-area, so --color-area is transparent and the area pill would be bare
+   text with no fill or stroke. The check buttons take the primary look there, as the page's other button does. */
+body:not([data-area]) .self-check .btn-area { background: var(--color-text); color: var(--color-bg); }
+body:not([data-area]) .self-check .btn-area:active { background: var(--color-text-secondary); }
+.self-check-question > * + * { margin-block-start: var(--space-3); }
+.self-check-feedback:empty { margin-block-start: 0; }
+.self-check-feedback p + p { margin-block-start: var(--space-2); }
+.self-check-feedback-body { animation: fade-in var(--fade) ease-out; }
+.self-check-question[data-state="correct"] .self-check-feedback b { color: var(--color-green-text); }
+.self-check-question[data-state="incorrect"] .self-check-feedback b { color: var(--color-amber-text); }
+.self-check[data-motion="reduce"] .self-check-feedback-body { animation: none; }
+.self-check-footer { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.self-check-summary { font-size: var(--size-compact); }
+
+/* self-assessment */
+.assessment { display: grid; gap: var(--space-6); margin-block-start: var(--space-4); }
+.assessment-status { font-size: var(--size-small); color: var(--color-text-secondary); }
+.assessment-step { display: grid; gap: var(--space-4); }
+.assessment-step h2 { margin-block-start: 0; }
+.assessment-step h3 { margin-block-start: var(--space-4); }
+.assessment-fields { display: grid; gap: var(--space-4); max-width: var(--measure); }
+.assessment-field-group, .assessment-rating-group { display: grid; gap: var(--space-2); }
+.assessment-rating-group legend, .assessment-field-group legend { font-size: var(--size-compact); font-weight: var(--weight-bold); margin-block-end: var(--space-2); padding: 0; }
+.assessment-scale { display: grid; gap: var(--space-2); }
+@media (min-width: 40rem) { .assessment-scale { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.assessment-scale .option-row + .option-row { margin-block-start: 0; }
+.assessment-nav { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.assessment-blocker { font-size: var(--size-compact); color: var(--color-amber-text); }
+.assessment-sync { font-size: var(--size-compact); }
+.assessment-plan { display: grid; gap: var(--space-4); }
+.assessment-plan-intro { font-size: var(--size-heading); line-height: 1.3; max-width: var(--measure); }
+.assessment-plan table caption { text-align: left; font-weight: var(--weight-bold); padding-block-end: var(--space-2); }
+.assessment-plan th { font-size: var(--size-compact); color: var(--color-text); }
+.assessment-focus { background: var(--color-surface); border-radius: var(--radius-card); padding: var(--space-4) 1.25rem; }
+.assessment-focus h3 { margin-block-start: 0; }
+.assessment-focus ol { padding-inline-start: 1.25rem; margin-block-start: var(--space-3); }
+.assessment-focus li + li { margin-block-start: var(--space-3); }
+.assessment-notice { background: var(--color-surface); border-left: 4px solid var(--color-area-text); border-radius: var(--radius-card); padding: var(--space-4) 1.25rem; font-size: var(--size-compact); }
+.assessment-editor { display: grid; gap: var(--space-3); max-width: var(--measure); }
+.assessment-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.assessment-versions { list-style: none; padding: 0; display: grid; gap: var(--space-2); font-size: var(--size-compact); }
+.assessment-feedback { margin-block-start: var(--space-12); }
+.assessment-feedback form { display: grid; gap: var(--space-3); max-width: var(--measure); }
+.assessment-feedback .btn { justify-self: start; }

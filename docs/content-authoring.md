@@ -8,6 +8,7 @@ The blueprint (`docs/architecture.md`, sections 4 and 11) is the contract. This 
 
 - Modules: `src/content/modules/<slug>.mdx`. One file per module. The slug is the file name and the URL: `src/content/modules/models.mdx` renders at `/modules/models`.
 - Artifacts: `src/content/artifacts/<id>.md`. One artifact per file. The id is the file name.
+- Files sit directly under their directory. Astro's loaders read every depth and dotfiles too, so a file in a subdirectory or a dotfile would become an entry whose id no route serves; the check rejects both. A scratch file starts with `_`, which the loaders and the check both skip.
 - Changelog: `src/content/changelog/<YYYY-MM-DD>-<slug>.md`.
 - Downloadable copies of artifacts, when offered: `public/artifacts/<id>.<ext>`, named in the artifact's `download` field.
 - The content map, the schema, and every rule the check enforces: `src/lib/content-schema.ts`.
@@ -51,7 +52,7 @@ Chapter 28, the capstone, is out of scope. The check rejects it anywhere.
 10. Preview the draft with `PREVIEW_DRAFTS=true npm run dev`. Draft pages return 404 in any other build.
 11. Flip `draft: false` when the check passes under `--drafts-as-published`. Set `updatedOn` and `checkedOn` to the day you did it. Add a changelog entry.
 
-Adding a module means adding a content file. No application code changes.
+Adding a module to the program means adding its content file and one entry in the content map in `src/lib/content-schema.ts`. The slug joins `MODULE_SLUGS` through `ELECTIVE_MODULES` (slug, title, chapter, order) for an elective, or through `AREA_CONTENT_MAP` for an area module. The check rejects a file whose slug is not in the map, and `getPublishedModule` answers null for it, so the catalog never shows a module the map does not know. The map is what holds the area modules to spec 5.5 and the electives to spec 5.11. Nothing else in the application changes: the catalog and the module routes read the collection. This is a recorded deviation from AC-5.2.5, which says a content file alone adds a module (`docs/decisions.md`, section 3, 2026-10-03).
 
 ## Sections per kind
 
@@ -67,7 +68,7 @@ An `Optional lab` section may appear only between Failure exercise and Completio
 
 Orientation and closing must not have Workshop, Failure exercise, or Optional lab headings, and the check rejects the matching components there too. The closing module has no Completion evidence and no self-check.
 
-Subsections are `h3`. Never write an `h1` in a body; the layout renders the page title. Artifact titles and self-check questions render as `h3` too, so keep your own subsections at `h3`.
+Subsections are `h3`. Never write an `h1` in a body; the layout renders the page title. Artifact titles and self-check questions render as `h3` too, so keep your own subsections at `h3`. An artifact placed inside an `h3` subsection takes `level={4}` (`<Artifact id="x" level={4} />`), so the prose after the card stays under the subsection in the document outline; orientation's transfer table is the one case today.
 
 What each section holds:
 
@@ -78,13 +79,17 @@ What each section holds:
 - Completion evidence. One sentence on what completes the module, then `<SelfCheck />`. For area, foundations, and elective modules, completion is a passed self-check plus a saved workshop response. For orientation: "Reading this module is the evidence." plus the optional self-check and `<MarkComplete />`.
 - Sources. `<Sources />` only. It renders the frontmatter sources with their dates, the talk beats, the book chapters, checked-on dates, and archive notes.
 
+Orientation is the one module whose beats are fixed by the spec (5.3): the thesis and the definition of owner with the three-row table under Transfer connection, then, as `h3` subsections under Topics and learning outcomes, the prototype commitments, the map with `<AnatomyMap />`, what transfers with the `orientation-transfer-table` artifact, what is new with the ladder and the seven competencies (introduced as unranked), the seven pitfalls, the roadmap, and the book's "look before you build". A summary list sits before the first `h2`. Its reading time is 25 to 40 minutes including the self-check, which has 6 to 10 questions. The check does not estimate orientation's reading time; the author keeps `readingMinutes` honest by hand. Every quote in orientation is verbatim from the talk or the book blueprint, and every fact traces to a source in `sources`.
+
+The Phase 1 fixture, `models.mdx`, is a draft whose prose says so in its first sentence. It is complete under `--drafts-as-published` (frontmatter from the content map, four outcomes, six questions, one synthetic artifact placed in the Workshop and the Failure exercise, an explanation slot, a dated source) so the layout, the forms, the island, the artifact card, and the prerequisite notice can be exercised before Phase 2 writes the real module. Its reading-time estimate warns until then.
+
 ## Components
 
 Module bodies never import anything. These are the only capitalized tags a body may use. Anything else fails the check, and on a live page it would fail the render.
 
 | Tag | What it renders |
 |---|---|
-| `<Artifact id="x" />` | The artifact card for `artifacts/x.md`. |
+| `<Artifact id="x" />` | The artifact card for `artifacts/x.md`. `level={4}` when the card sits inside an `h3` subsection. |
 | `<Callout kind="plain" label="Why this matters">...</Callout>` | A callout. `kind` is `plain` or `surface` (default). |
 | `<Collapsible title="Mathematical reference">...</Collapsible>` | A details and summary block. |
 | `<Workshop>...</Workshop>` | The workshop content, then the response form. |
@@ -98,6 +103,29 @@ Module bodies never import anything. These are the only capitalized tags a body 
 | `<MarkComplete />` | The manual completion form. Orientation only. |
 
 Close every tag. Put a blank line between a tag and the Markdown inside it. `<Fragment>` needs no import.
+
+## What the layout renders
+
+The module page (`src/pages/modules/[slug].astro`, and `src/pages/modules/orientation.astro` for the prerendered orientation) sets the module context and renders `ModuleLayout` around the MDX body. Top to bottom:
+
+- The area strip with the title and the mini-map (area modules), or the page header with a kicker (every other kind). The strip and the header carry the page's one `h1`.
+- A "Draft preview" line with a Draft chip when the build enabled `PREVIEW_DRAFTS` and the module is a draft.
+- The summary, then the meta facts: reading time (area modules say it excludes the workshop and lab), prerequisites as links, `updatedOn` and `checkedOn` as ISO dates, and, for a signed-in learner, a status chip. An area module adds the row of the talk's transfer table it expands, from `transferRows`.
+- The prerequisite notice, "Before this module". Signed out it lists every prerequisite. Signed in it lists only the prerequisites whose progress is not complete. It renders nothing when none is open. It reads as a recommendation. Every module opens.
+- A "May be stale" notice when the module's own `checkedOn` is older than `staleAfterDays`.
+- The body, which is your MDX.
+
+What the body components render:
+
+- `<Artifact id="x" />`: the card with the title, the origin chip (with a visually hidden "Origin:" prefix), the summary, the body, then tool and version in mono, "checked on" with the ISO date, "reviewed on" when `reviewedOn` is set, a Source link when `url` is set, "archived on" with the archive link when `archivedOn` is set, and a Download link when `download` is set. A "May be stale" notice follows when the artifact's `checkedOn` is older than the module's `staleAfterDays`. The notice says "It may be out of date." so the quarterly window is visible to the learner. The same artifact may appear twice on one page; the card carries no ids of its own.
+- `<Workshop>`: `section.workshop` around your content, then the response form. Signed out, the form is a sign-in prompt.
+- `<FailureExercise>`: `section.failure-exercise` around your content, then the response form. The pitfall band and the `<Fragment slot="explanation">` content render only when the learner has saved a failure response. Before that they are absent from the HTML, not hidden by CSS.
+- `<OptionalLab>`: a card that says labs never count toward completion, names the lab from the `lab` field, and holds your instructions.
+- `<Takeaway />`: `<p class="takeaway"><b>Takeaway.</b> ...</p>` with the frontmatter value. Nothing when the field is absent.
+- `<Outcomes />`: `<ol class="outcomes">` with `<li id="outcome-<id>">` per outcome.
+- `<SelfCheck />`: the island with the frontmatter questions. Orientation persists in the browser for everyone and is marked optional. Every other kind persists to the account when signed in and shows "Sign in to save your progress." when not.
+- `<Sources />`: one sentence naming the talk beats and book chapters from frontmatter, then the sources with their dates, checked-on dates, archive notes, and `note` text.
+- `<MarkComplete />`: orientation only. A form that posts to `/progress` and marks orientation complete for a signed-in learner. A signed-out learner is sent to sign in. It is absent when the build disabled accounts.
 
 ## Writing rules
 
@@ -134,6 +162,8 @@ selfCheck:
 ```
 
 - Two to six options. One or more correct indexes (zero-based). One feedback entry per option. Wrong-answer feedback names what to reread.
+- Open every feedback entry with `Correct.` or `Not yet.`, as above. The island speaks the verdict once: when every entry it shows opens with the verdict word it drops that word, and on a mixed multi-correct result it keeps each entry's own word, because it says which pick was right. A failed multi-correct check with correct options still unselected gets the island's line "Not every correct option is selected yet." after the entries.
+- Do not end a multi-correct question with "Select all that apply." The island adds that line to the question's option group.
 - Area, foundations, and elective modules need 6 to 12 questions. Orientation needs at least one. The closing module has none.
 - Every question names an `outcome` id from `outcomes`. Every outcome is covered by at least one question.
 - Question ids are unique within the module.
@@ -186,7 +216,8 @@ sources:
 
 - Every date is ISO: `2026-09-15`. Module and artifact dates can be unquoted in YAML; the schema accepts the timestamp YAML produces.
 - `updatedOn`: the day the content last changed. `checkedOn`: the day you last verified the facts. Keep `checkedOn` on or after `updatedOn`, or the check warns.
-- `staleAfterDays` (default 90): after this many days an artifact card shows "May be stale" beside its checked-on date.
+- `staleAfterDays` (default 90): after this many days an artifact card shows "May be stale" beside its checked-on date, and the module header shows the same notice when the module's own `checkedOn` is that old.
+- A source's `checkedOn` is the day someone read it. When the date comes from the talk's research rather than your own browser, say so in `note`, as orientation does.
 - A `checkedOn` older than 180 days is a build warning. A date in the future is an error.
 - The quarterly review runs `npm run drift:check`, updates the dates it re-verified, replaces or re-captures stale artifacts, and records what changed in the changelog.
 
@@ -241,4 +272,4 @@ Drafts get the structural rules only: the slug and kind pairing (an area module 
 
 `npx astro check` validates the frontmatter against the collection schema too, with the `reference()` fields resolved, so a missing artifact or prerequisite id fails there as well.
 
-The fixtures under `test/fixtures/content` show a complete non-draft area module and orientation, plus one invalid variant per rule under `cases/`. `npx vitest run scripts/` runs both scripts against them.
+The fixtures under `test/fixtures/content` show a complete non-draft area module and orientation, plus one invalid variant per rule under `cases/`. `npx vitest run scripts/` runs both scripts against them. `npx vitest run src/components/module/` renders the module components against the real content store and checks the markup contracts above.

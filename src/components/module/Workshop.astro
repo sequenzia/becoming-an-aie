@@ -1,5 +1,35 @@
 ---
-// placeholder, A replaces (blueprint section 1.1)
+// src/components/module/Workshop.astro
+// Wraps the Workshop section's content (artifacts, the task paragraph, the rubric) and appends D's
+// WorkshopResponseForm with the learner's saved response and any form error from the page
+// (blueprint 4.7, 9.4). The heading is written in Markdown by the author; when the body has it, the
+// section is named by it. Outside a module page the children render alone.
+import WorkshopResponseForm from '../forms/WorkshopResponseForm.astro';
+import { WORKSHOP_MAX_CHARS, WORKSHOP_MIN_CHARS } from '../../lib/limits';
+
+const module = Astro.locals.module;
+const learner = Astro.locals.learner;
+const formError = Astro.locals.formError;
+const labelled = module?.headings.some((h) => h.depth === 2 && h.slug === 'workshop') ?? false;
 ---
 
-<div data-placeholder="A:src/components/module/Workshop.astro"><slot /></div>
+<section class="workshop" aria-labelledby={labelled ? 'workshop' : undefined}>
+  <slot />
+  {module && (
+    <WorkshopResponseForm
+      moduleSlug={module.slug}
+      kind="workshop"
+      saved={learner?.workshop ?? null}
+      error={formError?.form === 'workshop' ? formError : undefined}
+      signedIn={Boolean(Astro.locals.user)}
+      minChars={WORKSHOP_MIN_CHARS}
+      maxChars={WORKSHOP_MAX_CHARS}
+    />
+  )}
+</section>
+
+<style>
+  .workshop > :global(* + *) {
+    margin-block-start: 1em;
+  }
+</style>

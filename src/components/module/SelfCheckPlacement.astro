@@ -1,5 +1,48 @@
 ---
-// placeholder, A replaces (blueprint section 1.1)
+// src/components/module/SelfCheckPlacement.astro
+// Mounts D's SelfCheck island where the body places <SelfCheck /> (blueprint 4.7, 9.1). The questions
+// come from frontmatter, so every props value is serializable. Orientation persists locally for
+// everyone and is optional (decision 16); every other kind persists to the account when signed in.
+// A saved account state becomes the island's initialState: correctOnce is graded from the saved best
+// answers with the shared grading helper, so the island and the action agree on what counts.
+import SelfCheck from '../islands/SelfCheck';
+import type { SelfCheckProps } from '../islands/SelfCheck';
+import { isCorrect } from '../../lib/self-check';
+
+type SavedState = NonNullable<SelfCheckProps['initialState']>;
+
+const module = Astro.locals.module;
+const learner = Astro.locals.learner;
+const questions = module?.data.selfCheck ?? [];
+const local = module?.data.kind === 'orientation';
+const signedIn = Boolean(Astro.locals.user);
+
+let initialState: SavedState | null = null;
+const saved = learner?.selfCheck;
+if (!local && saved) {
+  const correctOnce = Object.fromEntries(questions.map((q) => [q.id, isCorrect(q, saved.answers[q.id])]));
+  initialState = {
+    answers: saved.answers,
+    correctOnce,
+    attempts: saved.attempts,
+    passed: saved.passed,
+    updatedAt: saved.updatedAt.toISOString(),
+  };
+}
 ---
 
-<div data-placeholder="A:src/components/module/SelfCheckPlacement.astro"></div>
+<div class="self-check-mount">
+  {module && questions.length > 0 ? (
+    <SelfCheck
+      client:load
+      moduleSlug={module.slug}
+      questions={questions}
+      persist={local ? 'local' : 'account'}
+      initialState={initialState}
+      signedIn={signedIn}
+      optional={local}
+    />
+  ) : (
+    <p class="compact secondary">This module has no self-check yet.</p>
+  )}
+</div>

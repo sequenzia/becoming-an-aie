@@ -1,14 +1,30 @@
 ---
-// placeholder, B replaces (blueprint section 6.6). Section 8 prerenders the real page. The placeholder
-// renders on demand so the accounts check below can answer 404 in the Phase 0 image (sections 1.3 and
-// 14.7): a prerendered 404 is written to disk as the 404 page's HTML and served with status 200.
-// B restores `export const prerender = true` with the real page (docs/decisions.md, 2026-10-02).
+// src/pages/account/deleted.astro
+// The confirmation page after a deletion (blueprint sections 6.6 and 8). Prerendered: it carries no
+// learner data and the deleting request already cleared the session cookies. S's Phase 0 placeholder
+// rendered on demand so the Phase 0 image could answer 404; Phase 1 images build with FEATURE_ACCOUNTS=true,
+// so the real page is prerendered as section 8 says (docs/decisions.md, 2026-10-02 and 2026-10-03).
 import Base from '../../layouts/Base.astro';
-import { env } from '../../lib/env';
+import PageHeader from '../../components/site/PageHeader.astro';
 
-if (!env.featureAccounts) return new Response(null, { status: 404 });
+export const prerender = true;
 ---
 
-<Base title="Account deleted">
-  <div data-placeholder="B:src/pages/account/deleted.astro"></div>
+<Base title="Account deleted" description="Your account and every row stored with it are gone.">
+  <PageHeader kicker="Account" title="Your account is deleted" />
+  <div class="prose">
+    <p>
+      Your account and every row stored with it are gone: your progress, your workshop and failure exercise responses,
+      your self-check results, your self-assessments, and your plans. A notify-me subscription with the same email was
+      removed too.
+    </p>
+    <p>You are signed out. The deletion cannot be undone.</p>
+    <p>
+      Feedback sent from the assessment page is anonymous and is not linked to an account, so it is not removed.
+    </p>
+    <p>
+      The modules stay readable without an account. <a href="/modules">Browse the modules</a> or
+      <a href="/">go to the start page</a>. Signing in again creates a new, empty account.
+    </p>
+  </div>
 </Base>

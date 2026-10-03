@@ -40,6 +40,20 @@
   --color-link-underline: var(--color-text-secondary);
   --color-field-border: var(--color-text-secondary);
   --color-code-bg: var(--color-surface);
+  /* Code blocks. Shiki runs with theme css-variables (astro.config.mjs) and reads these. Every token is primary
+     text on the code ground: the mono rule says the face alone marks code (docs/research/design-tokens.md,
+     section 4). Both themes resolve through the tokens above. */
+  --astro-code-background: var(--color-code-bg);
+  --astro-code-foreground: var(--color-text);
+  --astro-code-token-constant: var(--color-text);
+  --astro-code-token-string: var(--color-text);
+  --astro-code-token-comment: var(--color-text);
+  --astro-code-token-keyword: var(--color-text);
+  --astro-code-token-parameter: var(--color-text);
+  --astro-code-token-function: var(--color-text);
+  --astro-code-token-string-expression: var(--color-text);
+  --astro-code-token-punctuation: var(--color-text);
+  --astro-code-token-link: var(--color-text);
   --color-diagram-bg: #14161c;
   --color-diagram-border: #4c4d50;
 

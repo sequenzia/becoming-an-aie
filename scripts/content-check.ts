@@ -36,6 +36,7 @@ import {
   artifactIdsInBody,
   isReadableDir,
   listContentFiles,
+  misplacedContentFile,
   parseToday,
   readContentFile,
   startOfToday,
@@ -198,6 +199,11 @@ function loadModules(root: string, opts: Options, report: Report): ModuleRecord[
   const schema = opts.draftsAsPublished ? moduleSchemaDraftsAsPublished : moduleSchema;
   const records: ModuleRecord[] = [];
   for (const name of listContentFiles(root, 'modules', '.mdx')) {
+    const misplaced = misplacedContentFile('modules', name);
+    if (misplaced) {
+      report.error(`modules/${name}`, misplaced);
+      continue;
+    }
     const source = readContentFile(root, 'modules', name);
     const slug = source.id;
     const file = source.file;
@@ -238,6 +244,11 @@ function loadModules(root: string, opts: Options, report: Report): ModuleRecord[
 function loadArtifacts(root: string, report: Report): ArtifactRecord[] {
   const records: ArtifactRecord[] = [];
   for (const name of listContentFiles(root, 'artifacts', '.md')) {
+    const misplaced = misplacedContentFile('artifacts', name);
+    if (misplaced) {
+      report.error(`artifacts/${name}`, misplaced);
+      continue;
+    }
     const source = readContentFile(root, 'artifacts', name);
     let data: ArtifactFrontmatter | null = null;
     if (source.parseError) {
@@ -254,6 +265,11 @@ function loadArtifacts(root: string, report: Report): ArtifactRecord[] {
 
 function checkChangelog(root: string, report: Report) {
   for (const name of listContentFiles(root, 'changelog', '.md')) {
+    const misplaced = misplacedContentFile('changelog', name);
+    if (misplaced) {
+      report.error(`changelog/${name}`, misplaced);
+      continue;
+    }
     const source = readContentFile(root, 'changelog', name);
     if (!/^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/.test(name)) {
       report.error(source.file, 'changelog file names are <YYYY-MM-DD>-<slug>.md');

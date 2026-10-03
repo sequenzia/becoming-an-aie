@@ -1,5 +1,20 @@
 ---
-// placeholder, A replaces (blueprint section 1.1)
+// src/components/module/StaleNotice.astro
+// One line under a dated thing whose checked-on date is older than the content's threshold
+// (blueprint 10.4, EC-5.5.3). The chip word carries the state; amber restates it.
+import { isoDate } from '../../lib/dates';
+
+export interface Props {
+  checkedOn: Date | string;
+  /** The threshold the date failed, in days. Named in the sentence so the reader knows the window. */
+  thresholdDays: number;
+}
+
+const { checkedOn, thresholdDays } = Astro.props;
+const date = isoDate(checkedOn);
 ---
 
-<div data-placeholder="A:src/components/module/StaleNotice.astro"></div>
+<p class="notice-stale" role="note">
+  <span class="chip chip-stale">May be stale</span>{' '}
+  Checked on <time datetime={date}>{date}</time>, more than {thresholdDays} days ago. It may be out of date. Verify before relying on it.
+</p>

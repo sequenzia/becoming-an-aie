@@ -1,5 +1,53 @@
 ---
-// placeholder, A replaces (blueprint section 1.1)
+// src/components/module/FailureExercise.astro
+// Wraps the Failure exercise (blueprint 4.7, 9.4; decision 19; AC-5.5.5). The children are the planted
+// artifact and the task. D's FailureResponseForm follows. The pitfall band and the explanation slot
+// render only when the learner has a saved failure response: the reveal is server-side, so the
+// explanation is absent from the HTML until then. The explanation sits in a surface callout labelled
+// Explanation rather than under a component-rendered heading (headings stay in Markdown, 4.7).
+import FailureResponseForm from '../forms/FailureResponseForm.astro';
+import PitfallBand from './PitfallBand.astro';
+import Callout from '../site/Callout.astro';
+import { WORKSHOP_MAX_CHARS, WORKSHOP_MIN_CHARS } from '../../lib/limits';
+
+const module = Astro.locals.module;
+const learner = Astro.locals.learner;
+const formError = Astro.locals.formError;
+const labelled = module?.headings.some((h) => h.depth === 2 && h.slug === 'failure-exercise') ?? false;
+const revealed = Boolean(learner?.failure);
+const pitfall = module?.data.pitfall;
 ---
 
-<div data-placeholder="A:src/components/module/FailureExercise.astro"><slot /><slot name="explanation" /></div>
+<section class="failure-exercise" aria-labelledby={labelled ? 'failure-exercise' : undefined}>
+  <slot />
+  {module && (
+    <FailureResponseForm
+      moduleSlug={module.slug}
+      kind="failure"
+      saved={learner?.failure ?? null}
+      error={formError?.form === 'failure' ? formError : undefined}
+      signedIn={Boolean(Astro.locals.user)}
+      minChars={WORKSHOP_MIN_CHARS}
+      maxChars={WORKSHOP_MAX_CHARS}
+    />
+  )}
+  {revealed && pitfall && (
+    <PitfallBand pitfall={pitfall} note="The pitfall this exercise planted. Compare it with your response." revealed />
+  )}
+  {revealed && Astro.slots.has('explanation') && (
+    <div class="failure-explanation">
+      <Callout label="Explanation">
+        <slot name="explanation" />
+      </Callout>
+    </div>
+  )}
+</section>
+
+<style>
+  .failure-exercise > :global(* + *) {
+    margin-block-start: 1em;
+  }
+  .failure-explanation :global(.callout-surface > * + *) {
+    margin-block-start: 0.75em;
+  }
+</style>

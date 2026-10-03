@@ -1,5 +1,67 @@
 ---
-// placeholder, A replaces (blueprint section 1.1)
+// src/components/module/Sources.astro
+// The Sources section's content (blueprint 4.7, MT-5.5.8, AC-5.5.8): one line naming the talk beats
+// and book chapters the module draws on, then the frontmatter sources with their dates, checked-on
+// dates, archive notes, and qualifications. Every date is ISO (decision 37).
+import { isoDate } from '../../lib/dates';
+
+const data = Astro.locals.module?.data;
+const sources = data?.sources ?? [];
+const beats = data?.talkBeats ?? [];
+const chapters = (data?.bookChapters ?? []).map(String);
+
+/** "1.3", "1.3 and 1.4", "1.3, 1.4, and 3.1". */
+function listWords(items: readonly string[]): string {
+  if (items.length <= 1) return items.join('');
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(', ')}, and ${items.at(-1)}`;
+}
+
+const drawsOn: string[] = [];
+if (beats.length > 0) drawsOn.push(`the talk, ${beats.length === 1 ? 'beat' : 'beats'} ${listWords(beats)}`);
+if (chapters.length > 0) drawsOn.push(`the book blueprint, ${chapters.length === 1 ? 'chapter' : 'chapters'} ${listWords(chapters)}`);
 ---
 
-<div data-placeholder="A:src/components/module/Sources.astro"></div>
+{drawsOn.length > 0 && <p class="sources-draws-on">This module draws on {drawsOn.join(', and on ')}.</p>}
+{sources.length === 0 ? (
+  <p class="compact secondary">No external sources are listed for this module.</p>
+) : (
+  <ol class="sources">
+    {sources.map((source) => (
+      <li>
+        {source.url ? <a href={source.url}>{source.title}</a> : source.title}
+        {(source.author || source.org) && <>. {source.author ?? source.org}</>}
+        {'. '}<time datetime={source.date}>{source.date}</time>.
+        {source.checkedOn && (
+          <>
+            {' '}Checked on <time datetime={isoDate(source.checkedOn)}>{isoDate(source.checkedOn)}</time>.
+          </>
+        )}
+        {source.archivedOn && (
+          <>
+            {' '}Archived on <time datetime={isoDate(source.archivedOn)}>{isoDate(source.archivedOn)}</time>
+            {source.archiveUrl && (
+              <>
+                {', '}<a href={source.archiveUrl}>archived copy</a>
+              </>
+            )}
+            .
+          </>
+        )}
+        {source.note && (
+          <>
+            {' '}<span class="secondary">{source.note}</span>
+          </>
+        )}
+      </li>
+    ))}
+  </ol>
+)}
+
+<style>
+  .sources {
+    padding-inline-start: 1.25rem;
+    font-size: var(--size-compact);
+    line-height: 1.5;
+  }
+</style>

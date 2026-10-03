@@ -1,5 +1,24 @@
 ---
-// placeholder, A replaces (blueprint section 1.1)
+// src/components/module/OptionalLab.astro
+// The card under an "Optional lab" heading (blueprint 4.7, MT-5.5.6). The heading is written in
+// Markdown by the author; this card names the lab from the frontmatter `lab` field and holds the
+// instructions passed as children. Labs never count toward completion, and the card says so.
+const lab = Astro.locals.module?.data.lab;
 ---
 
-<div data-placeholder="A:src/components/module/OptionalLab.astro"><slot /></div>
+<section class="optional-lab card">
+  <p class="small secondary">Optional. Labs never count toward completion.</p>
+  {lab && (
+    <p>
+      <b>{lab.title}</b>{' · '}<code>{lab.path}</code>
+    </p>
+  )}
+  <slot />
+</section>
+
+<style>
+  .optional-lab {
+    display: grid;
+    gap: var(--space-3);
+  }
+</style>

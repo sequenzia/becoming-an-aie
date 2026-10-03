@@ -1,5 +1,22 @@
 ---
-// placeholder, A replaces (blueprint section 1.1)
+// src/components/module/PitfallBand.astro
+// The talk's pitfall band (blueprint 10.4, design-tokens section 5): a block in the area color holding
+// the word Pitfall, then the sentence. FailureExercise renders it only after a failure response exists,
+// with data-revealed so base.css fades it in (0.3s, cut under reduced motion).
+export interface Props {
+  pitfall: string;
+  /** An optional second line in small secondary text. */
+  note?: string;
+  revealed?: boolean;
+}
+
+const { pitfall, note, revealed = false } = Astro.props;
 ---
 
-<div data-placeholder="A:src/components/module/PitfallBand.astro"></div>
+<aside class="band band-pitfall" aria-label="Pitfall" data-revealed={revealed ? 'true' : undefined}>
+  <div class="band-block">Pitfall</div>
+  <div class="band-body">
+    {pitfall}
+    {note && <span class="small secondary">{note}</span>}
+  </div>
+</aside>

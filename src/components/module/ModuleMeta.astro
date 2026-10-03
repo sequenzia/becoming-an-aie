@@ -1,5 +1,118 @@
 ---
-// placeholder, A replaces (blueprint section 1.1)
+// src/components/module/ModuleMeta.astro
+// The module header's facts (blueprint 10.4, MT-5.5.1, AC-5.12.3): reading time, prerequisites as
+// links, the updated and checked dates as ISO dates, and, for a signed-in learner on an on-demand
+// page, the learner's status chip. An area module adds the row of the talk's transfer table it
+// expands, from TRANSFER_TABLE and the frontmatter transferRows (decision 7).
+import StatusChip from '../site/StatusChip.astro';
+import { TRANSFER_TABLE } from '../../lib/content-schema';
+import { isoDate } from '../../lib/dates';
+import type { ModuleEntry } from '../../lib/modules';
+import { moduleHref } from '../../lib/paths';
+import type { PrerequisiteSummary } from '../../lib/types';
+
+export interface Props {
+  entry: ModuleEntry;
+  prerequisites: PrerequisiteSummary[];
+}
+
+const { entry, prerequisites } = Astro.props;
+const data = entry.data;
+const learner = Astro.locals.learner;
+const status = learner ? (learner.progress?.status ?? 'not_started') : null;
+const updated = isoDate(data.updatedOn);
+const checked = isoDate(data.checkedOn);
+const rows = data.transferRows.map((key) => TRANSFER_TABLE[key]);
+const readingLabel = data.kind === 'area' ? 'Reading time, excluding the workshop and lab' : 'Reading time';
 ---
 
-<div data-placeholder="A:src/components/module/ModuleMeta.astro"></div>
+<dl class="module-meta">
+  <div class="module-meta-row">
+    <dt>{readingLabel}</dt>
+    <dd>{data.readingMinutes} minutes</dd>
+  </div>
+  <div class="module-meta-row">
+    <dt>Prerequisites</dt>
+    <dd>
+      {prerequisites.length === 0
+        ? 'None'
+        : prerequisites.map((p, i) => (
+            <>
+              {i > 0 && ', '}
+              <a href={moduleHref(p.slug)}>{p.title}</a>
+            </>
+          ))}
+    </dd>
+  </div>
+  <div class="module-meta-row">
+    <dt>Updated</dt>
+    <dd><time datetime={updated}>{updated}</time></dd>
+  </div>
+  <div class="module-meta-row">
+    <dt>Checked</dt>
+    <dd><time datetime={checked}>{checked}</time></dd>
+  </div>
+  {status && (
+    <div class="module-meta-row">
+      <dt>Your status</dt>
+      <dd><StatusChip status={status} /></dd>
+    </div>
+  )}
+</dl>
+{rows.length > 0 && (
+  <div class="table-wrap module-transfer">
+    <table>
+      <caption class="visually-hidden">The rows of the talk's transfer table this module expands</caption>
+      <thead>
+        <tr>
+          <th scope="col">You already do this</th>
+          <th scope="col">It becomes this</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr>
+            <td>{row.from}</td>
+            <td>{row.to}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+)}
+
+<style>
+  .module-meta {
+    display: grid;
+    gap: var(--space-2) var(--space-6);
+    margin: 0 0 var(--space-4);
+    font-size: var(--size-compact);
+    line-height: 1.5;
+  }
+  @media (min-width: 40rem) {
+    .module-meta {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .module-meta-row {
+    display: grid;
+    grid-template-columns: minmax(7rem, auto) 1fr;
+    gap: var(--space-3);
+    align-items: baseline;
+  }
+  .module-meta dt {
+    font-weight: var(--weight-bold);
+  }
+  .module-meta dd {
+    margin: 0;
+  }
+  .module-transfer {
+    margin-block-end: var(--space-4);
+  }
+  .module-transfer th {
+    /* Compact, so the area text color may not be used: the blue rule in docs/research/design-tokens.md allows
+       --color-blue-text as large text only (3.62:1 on the dark ground). Primary text in both themes. */
+    font-size: var(--size-compact);
+    color: var(--color-text);
+  }
+</style>

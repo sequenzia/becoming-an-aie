@@ -1,6 +1,8 @@
 // src/components/module/mdx-components.ts
-// placeholder, A replaces (blueprint section 4.7). The map already points at the contracted
-// components so a module body renders through the placeholders instead of throwing on an unknown tag.
+// The components map passed to <Content components={mdxComponents} /> (blueprint 4.7). Module bodies
+// never import components; every capitalized tag a body may use is listed here, and the content check
+// holds bodies to MDX_TAGS, the same list, because a tag missing from this map throws at render time.
+// <Fragment> is injected by @astrojs/mdx and needs no entry.
 import Artifact from './Artifact.astro';
 import Workshop from './Workshop.astro';
 import FailureExercise from './FailureExercise.astro';

@@ -1,5 +1,40 @@
 ---
-// placeholder, A replaces (blueprint section 1.1)
+// src/components/module/MarkCompleteForm.astro
+// The manual completion control for orientation (blueprint 7.4, 14.3; CG-5, CG-7). Orientation is
+// prerendered, so the form posts to the on-demand /progress route with the action name in the query
+// string, the same no-JS pattern as the notify form. /progress completes the module for a signed-in
+// learner and sends a signed-out one to sign in first. The current status shows on the catalog and
+// the account page, not here. The form is absent when the build disabled accounts (section 14.7).
+// The button is primary: a neutral page has a transparent area color, so btn-area would not show.
+import { env } from '../../lib/env';
+import { actionFormPath } from '../../lib/paths';
+
+const module = Astro.locals.module;
+const slug = module?.slug ?? 'orientation';
+const title = module?.data.title ?? 'Orientation';
+const action = actionFormPath('/progress', 'markModuleComplete');
 ---
 
-<div data-placeholder="A:src/components/module/MarkCompleteForm.astro"></div>
+{env.featureAccounts ? (
+  <form class="mark-complete" method="POST" action={action}>
+    <input type="hidden" name="moduleSlug" value={slug} />
+    <p class="field-help" id="mark-complete-help">
+      Signed in, this marks {title} complete on your catalog and account page. Signed out, you are asked to sign in first.
+    </p>
+    <button class="btn btn-primary" type="submit" aria-describedby="mark-complete-help">Mark orientation complete</button>
+  </form>
+) : (
+  <p class="compact secondary">Progress tracking opens with accounts. Nothing to mark here yet.</p>
+)}
+
+<style>
+  .mark-complete {
+    display: grid;
+    gap: var(--space-3);
+    justify-items: start;
+    margin-block-start: var(--space-6);
+  }
+  .mark-complete .field-help {
+    margin: 0;
+  }
+</style>

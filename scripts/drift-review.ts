@@ -18,6 +18,7 @@ import {
   artifactIdsInBody,
   isReadableDir,
   listContentFiles,
+  misplacedContentFile,
   parseToday,
   readContentFile,
   startOfToday,
@@ -99,6 +100,10 @@ function main(): number {
 
   const artifacts = new Map<string, ArtifactFrontmatter>();
   for (const name of listContentFiles(root, 'artifacts', '.md')) {
+    if (misplacedContentFile('artifacts', name)) {
+      console.error(`drift-review: skipping artifacts/${name}: not a usable entry (run the content check)`);
+      continue;
+    }
     const source = readContentFile(root, 'artifacts', name);
     const parsed = artifactSchema.safeParse(source.data);
     if (parsed.success) artifacts.set(source.id, parsed.data);
@@ -107,6 +112,10 @@ function main(): number {
 
   const modules: Array<{ slug: string; data: ModuleFrontmatter; placed: string[] }> = [];
   for (const name of listContentFiles(root, 'modules', '.mdx')) {
+    if (misplacedContentFile('modules', name)) {
+      console.error(`drift-review: skipping modules/${name}: not a usable entry (run the content check)`);
+      continue;
+    }
     const source = readContentFile(root, 'modules', name);
     const parsed = moduleFields.safeParse(source.data);
     if (!parsed.success) {

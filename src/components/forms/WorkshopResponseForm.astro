@@ -1,5 +1,24 @@
 ---
-// placeholder, D replaces (blueprint section 1.1)
+// src/components/forms/WorkshopResponseForm.astro
+// The workshop and failure response form (blueprint section 9.4; spec 5.5, 6.2). One component for both
+// kinds: `kind` picks the button label, the ids, and the anchor; FailureResponseForm.astro renders this
+// with kind="failure". An HTML form posting to the saveResponse action, so it works with JavaScript
+// disabled, plus the enhancement script below (decision 23: no Preact outside the two islands).
+//
+// Signed out: a surface callout with a sign-in link and no form. When the page carries an error for this
+// form while signed out (a native POST whose session had expired, EC-5.9.3), the callout also carries the
+// error line as an alert and the rejected text in a read-only textarea that takes focus, so the learner can
+// copy it before signing in; the sign-in link then returns to this form (docs/decisions.md, 2026-10-03,
+// Phase 1 review round 2). Signed in: the form with the saved text prefilled, a help line, an error line
+// with the echoed text when the action rejected the save (the textarea takes focus so the error is read on
+// arrival, as the notify form does), and the "Saved <ISO date>" status line. The status and error lines
+// always exist, so the script can fill them. Learner text is escaped by Astro and shown only inside a
+// textarea (NFR-6.2.3).
+import { actions } from 'astro:actions';
+import Callout from '../site/Callout.astro';
+import { SERVER_ERROR_MESSAGE } from '../../lib/actions-guard';
+import { isoDate } from '../../lib/dates';
+import { signInPath } from '../../lib/guard';
 import type { FormError, ResponseRow } from '../../lib/types';
 
 export interface Props {
@@ -11,6 +30,245 @@ export interface Props {
   minChars: number;
   maxChars: number;
 }
+
+const { moduleSlug, kind, saved, error, signedIn, minChars, maxChars } = Astro.props;
+
+const formError = error && error.form === kind ? error : undefined;
+const value = formError?.value ?? saved?.body ?? '';
+const savedLine = saved ? `Saved ${isoDate(saved.updatedAt)}` : '';
+const buttonLabel = kind === 'failure' ? 'Submit and reveal the explanation' : 'Save response';
+const ids = { form: `${kind}-form`, body: `${kind}-body`, help: `${kind}-help`, error: `${kind}-error`, saved: `${kind}-saved`, unsaved: `${kind}-unsaved` };
+// After an error while signed out, sign-in returns to this form rather than to the top of the page.
+const signInHref = signInPath(formError ? `/modules/${moduleSlug}#${ids.form}` : `/modules/${moduleSlug}`);
+const describedBy = formError ? `${ids.help} ${ids.error}` : ids.help;
+const lengthMessage = `Write at least ${minChars} characters and at most ${maxChars.toLocaleString('en-US')}.`;
 ---
 
-<div data-placeholder="D:src/components/forms/WorkshopResponseForm.astro"></div>
+{
+  signedIn ? (
+    <form
+      method="POST"
+      action={actions.saveResponse}
+      id={ids.form}
+      class="response-form"
+      data-response-form
+      data-kind={kind}
+      data-module-slug={moduleSlug}
+      data-length-message={lengthMessage}
+      data-server-error={SERVER_ERROR_MESSAGE}
+      novalidate
+    >
+      <input type="hidden" name="moduleSlug" value={moduleSlug} />
+      <input type="hidden" name="kind" value={kind} />
+      <label class="field-label" for={ids.body}>
+        Your response <span class="small secondary">required</span>
+      </label>
+      <textarea
+        class="field"
+        id={ids.body}
+        name="body"
+        required
+        minlength={minChars}
+        maxlength={maxChars}
+        aria-describedby={describedBy}
+        aria-invalid={formError ? 'true' : undefined}
+        autofocus={Boolean(formError)}
+        autocomplete="off"
+        set:text={value}
+      />
+      <p class="field-help" id={ids.help}>
+        At least {minChars} characters. Saved to your account. Rendered as plain text.
+      </p>
+      <p class="field-error" id={ids.error} hidden={!formError}>
+        {formError && (
+          <>
+            <b>Fix:</b> {formError.message}
+          </>
+        )}
+      </p>
+      <p class="field-help" role="status" id={ids.saved}>
+        {savedLine}
+      </p>
+      <button class="btn btn-area" type="submit">{buttonLabel}</button>
+    </form>
+  ) : (
+    <Callout label="Sign in to save your response.">
+      {formError && (
+        <p class="field-error" role="alert" id={ids.error}>
+          <b>Fix:</b> {formError.message}
+        </p>
+      )}
+      {formError && formError.value !== undefined && (
+        <div class="unsaved-response">
+          <label class="field-label" for={ids.unsaved}>
+            Your unsaved response
+          </label>
+          <textarea class="field" id={ids.unsaved} readonly aria-describedby={ids.error} autofocus set:text={formError.value} />
+          <p class="field-help">Copy it before you sign in. It is not stored.</p>
+        </div>
+      )}
+      <p>Your text is saved to your account and rendered as plain text. Nothing is stored before you sign in.</p>
+      <p>
+        <a class="btn btn-primary" href={signInHref}>
+          Sign in
+        </a>
+      </p>
+    </Callout>
+  )
+}
+
+<style>
+  .response-form {
+    display: grid;
+    gap: var(--space-2);
+    max-width: var(--measure);
+    margin-block-start: var(--space-6);
+  }
+  .response-form .field-help,
+  .response-form .field-error {
+    margin-block-start: 0;
+  }
+  .response-form .field-help:empty,
+  .response-form .field-error[hidden] {
+    display: none;
+  }
+  .response-form .btn {
+    justify-self: start;
+    margin-block-start: var(--space-2);
+  }
+  .unsaved-response {
+    display: grid;
+    gap: var(--space-2);
+    max-width: var(--measure);
+  }
+  .unsaved-response .field-help {
+    margin-block-start: 0;
+  }
+</style>
+
+<script>
+  // Enhancement for every response form on the page (section 9.4). Without it the form posts natively and
+  // the module page re-renders with the result. With it: the save goes through the action client, the
+  // status line updates in place, the failure form reloads so the server reveals the explanation, an
+  // ActionError lands in the error line, and a network failure falls back to the native submit. The
+  // textarea mirrors into localStorage under aie:draft:<slug>:<kind> so an unsent draft survives a
+  // reload; it is cleared on a successful save. Every storage call is wrapped (section 14.6).
+  import { actions, isInputError } from 'astro:actions';
+
+  const draftKey = (slug: string, kind: string) => `aie:draft:${slug}:${kind}`;
+
+  function readDraft(key: string): string | null {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  }
+
+  function writeDraft(key: string, value: string): void {
+    try {
+      if (value) localStorage.setItem(key, value);
+      else localStorage.removeItem(key);
+    } catch {
+      // Storage is a convenience.
+    }
+  }
+
+  function clearDraft(key: string): void {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // Same.
+    }
+  }
+
+  function enhance(form: HTMLFormElement) {
+    const kind = form.dataset.kind ?? 'workshop';
+    const slug = form.dataset.moduleSlug ?? '';
+    const lengthMessage = form.dataset.lengthMessage ?? '';
+    const serverError = form.dataset.serverError ?? 'Something went wrong. Try again in a few minutes.';
+    const textarea = form.querySelector<HTMLTextAreaElement>('textarea[name="body"]');
+    const errorLine = form.querySelector<HTMLParagraphElement>(`#${kind}-error`);
+    const savedLine = form.querySelector<HTMLParagraphElement>(`#${kind}-saved`);
+    const button = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+    if (!textarea || !errorLine || !savedLine || !button) return;
+    const key = draftKey(slug, kind);
+    const helpId = `${kind}-help`;
+
+    // Restore an unsent draft when it differs from what the server rendered.
+    const draft = readDraft(key);
+    if (draft && draft !== textarea.value) {
+      textarea.value = draft;
+      savedLine.textContent = 'Unsent draft restored from this device.';
+    }
+    textarea.addEventListener('input', () => writeDraft(key, textarea.value));
+
+    function showError(message: string) {
+      errorLine!.replaceChildren();
+      const lead = document.createElement('b');
+      lead.textContent = 'Fix:';
+      errorLine!.append(lead, ` ${message}`);
+      errorLine!.hidden = false;
+      textarea!.setAttribute('aria-invalid', 'true');
+      textarea!.setAttribute('aria-describedby', `${helpId} ${kind}-error`);
+    }
+
+    function clearError() {
+      errorLine!.replaceChildren();
+      errorLine!.hidden = true;
+      textarea!.removeAttribute('aria-invalid');
+      textarea!.setAttribute('aria-describedby', helpId);
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (button.getAttribute('aria-busy') === 'true') return;
+      // The native constraint messages are replaced by the one sentence the server would give.
+      if (textarea.value.trim().length < Number(textarea.getAttribute('minlength') ?? 0) || textarea.value.length > Number(textarea.getAttribute('maxlength') ?? Infinity)) {
+        showError(lengthMessage);
+        textarea.focus();
+        return;
+      }
+      button.setAttribute('aria-busy', 'true');
+      savedLine.textContent = 'Saving';
+      let result: Awaited<ReturnType<typeof actions.saveResponse>>;
+      try {
+        result = await actions.saveResponse(new FormData(form));
+      } catch {
+        // Offline or the request never left: let the browser submit it the plain way.
+        button.removeAttribute('aria-busy');
+        form.submit();
+        return;
+      }
+      button.removeAttribute('aria-busy');
+      if (result.error) {
+        const error = result.error;
+        const message = isInputError(error)
+          ? error.fields.body
+            ? lengthMessage
+            : Object.values(error.fields).flat().join(' ')
+          : error.code === 'UNAUTHORIZED'
+            ? 'Sign in to save your progress.'
+            : error.status >= 500
+              ? serverError
+              : error.message;
+        savedLine.textContent = '';
+        showError(message);
+        textarea.focus();
+        return;
+      }
+      clearError();
+      clearDraft(key);
+      const updatedAt = (result.data as { updatedAt?: unknown } | undefined)?.updatedAt;
+      const stamp = updatedAt instanceof Date ? updatedAt : typeof updatedAt === 'string' ? new Date(updatedAt) : new Date();
+      savedLine.textContent = `Saved ${(Number.isNaN(stamp.getTime()) ? new Date() : stamp).toISOString().slice(0, 10)}`;
+      if (kind === 'failure') {
+        // The reveal is server-side only: the page renders the explanation once a failure response exists.
+        window.location.hash = 'failure-exercise';
+        window.location.reload();
+      }
+    });
+  }
+
+  for (const form of document.querySelectorAll<HTMLFormElement>('form[data-response-form]')) enhance(form);
+</script>

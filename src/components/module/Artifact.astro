@@ -1,9 +1,104 @@
 ---
-// placeholder, A replaces (blueprint section 1.1)
+// src/components/module/Artifact.astro
+// The artifact card (blueprint 4.6, 10.4; spec 5.6). Looks the artifact up by id in the artifacts
+// collection and renders its body inside the card with its labels: the origin chip beside the title,
+// then tool, version, and checked-on date in ISO, then the source, archive, and download links when
+// the frontmatter has them, then the stale notice when the checked-on date is older than the
+// module's threshold. Two modules that place the same id render the same card (EC-5.6.2).
+// A missing id throws: the content check reports it before any build, and a prerendered page fails
+// at build time rather than shipping a card-shaped hole. The card carries no ids of its own, so one
+// artifact can appear twice on a page (the fixture module places its trace in the Workshop and the
+// Failure exercise).
+import { getEntry, render } from 'astro:content';
+import StaleNotice from './StaleNotice.astro';
+import { isStale, isoDate } from '../../lib/dates';
+import { STALE_AFTER_DAYS_DEFAULT } from '../../lib/limits';
 
 export interface Props {
   id: string;
+  /**
+   * The heading level of the card title. 3 by default, which fits a card placed directly under an h2
+   * section. A card placed inside an h3 subsection passes 4, so the prose that follows the card stays
+   * under the subsection in the document outline instead of under the card (orientation's What transfers;
+   * docs/decisions.md, 2026-10-03, Phase 1 review round 2).
+   */
+  level?: 3 | 4;
 }
+
+const { id, level = 3 } = Astro.props;
+const Title = level === 4 ? 'h4' : 'h3';
+const entry = await getEntry('artifacts', id);
+if (!entry) {
+  throw new Error(`Artifact "${id}" does not exist in src/content/artifacts. Run npm run content:check.`);
+}
+const { Content } = await render(entry);
+const artifact = entry.data;
+const checked = isoDate(artifact.checkedOn);
+const threshold = Astro.locals.module?.data.staleAfterDays ?? STALE_AFTER_DAYS_DEFAULT;
+const stale = isStale(artifact.checkedOn, threshold);
+const tool = [artifact.tool, artifact.version].filter(Boolean).join(' ');
+const reviewed = artifact.reviewedOn ? isoDate(artifact.reviewedOn) : null;
+const archived = artifact.archivedOn ? isoDate(artifact.archivedOn) : null;
 ---
 
-<div data-placeholder="A:src/components/module/Artifact.astro"></div>
+<article class="card artifact">
+  <div class="artifact-header">
+    <Title class="card-title">{artifact.title}</Title>
+    <span class="chip chip-origin"><span class="visually-hidden">Origin: </span>{artifact.origin}</span>
+  </div>
+  {artifact.summary && <p class="artifact-summary">{artifact.summary}</p>}
+  <div class="artifact-body">
+    <Content />
+  </div>
+  <p class="artifact-meta">
+    {tool && (
+      <>
+        <code>{tool}</code>
+        {' · '}
+      </>
+    )}
+    checked on <time datetime={checked}>{checked}</time>
+    {reviewed && (
+      <>
+        {' · '}reviewed on <time datetime={reviewed}>{reviewed}</time>
+      </>
+    )}
+    {artifact.url && (
+      <>
+        {' · '}<a href={artifact.url}>Source</a>
+      </>
+    )}
+    {archived && (
+      <>
+        {' · '}archived on <time datetime={archived}>{archived}</time>
+        {artifact.archiveUrl && (
+          <>
+            {', '}<a href={artifact.archiveUrl}>archived copy</a>
+          </>
+        )}
+      </>
+    )}
+    {artifact.download && (
+      <>
+        {' · '}<a href={artifact.download} download>Download</a>
+      </>
+    )}
+  </p>
+  {stale && <StaleNotice checkedOn={artifact.checkedOn} thresholdDays={threshold} />}
+</article>
+
+<style>
+  .artifact-summary {
+    color: var(--color-text-secondary);
+  }
+  .artifact-body > :global(* + *) {
+    margin-block-start: 0.75em;
+  }
+  .artifact-body :global(ul),
+  .artifact-body :global(ol) {
+    padding-inline-start: 1.25rem;
+  }
+  .artifact-body :global(th) {
+    font-size: var(--size-compact);
+  }
+</style>

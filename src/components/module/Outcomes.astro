@@ -1,5 +1,13 @@
 ---
-// placeholder, A replaces (blueprint section 1.1)
+// src/components/module/Outcomes.astro
+// The learning outcomes from frontmatter, one list item per outcome with the anchor id
+// outcome-<id> (blueprint 4.7), so a self-check question's outcome and a forward link from
+// another module can point at it. Nothing renders when the module lists no outcomes.
+const outcomes = Astro.locals.module?.data.outcomes ?? [];
 ---
 
-<div data-placeholder="A:src/components/module/Outcomes.astro"></div>
+{outcomes.length > 0 && (
+  <ol class="outcomes">
+    {outcomes.map((outcome) => <li id={`outcome-${outcome.id}`}>{outcome.text}</li>)}
+  </ol>
+)}

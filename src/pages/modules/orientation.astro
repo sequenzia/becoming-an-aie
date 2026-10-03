@@ -1,0 +1,33 @@
+---
+// src/pages/modules/orientation.astro
+// The orientation module page, prerendered (blueprint section 8; decision 16). It shadows the dynamic
+// [slug] route for /modules/orientation. No learner state: the page is built once for everyone, the
+// self-check stays in the browser (persist="local"), and the manual completion form posts to the
+// on-demand /progress route. locals.module is set before Content renders (section 14.2).
+// Orientation must be published from Phase 1 on. A draft here fails the build with a clear message,
+// because a prerendered page cannot answer 404 at request time (docs/decisions.md, 2026-10-03).
+import { getEntries, getEntry, render } from 'astro:content';
+import ModuleLayout from '../../components/module/ModuleLayout.astro';
+import { mdxComponents } from '../../components/module/mdx-components';
+import { isPublished } from '../../lib/modules';
+import type { ModuleEntry } from '../../lib/modules';
+import type { PrerequisiteSummary } from '../../lib/types';
+
+export const prerender = true;
+
+const entry = await getEntry('modules', 'orientation');
+if (!entry) throw new Error('src/content/modules/orientation.mdx is missing.');
+if (!isPublished(entry)) {
+  throw new Error('Orientation is a draft. Set draft: false in src/content/modules/orientation.mdx, or build with PREVIEW_DRAFTS=true.');
+}
+
+const { Content, headings } = await render(entry);
+const prerequisiteEntries = (await getEntries(entry.data.prerequisites)).filter((p): p is ModuleEntry => Boolean(p));
+const prerequisites: PrerequisiteSummary[] = prerequisiteEntries.map((p) => ({ slug: p.id, title: p.data.title, area: p.data.area }));
+
+Astro.locals.module = { slug: entry.id, data: entry.data, headings, prerequisites, preview: entry.data.draft };
+---
+
+<ModuleLayout entry={entry}>
+  <Content components={mdxComponents} />
+</ModuleLayout>

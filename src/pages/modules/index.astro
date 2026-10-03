@@ -1,10 +1,13 @@
 ---
 // src/pages/modules/index.astro
 // The catalog (blueprint section 8). Rendered on demand so a signed-in learner sees status
-// chips (CG-5). A planned module renders as a full entry without a link (summary, reading time,
-// prerequisites, a Planned chip), a superset of section 8's one-line form; deviation 11 in
-// docs/decisions.md waits for the author's answer. Anonymous responses carry public, max-age=300 from applyPublicCache; the
-// middleware marks signed-in responses private, no-store. No JavaScript beyond the theme script.
+// chips (CG-5). Published entries render in full; the unpublished modules of a group render as one
+// "Planned: <names>" line, by name only, as section 8 says and as EC-5.2.2 reads it (a draft is
+// excluded from the catalog). Under PREVIEW_DRAFTS every module counts as published and carries a Draft
+// chip. The full-entry rendering of drafts that deviation 11 recorded is gone from this page (docs/decisions.md,
+// 2026-10-03, Phase 1 review round 2); the landing page keeps its planned list. Anonymous responses carry
+// public, max-age=300 from applyPublicCache; the middleware marks signed-in responses private, no-store.
+// No JavaScript beyond the theme script.
 // The class names catalog-group, catalog-list, catalog-entry, and catalog-chips are private to this page and
 // styled by the scoped block below; nothing outside it depends on them. The list carries role="list" because
 // Safari with VoiceOver drops list semantics from a list styled list-style: none (docs/decisions.md, 2026-10-03).
@@ -44,33 +47,39 @@ if (user) {
 const byId = new Map(modules.map((m) => [m.id, m]));
 const published = new Set(modules.filter(isPublished).map((m) => m.id));
 
+/** A published module's entry. */
 interface Row {
   entry: ModuleEntry;
-  /** Null for a planned module: no page to link to. */
-  href: string | null;
+  href: string;
+  /** A prerequisite links only when it is published; a planned one is named. */
   prerequisites: Array<{ title: string; href: string | null }>;
-  /** The learner's status for a published module when signed in, else null. */
+  /** The learner's status when signed in, else null. */
   status: ProgressRow['status'] | null;
 }
 
 function toRow(entry: ModuleEntry): Row {
   return {
     entry,
-    href: published.has(entry.id) ? moduleHref(entry.id) : null,
+    href: moduleHref(entry.id),
     prerequisites: refIds(entry.data.prerequisites).map((slug) => {
       const target = byId.get(slug);
       return { title: target?.data.title ?? slug, href: target && published.has(slug) ? moduleHref(slug) : null };
     }),
-    status: user && published.has(entry.id) ? (progress[entry.id]?.status ?? 'not_started') : null,
+    status: user ? (progress[entry.id]?.status ?? 'not_started') : null,
   };
 }
 
-const groups = KIND_ORDER.map((kind) => ({
-  kind,
-  id: KIND_ANCHORS[kind],
-  title: KIND_GROUP_TITLES[kind],
-  rows: modules.filter((m) => m.data.kind === kind).map(toRow),
-}));
+const groups = KIND_ORDER.map((kind) => {
+  const members = modules.filter((m) => m.data.kind === kind);
+  return {
+    kind,
+    id: KIND_ANCHORS[kind],
+    title: KIND_GROUP_TITLES[kind],
+    rows: members.filter((m) => published.has(m.id)).map(toRow),
+    /** Unpublished modules, by name only (section 8). */
+    planned: members.filter((m) => !published.has(m.id)).map((m) => m.data.title),
+  };
+});
 const plannedCount = modules.length - published.size;
 const plannedNote =
   plannedCount === 0
@@ -96,16 +105,17 @@ const plannedNote =
       <section class="catalog-group" aria-labelledby={group.id}>
         <h2 id={group.id}>{group.title}</h2>
         {group.kind === 'area' && <p class="compact secondary">The six areas, in talk order.</p>}
-        {group.rows.length === 0 && <p class="compact secondary">Nothing here yet.</p>}
+        {group.rows.length === 0 && group.planned.length === 0 && <p class="compact secondary">Nothing here yet.</p>}
         {group.rows.length > 0 && (
           <ol class="catalog-list" role="list">
             {group.rows.map(({ entry, href, prerequisites, status }) => (
               <li class="card catalog-entry">
-                <h3 class="card-title">{href ? <a href={href}>{entry.data.title}</a> : entry.data.title}</h3>
-                {(href === null || entry.data.draft || status) && (
+                <h3 class="card-title">
+                  <a href={href}>{entry.data.title}</a>
+                </h3>
+                {(entry.data.draft || status) && (
                   <p class="catalog-chips">
-                    {href === null && <StatusChip status="planned" />}
-                    {href !== null && entry.data.draft && <StatusChip status="draft" />}
+                    {entry.data.draft && <StatusChip status="draft" />}
                     {status && <StatusChip status={status} />}
                   </p>
                 )}
@@ -137,6 +147,11 @@ const plannedNote =
             ))}
           </ol>
         )}
+        {group.planned.length > 0 && (
+          <p class="compact secondary catalog-planned">
+            Planned: {group.planned.join(', ')}.
+          </p>
+        )}
       </section>
     ))
   }
@@ -161,5 +176,8 @@ const plannedNote =
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
+  }
+  .catalog-planned {
+    margin-block-start: var(--space-4);
   }
 </style>

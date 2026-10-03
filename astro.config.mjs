@@ -37,6 +37,13 @@ export default defineConfig({
     // `@astrojs/markdown-satteri`, which is astro's dependency and not this project's; declaring it is a new
     // dependency and waits for the author (docs/dependencies.md). The key works until the next Astro major.
     smartypants: false,
+    // Code blocks follow the brief's mono rule: primary text on the code ground, the face alone marks them
+    // (docs/research/design-tokens.md, section 4). Shiki's css-variables theme writes var(--astro-code-*)
+    // references instead of a palette, and src/styles/tokens.css maps every one of them to the site's tokens, so
+    // both themes pass the contrast check and no hex color reaches the page. The default github-dark theme put
+    // #6A737D comments on #24292e (3.04:1) and its own background over --color-code-bg. Shiki still writes
+    // tabindex="0" and data-language on the pre (docs/decisions.md, 2026-10-03).
+    shikiConfig: { theme: 'css-variables' },
   },
   security: {
     checkOrigin: true,

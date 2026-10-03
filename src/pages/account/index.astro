@@ -1,11 +1,374 @@
 ---
-// placeholder, B replaces (blueprint section 6.6). Guarded by the middleware; 404 when accounts are off.
+// src/pages/account/index.astro
+// The account page (blueprint section 6.6). On demand, guarded by the middleware. Every stored row for the
+// learner, in plain language, then the display name form and the one-click deletion form. The display name
+// form posts to the updateDisplayName action and the deletion form to deleteAccount (both C's handlers);
+// a success redirects so the ?_action= query never survives in the address bar (section 14.3), and an error
+// re-renders the page with the message above the form. Learner text renders as escaped plain text inside
+// <pre class="learner-text">, never as Markdown (NFR-6.2.3).
+// The class names account-dl, account-rows, account-entry, and account-chips are private to this page and
+// styled by the scoped block below.
+import { actions, isInputError } from 'astro:actions';
+import type { ActionError } from 'astro:actions';
+import { getEntry } from 'astro:content';
 import Base from '../../layouts/Base.astro';
+import PageHeader from '../../components/site/PageHeader.astro';
+import StatusChip from '../../components/site/StatusChip.astro';
+import { getDb } from '../../db';
+import { loadLearnerData } from '../../lib/account';
+import { SERVER_ERROR_MESSAGE } from '../../lib/actions-guard';
+import { clearSessionCookies } from '../../lib/auth-cookies';
+import { CLOSING_SLUG } from '../../lib/content-schema';
+import { isoDate } from '../../lib/dates';
 import { env } from '../../lib/env';
+import { signInPath } from '../../lib/guard';
+import { applyPrivateCache } from '../../lib/headers';
+import { DISPLAY_NAME_MAX_CHARS } from '../../lib/limits';
+import { getPublishedModules } from '../../lib/modules';
+import { readFormBody } from '../../lib/notify-page';
+import { RATING_LABELS } from '../../lib/plan';
+import type { FormError, ModuleStatus } from '../../lib/types';
 
 if (!env.featureAccounts) return new Response(null, { status: 404 });
+
+// The middleware redirects first; this is the page's own check so it never renders without a session.
+const user = Astro.locals.user;
+if (!user) return Astro.redirect(signInPath('/account'), 302);
+applyPrivateCache(Astro.response.headers);
+
+/** The sentence for an action error. A server failure is one generic line; the detail stays in the log. */
+function messageFor(error: ActionError): string {
+  if (isInputError(error)) return Object.values(error.fields).flat().join(' ') || error.message;
+  if (error.code === 'UNAUTHORIZED') return 'Sign in again to change your account.';
+  if (error.status >= 500) {
+    if (error.message !== SERVER_ERROR_MESSAGE) console.error(`[account] action failed: ${error.code} ${error.message}`);
+    return SERVER_ERROR_MESSAGE;
+  }
+  return error.message;
+}
+
+// Deletion, step 2 of the section 6.6 sequence. The action cleared the cookies already; the page's cookie
+// jar shares the response, and clearing twice is harmless. Nothing of the deleted account is rendered.
+const deleted = Astro.getActionResult(actions.deleteAccount);
+if (deleted && !deleted.error) {
+  clearSessionCookies(Astro.cookies);
+  return Astro.redirect('/account/deleted', 303);
+}
+const renamed = Astro.getActionResult(actions.updateDisplayName);
+if (renamed && !renamed.error) return Astro.redirect('/account#profile', 303);
+
+let formError: FormError | undefined;
+if (deleted?.error) formError = { form: 'delete', message: messageFor(deleted.error) };
+if (renamed?.error) {
+  // The rejected name comes back into the field so the learner corrects it instead of retyping it.
+  const posted = (await readFormBody(Astro.request))?.get('name');
+  formError = { form: 'displayName', message: messageFor(renamed.error), value: typeof posted === 'string' ? posted : undefined };
+}
+
+const { db } = await getDb();
+const data = await loadLearnerData(db, user.id);
+if (!data) {
+  // The user row is gone while this request's cookie still resolved (a deletion from another tab).
+  clearSessionCookies(Astro.cookies);
+  return Astro.redirect('/sign-in', 302);
+}
+
+const modules = await getPublishedModules();
+const titleOf = new Map(modules.map((m) => [m.id, m.data.title]));
+const completed = data.progress.filter((p) => p.status === 'completed' && titleOf.has(p.moduleSlug)).length;
+
+// The closing module's assessment block names every rated item and the scale, so a rating reads as
+// "item: label" rather than as an id and a number. Without it the ids and numbers are shown as stored.
+const closing = await getEntry('modules', CLOSING_SLUG);
+const spec = closing?.data.assessment;
+const itemText = new Map<string, string>(
+  spec ? spec.areas.flatMap((a) => [...a.transfers, ...a.competencies].map((i) => [i.id, i.text] as const)) : [],
+);
+const scale: readonly string[] = spec?.scale ?? RATING_LABELS;
+const contextQuestions = spec?.contextQuestions ?? {
+  role: 'Your role',
+  feature: 'The AI feature you are closest to',
+  ownsSystem: 'Whether you own a model-dependent system',
+};
+const OWNS_WORDS = { yes: 'Yes', no: 'No', partly: 'Partly' } as const;
+const PROVIDER_WORDS: Record<string, string> = { github: 'GitHub', google: 'Google' };
+const KIND_WORDS = { workshop: 'Workshop response', failure: 'Failure exercise response' } as const;
+
+function chipStatus(status: string): ModuleStatus {
+  return status === 'completed' || status === 'in_progress' ? status : 'not_started';
+}
+
+/** Rated ids in the spec's order first, then any id the spec no longer names. */
+function ratedIds(ratings: Record<string, number>): string[] {
+  const known = [...itemText.keys()].filter((id) => id in ratings);
+  const extra = Object.keys(ratings).filter((id) => !itemText.has(id));
+  return [...known, ...extra];
+}
+
+const displayNameError = formError?.form === 'displayName' ? formError : undefined;
+const deleteError = formError?.form === 'delete' ? formError : undefined;
+const displayNameValue = displayNameError?.value ?? data.profile.name;
+const providers = data.profile.providers.map((p) => PROVIDER_WORDS[p] ?? p);
+
+/** The page's status for an action error. 404 and 5xx are Astro's reroutable codes and would swap in an error page. */
+function pageStatus(error: ActionError): number {
+  if (error.status >= 500) return 503;
+  if (error.status === 404) return 400;
+  return error.status;
+}
+const failed = renamed?.error ?? deleted?.error;
+if (failed) Astro.response.status = pageStatus(failed);
 ---
 
-<Base title="Account">
-  <div data-placeholder="B:src/pages/account/index.astro"></div>
+<Base title="Account" description="Everything stored about you, in plain language, with the controls to change your name or delete it all.">
+  <PageHeader kicker="Account" title="Your account" />
+  <div class="prose">
+    <p>
+      This page lists every row stored for your account, in plain language. You can change your display name here and
+      delete the account with everything in it. Reading the modules needs no account.
+    </p>
+
+    <h2 id="profile">Profile</h2>
+    <dl class="account-dl">
+      <div>
+        <dt>Display name</dt>
+        <dd>{data.profile.name}</dd>
+      </div>
+      <div>
+        <dt>Email</dt>
+        <dd>{data.profile.email}</dd>
+      </div>
+      <div>
+        <dt>Sign-in provider</dt>
+        <dd>{providers.length > 0 ? providers.join(', ') : 'None recorded'}</dd>
+      </div>
+      <div>
+        <dt>Account created</dt>
+        <dd><time datetime={isoDate(data.profile.createdAt)}>{isoDate(data.profile.createdAt)}</time></dd>
+      </div>
+    </dl>
+    <p class="small secondary">
+      The provider also gives this site your account id at that provider. It is kept so you can sign in again if your
+      email there changes. Provider tokens, your avatar, your IP address, and your browser details are discarded at
+      sign-in.
+    </p>
+    <form method="POST" action={actions.updateDisplayName} class="form-row form-row-inline">
+      <div>
+        <label class="field-label" for="display-name">Display name</label>
+        <input
+          class="field"
+          id="display-name"
+          name="name"
+          type="text"
+          required
+          maxlength={DISPLAY_NAME_MAX_CHARS}
+          autocomplete="nickname"
+          value={displayNameValue}
+          autofocus={displayNameError ? true : undefined}
+          aria-invalid={displayNameError ? 'true' : undefined}
+          aria-describedby={displayNameError ? 'display-name-error display-name-help' : 'display-name-help'}
+        />
+        {displayNameError && (
+          <p class="field-error" id="display-name-error"><b>Fix:</b> {displayNameError.message}</p>
+        )}
+        <p class="field-help" id="display-name-help">Shown in the header. At most {DISPLAY_NAME_MAX_CHARS} characters.</p>
+      </div>
+      <button class="btn btn-primary" type="submit">Save</button>
+    </form>
+    <p>Signing in with the other provider using the same email is rejected. Merging accounts is not offered.</p>
+
+    <h2 id="sessions">Sessions</h2>
+    <p>
+      A session is one browser where you signed in. It ends when you sign out there, when it expires, or when you delete
+      the account. The sign-in library keeps each session's start and expiry and nothing about the browser itself.
+    </p>
+    {data.sessions.length === 0 ? (
+      <p>No session is stored.</p>
+    ) : (
+      <ul class="account-rows" role="list">
+        {data.sessions.map((s) => (
+          <li class="account-entry">
+            <p>
+              Signed in <time datetime={isoDate(s.createdAt)}>{isoDate(s.createdAt)}</time>, expires{' '}
+              <time datetime={isoDate(s.expiresAt)}>{isoDate(s.expiresAt)}</time>.
+              {s.id === Astro.locals.session?.id && <b> This browser.</b>}
+            </p>
+          </li>
+        ))}
+      </ul>
+    )}
+
+    <h2 id="progress">Progress</h2>
+    <p>{completed} of {modules.length} modules complete.</p>
+    {data.progress.length === 0 ? (
+      <p>
+        No module is started yet. A module counts as started when you save a workshop or failure exercise response,
+        record a self-check, or mark orientation complete. Opening a page records nothing.
+      </p>
+    ) : (
+      <ul class="account-rows" role="list">
+        {data.progress.map((p) => (
+          <li class="account-entry">
+            <p class="account-chips">
+              <b>{titleOf.get(p.moduleSlug) ?? p.moduleSlug}</b>
+              <StatusChip status={chipStatus(p.status)} />
+            </p>
+            <p class="small secondary">
+              Started {p.startedAt ? <time datetime={isoDate(p.startedAt)}>{isoDate(p.startedAt)}</time> : 'date not recorded'}.
+              {' '}Completed {p.completedAt ? <time datetime={isoDate(p.completedAt)}>{isoDate(p.completedAt)}</time> : 'not yet'}.
+            </p>
+          </li>
+        ))}
+      </ul>
+    )}
+
+    <h2 id="responses">Workshop and failure exercise responses</h2>
+    <p>The text you saved in a module, shown exactly as you typed it. Nobody else sees it.</p>
+    {data.responses.length === 0 ? (
+      <p>No responses saved yet.</p>
+    ) : (
+      data.responses.map((r) => (
+        <article class="account-entry">
+          <h3>{titleOf.get(r.moduleSlug) ?? r.moduleSlug}: {KIND_WORDS[r.kind]}</h3>
+          <p class="small secondary">Last saved <time datetime={isoDate(r.updatedAt)}>{isoDate(r.updatedAt)}</time>.</p>
+          <pre class="learner-text">{r.body}</pre>
+        </article>
+      ))
+    )}
+
+    <h2 id="self-checks">Self-checks</h2>
+    <p>The orientation self-check is not stored on the server. It stays in your browser.</p>
+    {data.selfChecks.length === 0 ? (
+      <p>No self-check results stored yet.</p>
+    ) : (
+      <ul class="account-rows" role="list">
+        {data.selfChecks.map((s) => (
+          <li class="account-entry">
+            <p>
+              <b>{titleOf.get(s.moduleSlug) ?? s.moduleSlug}</b>: {s.attempts} {s.attempts === 1 ? 'attempt' : 'attempts'},{' '}
+              {s.passed ? 'passed' : 'not passed yet'}.
+            </p>
+            <p class="small secondary">Last updated <time datetime={isoDate(s.updatedAt)}>{isoDate(s.updatedAt)}</time>.</p>
+          </li>
+        ))}
+      </ul>
+    )}
+
+    <h2 id="assessments">Self-assessments and plans</h2>
+    <p>
+      Every version is kept. The plan text is yours to edit on the assessment page and to download as Markdown here.
+    </p>
+    {data.assessments.length === 0 ? (
+      <p>No self-assessment saved yet. The self-assessment opens with the closing module.</p>
+    ) : (
+      data.assessments.map((a) => (
+        <article class="account-entry">
+          <h3>Version {a.version}</h3>
+          <p class="small secondary">
+            Saved <time datetime={isoDate(a.createdAt)}>{isoDate(a.createdAt)}</time>.{' '}
+            <a href={`/account/plan.md?version=${a.version}`}>Download as Markdown<span class="visually-hidden">, version {a.version}</span></a>
+          </p>
+          <h4>Your context</h4>
+          <ul role="list">
+            <li>{contextQuestions.role} {a.context.role.trim() || 'Not given.'}</li>
+            <li>{contextQuestions.feature} {a.context.feature.trim() || 'Not given.'}</li>
+            <li>{contextQuestions.ownsSystem} {OWNS_WORDS[a.context.ownsSystem] ?? a.context.ownsSystem}.</li>
+          </ul>
+          <h4>Your ratings</h4>
+          <ul role="list">
+            {ratedIds(a.ratings).map((id) => (
+              <li>{itemText.get(id) ?? id}: {scale[a.ratings[id] ?? -1] ?? String(a.ratings[id])}</li>
+            ))}
+          </ul>
+          <h4>Your plan text</h4>
+          <pre class="learner-text">{a.planText}</pre>
+        </article>
+      ))
+    )}
+
+    <h2 id="feedback">Feedback</h2>
+    <p>
+      Feedback you send from the assessment page is anonymous and is not shown here. It is not deleted with the account
+      because it is not linked to it.
+    </p>
+
+    <h2 id="notify">Launch notifications</h2>
+    {data.notify ? (
+      <p>
+        Your email is on the notify-me list since <time datetime={isoDate(data.notify.createdAt)}>{isoDate(data.notify.createdAt)}</time>.
+        {data.notify.unsubscribedAt ? (
+          <> You unsubscribed on <time datetime={isoDate(data.notify.unsubscribedAt)}>{isoDate(data.notify.unsubscribedAt)}</time>.</>
+        ) : data.notify.confirmedAt ? (
+          <> Confirmed on <time datetime={isoDate(data.notify.confirmedAt)}>{isoDate(data.notify.confirmedAt)}</time>.</>
+        ) : (
+          <> Not confirmed yet. No mail goes out until a provider is chosen.</>
+        )}
+        {' '}The list stores the address and these dates, nothing else. Deleting the account removes this row too.
+      </p>
+    ) : (
+      <p>Your email is not on the notify-me list.</p>
+    )}
+
+    <h2 id="delete">Delete your account</h2>
+    <form method="POST" action={actions.deleteAccount}>
+      <input type="hidden" name="confirm" value="delete" />
+      <p id="delete-help">
+        This removes your account, your progress, your responses, your self-checks, your plans, and any notify-me
+        subscription with the same email. It cannot be undone.
+      </p>
+      {deleteError && (
+        <p class="field-error" id="delete-error" role="alert">{deleteError.message}</p>
+      )}
+      <p>
+        <button class="btn btn-outline" type="submit" aria-describedby={deleteError ? 'delete-help delete-error' : 'delete-help'}>
+          Delete my account and all my data
+        </button>
+      </p>
+    </form>
+  </div>
 </Base>
+
+<style>
+  .account-dl {
+    display: grid;
+    gap: var(--space-3);
+    margin: 0;
+  }
+  .account-dl div {
+    display: grid;
+    grid-template-columns: minmax(8rem, 12rem) 1fr;
+    gap: var(--space-3);
+    font-size: var(--size-compact);
+    line-height: 1.5;
+  }
+  .account-dl dt {
+    font-weight: var(--weight-bold);
+  }
+  .account-dl dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  .account-rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--space-3);
+  }
+  .account-entry {
+    display: grid;
+    gap: var(--space-2);
+  }
+  .account-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .account-entry h3 {
+    margin-block-start: var(--space-4);
+  }
+  .account-entry h4 {
+    margin-block: var(--space-2) 0;
+  }
+</style>

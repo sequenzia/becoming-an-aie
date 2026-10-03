@@ -4,6 +4,8 @@ The runbook for running the site as one container image on OpenShift with Postgr
 
 Names used below: project `aie`, Secret `aie-env`, Deployment `aie`, Service `aie`, Route `aie`, image `becoming-an-aie`. Replace `<host>` with the final public hostname (open item 1 in `docs/decisions.md`) and `<image>` with the image reference from step 3.
 
+Phase 1 adds accounts. The additions are marked "Phase 1" in steps 1, 2, 3, 7, and 8, and section 15 holds the Phase 1 rollout order and the gate steps on the deployed image.
+
 ## 0. Two kinds of configuration
 
 The site reads configuration two ways (blueprint decision 1). Getting this wrong is the most likely deploy mistake.
@@ -20,7 +22,7 @@ The site reads configuration two ways (blueprint decision 1). Getting this wrong
 
 1. `oc` logged in to the cluster with rights to create a project, or an existing project.
 2. An RDS PostgreSQL instance: class `db.t4g.micro`, single AZ, 20 GB gp3, automated backups on. Its security group allows ingress from the cluster's egress addresses. The parameter group sets `rds.force_ssl = 1`. The database user has `CREATE` on the database, because the migrator creates the `drizzle` schema for its migrations table. Connect by the RDS endpoint hostname, never by IP, so hostname verification matches the certificate.
-3. The two OAuth registrations (step 8). Not needed for the Phase 0 image, which is built with `FEATURE_ACCOUNTS=false`.
+3. The two OAuth registrations (step 8). Not needed for the Phase 0 image, which is built with `FEATURE_ACCOUNTS=false`. Required for Phase 1: a pod built with accounts on reports the four OAuth values and `BETTER_AUTH_SECRET` as missing on `/readyz` until they are in the Secret.
 4. The final hostname and a DNS record pointing at the cluster's router.
 5. Log retention for the namespace known (step 11).
 6. Values for the runtime secrets: `openssl rand -base64 32` twice, for `BETTER_AUTH_SECRET` and `NOTIFY_TOKEN_SECRET`. Both must be at least 32 characters.
@@ -43,7 +45,31 @@ BETTER_AUTH_SECRET=<32+ characters>
 NOTIFY_TOKEN_SECRET=<32+ characters>
 ```
 
-Before the Phase 1 rollout add `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and recreate the Secret (`oc delete secret aie-env`, then the `oc create secret` line again) and restart the pods with `oc rollout restart deploy/aie` so the process reads the new values. Rules:
+Phase 1. `.env.prod` for the Phase 1 image carries the same five lines plus the four OAuth values from step 8:
+
+```
+BETTER_AUTH_URL=https://<host>
+EMAIL_PROVIDER=none
+DATABASE_URL=postgres://<user>:<password>@<rds-endpoint>:5432/<database>
+BETTER_AUTH_SECRET=<32+ characters>
+NOTIFY_TOKEN_SECRET=<32+ characters>
+GITHUB_CLIENT_ID=<from the GitHub OAuth App>
+GITHUB_CLIENT_SECRET=<from the GitHub OAuth App>
+GOOGLE_CLIENT_ID=<from the Google OAuth client>
+GOOGLE_CLIENT_SECRET=<from the Google OAuth client>
+```
+
+What the two Better Auth values do. `BETTER_AUTH_URL` is the base URL Better Auth resolves everything against: the OAuth redirect URI it sends to each provider (`<BETTER_AUTH_URL>/api/auth/callback/<provider>`), the origin it trusts for its own CSRF check, and the `Secure` flag on the session cookie, which follows an `https://` base URL. It must be `https://<host>`, the same origin as the build argument `SITE_URL`; a mismatch shows as a provider-side redirect URI error, not as a site error. `BETTER_AUTH_SECRET` signs the session token and must be at least 32 characters; a pod without it refuses every on-demand request (the middleware throws before the page renders) and `/readyz` names it. Keep `BETTER_AUTH_URL` in the Secret even though it is not sensitive: it is a runtime value by design (blueprint decision 1), and the image never carries it.
+
+Replace the Secret in place and restart the pods so the process reads the new values:
+
+```sh
+oc create secret generic aie-env --from-env-file=.env.prod --dry-run=client -o yaml | oc apply -f -
+oc rollout restart deploy/aie
+oc rollout status deploy/aie
+```
+
+The `--dry-run=client -o yaml | oc apply` form updates an existing Secret without a delete. Rules:
 
 - `DATABASE_URL` carries no `sslmode`, `sslrootcert`, `sslcert`, or `sslkey` parameter. The pool refuses such a URL. TLS is configured through `PG_CA_FILE`, which the image sets.
 - Do not put `SITE_URL`, `FEATURE_ACCOUNTS`, or `PREVIEW_DRAFTS` in the Secret. They are build arguments and a runtime value is ignored.
@@ -62,16 +88,23 @@ oc secrets link default ghcr --for=pull
 
 The image reference is `ghcr.io/<owner>/becoming-an-aie:<sha>`.
 
+Phase 1. The workflow's default for the build argument `FEATURE_ACCOUNTS` is `true` from the Phase 1 commit on, the same default the `Dockerfile` carries. The repository variable `FEATURE_ACCOUNTS` was set to `false` for the Phase 0 image; delete it under Settings, Secrets and variables, Actions, Variables before the Phase 1 image is built, or the Phase 1 image ships with no sign-in. The workflow prints a notice while the variable is set. Never set `PREVIEW_DRAFTS` for an image.
+
 Path B, an OpenShift BuildConfig from the Dockerfile. Run from a clean clone of the phase commit so nothing untracked is uploaded; the build applies `.dockerignore`.
 
 ```sh
 oc new-build --strategy=docker --binary --name=aie
+# Phase 0:
 oc start-build aie --from-dir=. --follow \
   --build-arg SITE_URL=https://<host> \
   --build-arg FEATURE_ACCOUNTS=false
+# Phase 1 onward:
+oc start-build aie --from-dir=. --follow \
+  --build-arg SITE_URL=https://<host> \
+  --build-arg FEATURE_ACCOUNTS=true
 ```
 
-The image reference is `image-registry.openshift-image-registry.svc:5000/aie/aie:latest`. Tag each phase build (`oc tag aie/aie:latest aie/aie:phase-0`) so a rollback has a name to go back to.
+The image reference is `image-registry.openshift-image-registry.svc:5000/aie/aie:latest`. Tag each phase build (`oc tag aie/aie:latest aie/aie:phase-0`, then `aie/aie:phase-1`) so a rollback has a name to go back to.
 
 Record here which path produced each deployed image, with the build arguments used.
 
@@ -290,18 +323,68 @@ curl -I https://<host>/account
 # Phase 0 image: 404. Phase 1 onward: 302 to /sign-in?next=... with Cache-Control: private, no-store
 ```
 
-Phase 1 onward: sign in with each provider, then check the response headers on the deployed site for `Secure; HttpOnly; SameSite=Lax` on the session cookie, and confirm the deletion response carries expiring `Set-Cookie` headers for both session cookie names with `Secure` on the `__Secure-` name.
+Phase 1 onward, three more lines:
+
+```sh
+curl https://<host>/api/auth/ok
+# {"ok":true}: Better Auth's handler is mounted and the auth values parsed
+curl -I https://<host>/modules/orientation
+# 200: the first published module, prerendered
+curl -I https://<host>/modules/models
+# 404: a draft never renders in an image (EC-5.2.2); it renders only under PREVIEW_DRAFTS=true in dev and CI
+```
+
+Forwarded headers, Phase 1 onward (gate row 1.26). Every IP-keyed limit (`notify-ip`, `feedback-ip`, `write-ip`, and Better Auth's rule on `/sign-in/social`) keys on Astro's `clientAddress`, which is the leftmost `X-Forwarded-For` value whenever the Host matches `security.allowedDomains`. That is safe only while the Route annotation `haproxy.router.openshift.io/set-forwarded-headers: replace` (section 6) is in force; the OpenShift default, `append`, keeps a client-supplied leftmost value and every limit could be defeated by a forged header. Check the annotation and its effect:
+
+```sh
+oc get route aie -o jsonpath='{.metadata.annotations.haproxy\.router\.openshift\.io/set-forwarded-headers}'
+# replace
+# Six anonymous feedback posts from this one client, each with a different forged X-Forwarded-For.
+# feedback-ip allows 5 per hour, so the sixth must answer 429. If the forged values were honoured, all six would answer 200.
+for n in 1 2 3 4 5 6; do
+  curl -s -o /dev/null -w '%{http_code}\n' -X POST "https://<host>/_actions/submitFeedback" \
+    -H "Origin: https://<host>" -H "X-Forwarded-For: 203.0.113.$n" \
+    --data-urlencode "body=gate row 1.26 check $n"
+done
+# 200 200 200 200 200 429
+```
+
+The five stored rows are anonymous (`feedback` has no user column); remove them afterwards with `delete from feedback where body like 'gate row 1.26 check %'` through the section 15 query shell.
+
+Then sign in with each provider and check the response headers in the browser's developer tools: the callback response sets `__Secure-better-auth.session_token` with `Secure; HttpOnly; SameSite=Lax`, and the deletion response on `/account` carries expiring `Set-Cookie` headers for both session cookie names with `Secure` on the `__Secure-` name. Section 15 lists the order.
 
 TLS to RDS is verified two ways: `db:tls-check` proves the pool negotiated TLS from inside the pod, and `scripts/migrate.mjs` refuses to run without `PG_CA_FILE` in production. `rds.force_ssl = 1` on the instance refuses plaintext from the server side as well.
 
 ## 8. OAuth callback URL registration
 
-Phase 1 onward. Better Auth's callback path is `/api/auth/callback/<provider>`, resolved against `BETTER_AUTH_URL`.
+Phase 1 onward. Better Auth's callback path is `/api/auth/callback/<provider>`, resolved against `BETTER_AUTH_URL` (`docs/research/better-auth.md` 3.3). Register one app per provider per environment: production at `https://<host>`, and a second pair at `http://localhost:4321` for `astro dev` on the dev machine. Never reuse the production client secret in a `.env`.
 
-- GitHub: an OAuth App (not a GitHub App) with Authorization callback URL `https://<host>/api/auth/callback/github`. Copy the client id and generate a client secret.
-- Google: a Web application OAuth client in Google Cloud with Authorized redirect URI `https://<host>/api/auth/callback/google`. Add `https://<host>` to Authorized JavaScript origins. Copy the client id and secret.
+### 8.1 GitHub
 
-Put the four values in `.env.prod`, recreate the Secret (step 2), and roll the Deployment (`oc rollout restart deploy/aie`) so the process reads them. `BETTER_AUTH_URL` must be `https://<host>`; that makes the session cookie `Secure`. Register the callback URLs before the Phase 1 gate; a mismatch shows as a provider-side redirect error, not as a site error.
+1. Sign in to GitHub as the account that will own the app. Open Settings, Developer settings, OAuth Apps, New OAuth App. Choose an OAuth App, not a GitHub App: a GitHub App needs the "Email addresses: Read-only" account permission as well, or every sign-in ends in `email_not_found`.
+2. Fill in: Application name `Becoming an AI Engineer`; Homepage URL `https://<host>`; Authorization callback URL `https://<host>/api/auth/callback/github`. Leave "Enable Device Flow" off.
+3. Register the app, then generate a client secret. Copy the Client ID into `GITHUB_CLIENT_ID` and the secret into `GITHUB_CLIENT_SECRET` in `.env.prod`. The secret is shown once.
+4. Scopes need no configuration: Better Auth requests `read:user` and `user:email` by default, and when `/user` returns no public email it reads the primary address from `/user/emails`. A learner whose email is private can therefore sign in; gate row 1.16 checks it.
+5. Dev app: repeat with Homepage URL `http://localhost:4321` and callback `http://localhost:4321/api/auth/callback/github`; the values go into the dev machine's `.env`.
+
+### 8.2 Google
+
+1. In the Google Cloud console, pick or create a project. Open APIs and Services, OAuth consent screen. Set the user type to External, the app name to `Becoming an AI Engineer`, the support and developer contact addresses, and the authorized domain `<host>` without a scheme. Add the scopes `openid`, `email`, and `profile`, which are the ones Better Auth requests. While the publishing status is Testing, only listed test users can sign in; publish the app, or add every tester, before the gate.
+2. Open Credentials, Create credentials, OAuth client ID. Application type Web application. Name `aie-web`. Authorized JavaScript origins `https://<host>`. Authorized redirect URIs `https://<host>/api/auth/callback/google`. Create.
+3. Copy the Client ID into `GOOGLE_CLIENT_ID` and the client secret into `GOOGLE_CLIENT_SECRET` in `.env.prod`.
+4. Dev client: a second OAuth client with origin `http://localhost:4321` and redirect URI `http://localhost:4321/api/auth/callback/google`.
+
+### 8.3 After both registrations
+
+1. Put the four values in `.env.prod`, replace the Secret, and restart the Deployment (step 2, the `oc apply` and `oc rollout restart` lines).
+2. `curl https://<host>/readyz` is `{"ok":true}` and `curl https://<host>/api/auth/ok` is `{"ok":true}`.
+3. Open `https://<host>/sign-in` and sign in with each provider once. A mismatch between the registered URI and `<BETTER_AUTH_URL>/api/auth/callback/<provider>` shows at the provider as a redirect URI error (`redirect_uri_mismatch` at Google, "The redirect_uri MUST match the registered callback URL" at GitHub), never as a site error. A provider that shares no address lands back on `/sign-in?error=email_not_found`; the same address through a second provider lands on `/sign-in?error=unable_to_link_account`, by design (blueprint decision 12).
+4. Record both registrations in the table below. Register the callback URLs before the Phase 1 gate.
+
+| Date | Provider | Environment | Callback URL | Owner account | By |
+|---|---|---|---|---|---|
+| | GitHub | production | `https://<host>/api/auth/callback/github` | | |
+| | Google | production | `https://<host>/api/auth/callback/google` | | |
 
 ## 9. Phase 0 gate on the deployed image
 
@@ -336,6 +419,8 @@ pool.query('select email, created_at, confirmed_at, unsubscribed_at from notify_
 8. Open the unsubscribe URL and see the unsubscribed page. Run the query again: `unsubscribed_at` is set.
 9. Open the confirm URL from step 6 again. It shows the generic page, and the row does not change (replay protection, decision 10).
 10. Privacy notice reviewed at `https://<host>/privacy`, with the contact address filled in (open item 11) and the log retention number matching step 11.
+
+The Phase 1 steps are in section 15, so the numbering of the steps other documents cite stays fixed.
 
 ## 10. Rollback
 
@@ -390,7 +475,39 @@ Refresh it once a year with the annual upgrade, or sooner when AWS announces a C
 - Content-Security-Policy (blueprint decision 38).
 - A second replica needs a shared rate limiter and a migration lock.
 - The container registry (open item 3) and the CI push step.
+- Signed-in end-to-end coverage (open item 12): a test-only session injection compiled in only for the e2e build. Until then the Phase 1 gate's manual rows cover `/account`, `/assessment`, and the deletion response.
 
 ## 14. Build arguments, stated once more
 
 `SITE_URL` must equal the Route host origin. Otherwise every action POST fails the origin check behind edge TLS, and rate limiting keys on the router address. `FEATURE_ACCOUNTS=false` only for the Phase 0 image. `PREVIEW_DRAFTS` never for an image. A value in the Secret does not change any of the three.
+
+## 15. Phase 1 rollout and gate on the deployed image
+
+The record lives in `docs/gates.md` (Phase 1 gate, Parts A to C). Nothing in Phase 1 changes the Deployment, Service, or Route manifests. The order:
+
+1. Close Part A of the gate (the architecture and auth review) before any learner data is accepted, that is, before the Route serves the Phase 1 image.
+2. Register the OAuth callbacks (step 8), put the four values in `.env.prod`, replace the Secret, and restart (step 2). Keep `BETTER_AUTH_URL=https://<host>`.
+3. Build the Phase 1 image with `FEATURE_ACCOUNTS=true` and record it in the step 3 table. Run the migration Job from it (step 4). The Phase 1 migration set adds the Better Auth tables (`user`, `session`, `account`, `verification`) and the learner tables; it is additive, so the Phase 0 pod keeps running until `oc set image` moves the Deployment.
+4. Verify (step 7, Phase 1 lines, and the forwarded-headers block for gate row 1.26). Then sign in once with GitHub and once with Google and read the rows from the pod (gate rows 1.15 and 1.16). The image has `pg`:
+
+```sh
+oc exec deploy/aie -- node -e "
+const { readFileSync } = require('node:fs');
+const { Pool } = require('pg');
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: true, ca: readFileSync(process.env.PG_CA_FILE, 'utf8') }, max: 1 });
+(async () => {
+  console.table((await pool.query('select id, email, name, image, email_verified from \"user\" order by created_at desc limit 5')).rows);
+  console.table((await pool.query('select user_id, ip_address, user_agent, expires_at from session order by created_at desc limit 5')).rows);
+  console.table((await pool.query('select provider_id, account_id, access_token, refresh_token, id_token, access_token_expires_at, refresh_token_expires_at, scope from account order by created_at desc limit 5')).rows);
+  await pool.end();
+})();
+"
+```
+
+   Expected: `image`, `ip_address`, `user_agent`, `access_token`, `refresh_token`, `id_token`, `access_token_expires_at`, `refresh_token_expires_at`, and `scope` are null on every row; `email` is set and `email_verified` is true on every row, including for a GitHub account whose primary email is private (an unverified address never gets a row: the sign-in lands on `/sign-in?error=email_not_verified`); `provider_id` is `github` or `google` and `account_id` the provider's subject. Anything else means a hook did not run on a real callback (open item 4); the fallback is `account.encryptOAuthTokens: true` plus a privacy notice update.
+
+5. Run Part B of the gate in the browser against `https://<host>/modules/orientation`, `/account`, and `/sign-in`, and the `astro dev` rows against `/modules/models` and `/assessment` with `PREVIEW_DRAFTS=true`.
+6. Delete the test account from `/account` and read the response headers (gate row 1.17). Confirm the rows are gone with the query above, and that `notify_subscriber` no longer holds the account's address if it had subscribed.
+7. Close Part C, including the checklist table, and paste the CI run link.
+
+If a hook or the sign-in fails on the deployed pod, roll back with step 10. The Phase 0 image answers 404 on every account route and ignores the auth values in the Secret, so a rollback needs no Secret change.

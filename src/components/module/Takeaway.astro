@@ -1,5 +1,11 @@
 ---
-// placeholder, A replaces (blueprint section 1.1)
+// src/components/module/Takeaway.astro
+// Renders the frontmatter takeaway verbatim where the body places <Takeaway /> (blueprint 4.7).
+// moduleRules holds the value to the content map, so the sentence on the page is the talk's.
+// Nothing renders when the module has no takeaway.
+const takeaway = Astro.locals.module?.data.takeaway;
 ---
 
-<div data-placeholder="A:src/components/module/Takeaway.astro"></div>
+{takeaway && (
+  <p class="takeaway"><b>Takeaway.</b>{' '}{takeaway}</p>
+)}

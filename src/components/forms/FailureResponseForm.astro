@@ -1,5 +1,10 @@
 ---
-// placeholder, D replaces (blueprint section 1.1)
+// src/components/forms/FailureResponseForm.astro
+// The failure exercise response form (blueprint section 9.4). Same props as WorkshopResponseForm and the
+// same markup, with kind fixed to "failure": the form id is failure-form, the button reads "Submit and
+// reveal the explanation", and a successful enhanced save reloads the page so the server renders the
+// explanation slot and the pitfall band (decision 19: the reveal is server-side only).
+import WorkshopResponseForm from './WorkshopResponseForm.astro';
 import type { FormError, ResponseRow } from '../../lib/types';
 
 export interface Props {
@@ -11,6 +16,8 @@ export interface Props {
   minChars: number;
   maxChars: number;
 }
+
+const { moduleSlug, saved, error, signedIn, minChars, maxChars } = Astro.props;
 ---
 
-<div data-placeholder="D:src/components/forms/FailureResponseForm.astro"></div>
+<WorkshopResponseForm moduleSlug={moduleSlug} kind="failure" saved={saved} error={error} signedIn={signedIn} minChars={minChars} maxChars={maxChars} />

@@ -1,13 +1,46 @@
 ---
-// placeholder, C replaces (blueprint section 7.5). Returns 404 when the build disabled accounts (section 1.3).
+// src/pages/progress.astro
+// PRG target for markModuleComplete (blueprint sections 7.3 and 7.5). The orientation page is prerendered,
+// so its "Mark orientation complete" form posts here, an on-demand route, through
+// actionFormPath('/progress', 'markModuleComplete'). Success redirects to the catalog's orientation group so
+// the ?_action= query never survives in the address bar (section 14.3). UNAUTHORIZED redirects to sign-in
+// with the orientation page as the return target. Every other error renders its message with a link back:
+// a request Astro rejected before the handler (413, 415) or a bad field keeps its status and says the form
+// could not be read; a rate limit answers 429 with the limiter's sentence; a server failure answers 503 with
+// the generic sentence and leaves the detail in the log (src/lib/actions-guard.ts). A plain GET carries no
+// action result and goes to the catalog. Returns 404 when the build disabled accounts (section 14.7).
+import { actions, isInputError } from 'astro:actions';
 import Base from '../layouts/Base.astro';
 import PageHeader from '../components/site/PageHeader.astro';
+import { SERVER_ERROR_MESSAGE } from '../lib/actions-guard';
 import { env } from '../lib/env';
+import { signInPath } from '../lib/guard';
+import { applyPrivateCache } from '../lib/headers';
+import { CLIENT_ERROR_MESSAGE } from '../lib/notify-page';
 
 if (!env.featureAccounts) return new Response(null, { status: 404 });
+
+const result = Astro.getActionResult(actions.markModuleComplete);
+if (!result) return Astro.redirect('/modules', 302);
+if (!result.error) return Astro.redirect('/modules#orientation', 303);
+if (result.error.code === 'UNAUTHORIZED') return Astro.redirect(signInPath('/modules/orientation'), 303);
+
+const error = result.error;
+const serverFailure = error.status >= 500;
+const unreadable = isInputError(error) || error.code === 'CONTENT_TOO_LARGE' || error.code === 'UNSUPPORTED_MEDIA_TYPE';
+if (serverFailure && error.message !== SERVER_ERROR_MESSAGE) {
+  console.error(`[progress] markModuleComplete failed: ${error.code} ${error.message}`);
+}
+const message = serverFailure ? SERVER_ERROR_MESSAGE : unreadable ? CLIENT_ERROR_MESSAGE : error.message;
+// 503, not 500: Astro swaps in its error page for a 500 and the message would be lost.
+Astro.response.status = serverFailure ? 503 : error.status;
+applyPrivateCache(Astro.response.headers);
 ---
 
-<Base title="Progress">
+<Base title="Progress" description="Your orientation completion was not recorded.">
   <PageHeader kicker="Your program" title="Progress" />
-  <div data-placeholder="C:src/pages/progress.astro"></div>
+  <div class="prose">
+    <p role="status">{message}</p>
+    <p>Nothing changed. <a href="/modules/orientation">Back to orientation</a> or <a href="/modules">open the catalog</a>.</p>
+  </div>
 </Base>
