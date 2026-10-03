@@ -1,0 +1,19 @@
+---
+// src/pages/404.astro
+// The not-found page (blueprint section 8). Prerendered; the Node adapter serves it with status 404.
+import Base from '../layouts/Base.astro';
+import PageHeader from '../components/site/PageHeader.astro';
+
+export const prerender = true;
+---
+
+<Base title="Not found" description="That page does not exist.">
+  <PageHeader kicker="Not found" title="That page does not exist." />
+  <div class="prose">
+    <p>The address may have a typo, or the page may not be written yet. Modules open one at a time.</p>
+    <ul>
+      <li><a href="/">Go to the start page</a></li>
+      <li><a href="/modules">Browse the modules</a></li>
+    </ul>
+  </div>
+</Base>

@@ -1,0 +1,70 @@
+---
+// src/layouts/Base.astro
+import '../styles/tokens.css';
+import '../styles/base.css';
+import Header from '../components/site/Header.astro';
+import Footer from '../components/site/Footer.astro';
+
+export interface Props {
+  title: string;
+  description?: string;
+  /** Sets data-area on body. 'transition' is the closing module's green. */
+  area?: 'models' | 'context' | 'tools' | 'orchestration' | 'evals' | 'operating' | 'transition';
+  /** Adds 'wide' to main for tables and diagrams. */
+  wide?: boolean;
+}
+
+const { title, description = 'A self-paced program for software engineers moving into AI engineering.', area, wide = false } = Astro.props;
+const siteName = 'Becoming an AI Engineer';
+const fullTitle = title === siteName ? title : `${title} · ${siteName}`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta name="color-scheme" content="dark light" />
+    <script is:inline>
+      (function () {
+        var key = 'aie-theme';
+        var root = document.documentElement;
+        function apply(v) {
+          if (v === 'light' || v === 'dark') root.setAttribute('data-theme', v);
+          else root.removeAttribute('data-theme');
+        }
+        function current() {
+          try { return localStorage.getItem(key) || 'system'; } catch (e) { return 'system'; }
+        }
+        function sync(v) {
+          var buttons = document.querySelectorAll('[data-theme-choice]');
+          for (var i = 0; i < buttons.length; i++) {
+            buttons[i].setAttribute('aria-pressed', String(buttons[i].getAttribute('data-theme-choice') === v));
+          }
+        }
+        apply(current());
+        window.__aieSetTheme = function (v) {
+          try { if (v === 'system') localStorage.removeItem(key); else localStorage.setItem(key, v); } catch (e) {}
+          apply(v);
+          sync(v);
+        };
+        document.addEventListener('DOMContentLoaded', function () { sync(current()); });
+        document.addEventListener('click', function (e) {
+          var t = e.target && e.target.closest ? e.target.closest('[data-theme-choice]') : null;
+          if (t) window.__aieSetTheme(t.getAttribute('data-theme-choice'));
+        });
+      })();
+    </script>
+  </head>
+  <body data-area={area}>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <Header />
+    <main id="main" class:list={['container', { wide }]}>
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>

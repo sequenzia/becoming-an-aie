@@ -1,0 +1,16 @@
+---
+// placeholder, D replaces (blueprint section 1.1)
+import type { FormError, ResponseRow } from '../../lib/types';
+
+export interface Props {
+  moduleSlug: string;
+  kind: 'workshop' | 'failure';
+  saved: ResponseRow | null;
+  error?: FormError;
+  signedIn: boolean;
+  minChars: number;
+  maxChars: number;
+}
+---
+
+<div data-placeholder="D:src/components/forms/FailureResponseForm.astro"></div>

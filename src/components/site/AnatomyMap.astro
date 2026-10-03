@@ -1,0 +1,105 @@
+---
+// src/components/site/AnatomyMap.astro
+// The full anatomy diagram inline on a dark tile (blueprint 10.4, decision 25).
+// One SVG source per variant, imported as text. Each instance gets its own <title> and <desc> ids from a
+// per-page counter, so two maps on /map and any number of highlight instances in a module share no ids.
+// Highlight states are CSS on data-highlight (base.css .map[data-highlight]) over the data-layer groups.
+// The long description follows in a collapsible unless describedBy is false. Its title line is the same
+// MAP_TITLE string as the <title>, so the page spells the diagram's name one way (docs/decisions.md, 2026-10-03).
+import Collapsible from './Collapsible.astro';
+import {
+  MAP_HIGHLIGHT_REGIONS,
+  MAP_TITLE,
+  decorateSvg,
+  mapDescription,
+  nextDiagramInstance,
+  type MapHighlight,
+  type MapVariant,
+} from './diagrams';
+import baseMap from '../../assets/diagrams/anatomy-landscape.svg?raw';
+import yoursMap from '../../assets/diagrams/anatomy-landscape-yours.svg?raw';
+
+export interface Props {
+  variant?: MapVariant;
+  highlight?: MapHighlight;
+  /** Render the "Long description" collapsible after the figure. Default true. */
+  describedBy?: boolean;
+  /** Render the long description expanded. Default false. */
+  descriptionOpen?: boolean;
+}
+
+const { variant = 'base', highlight, describedBy = true, descriptionOpen = false } = Astro.props;
+
+const n = nextDiagramInstance(Astro.request);
+const titleId = `map-title-${n}`;
+const descId = `map-desc-${n}`;
+const title = MAP_TITLE[variant];
+const desc = mapDescription(variant, highlight);
+const svg = decorateSvg(variant === 'yours' ? yoursMap : baseMap, {
+  attrs: {
+    class: 'map',
+    role: 'img',
+    'aria-labelledby': `${titleId} ${descId}`,
+    'data-variant': variant,
+    'data-highlight': highlight,
+  },
+  title,
+  titleId,
+  desc,
+  descId,
+});
+---
+
+<figure class="diagram-tile">
+  {/*
+    tabindex="0" keeps the region reachable by keyboard where it scrolls sideways (under 48rem; axe
+    scrollable-region-focusable). The name is the region's name, not a description of one viewport: on a wide
+    screen the stop is inert and the pages load no script that could toggle it (docs/decisions.md, 2026-10-03).
+  */}
+  <div class="diagram-scroll" role="group" aria-label="Anatomy diagram" tabindex="0">
+    <Fragment set:html={svg} />
+  </div>
+</figure>
+{describedBy && (
+  <Collapsible title="Long description" open={descriptionOpen}>
+    <div class="prose">
+      <p>Title: {title}</p>
+      <p>The whole diagram sits inside one rounded container labelled Platform, described as "Runs, secures, and improves the agent". It has three bands from top to bottom.</p>
+      <p>Top band, Per-run services, described as "Every run draws on these". Three boxes in a row:</p>
+      <ul>
+        <li>Identity and access: auth, permissions, scoped credentials.</li>
+        <li>Security: injection defense, sandboxing, secrets.</li>
+        <li>Data and knowledge: RAG, vector stores, connectors.</li>
+      </ul>
+      <p>Middle band, a dashed container labelled One run, described as "Repeats for each goal". Reading left to right:</p>
+      <ul>
+        <li>Goal, outlined, "From user, trigger, or schedule".</li>
+        <li>
+          An arrow into a container labelled Agent, described as "Model + harness". Inside it, on the left, the Model box, in blue, "Decides what to do". A plus sign. On the right, the Harness region, in pink, "Carries state across turns". It holds six boxes in two columns and three rows, read row by row:
+          <ul>
+            <li>Orchestration: loop, hooks, workflows.</li>
+            <li>Tools: files, shell, web, MCP.</li>
+            <li>Context and memory: history, working memory.</li>
+            <li>Guardrails: limits on actions.</li>
+            <li>Instructions: system prompt, config.</li>
+            <li>Verification: tests, checks, self-review.</li>
+          </ul>
+        </li>
+        <li>An arrow out of the Agent into a box reading "Run until a stopping condition is met".</li>
+      </ul>
+      <p>Bottom band, Across runs, described as "Learn from and control many runs over time". Three boxes in a row:</p>
+      <ul>
+        <li>Observability: logs, traces, metrics, cost.</li>
+        <li>Evaluations: offline evals, regression suites, A/B.</li>
+        <li>Governance: policies, audit trails, approvals.</li>
+      </ul>
+      <p>Color carries area membership: the Model is blue, the Harness is pink, generic boxes and containers are gray.</p>
+      {variant === 'yours' && (
+        <p>This copy is the yours variant. An amber badge sits on the top-right corner of every box except Goal, reading "yours", and the Model's badge reads "yours to select".</p>
+      )}
+      {highlight && (
+        <p>This copy keeps {MAP_HIGHLIGHT_REGIONS[highlight]} at full brightness and dims everything else to 30 percent.</p>
+      )}
+    </div>
+  </Collapsible>
+)}

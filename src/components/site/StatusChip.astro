@@ -1,0 +1,26 @@
+---
+// src/components/site/StatusChip.astro
+// Progress state as a word in a pill (blueprint 10.4). The word carries the state; the stroke restates it.
+// `planned` is the catalog's and the landing page's word for an unpublished module with no page yet; it
+// shares the dashed stroke of `draft` (docs/decisions.md, 2026-10-03).
+import type { ModuleStatus } from '../../lib/types';
+
+export type ChipStatus = ModuleStatus | 'draft' | 'planned';
+
+export interface Props {
+  status: ChipStatus;
+}
+
+const CHIPS: Record<ChipStatus, { state: string; word: string }> = {
+  not_started: { state: 'not-started', word: 'Not started' },
+  in_progress: { state: 'in-progress', word: 'In progress' },
+  completed: { state: 'complete', word: 'Complete' },
+  draft: { state: 'draft', word: 'Draft' },
+  planned: { state: 'planned', word: 'Planned' },
+};
+
+const { status } = Astro.props;
+const chip = CHIPS[status];
+---
+
+<span class={`chip chip-status-${chip.state}`}>{chip.word}</span>

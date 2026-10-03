@@ -1,0 +1,51 @@
+---
+// src/components/site/NotifyForm.astro
+// The notify-me form (blueprint 10.4 and 14.3). It posts to the on-demand /notify route, so the
+// prerendered landing page stays static and the form works without JavaScript (CG-1).
+// /notify renders this form again with `error` when the action rejects the input: the field is marked
+// invalid, described by the message, focused so the message is read on arrival, and filled with `value`,
+// the rejected text, so the learner corrects it instead of retyping it. A rate limit or a server failure is
+// not the learner's input, so it arrives as `notice`, a status line above the field, and the field stays
+// valid (docs/decisions.md, 2026-10-03).
+import { actionFormPath } from '../../lib/paths';
+
+export interface Props {
+  /** The input error for the email field. */
+  error?: string;
+  /** A notice that is not about the input: the rate limit sentence or the generic server failure sentence. */
+  notice?: string;
+  /** The submitted text, echoed into the field on an input error only. */
+  value?: string;
+}
+
+const { error, notice, value } = Astro.props;
+const action = actionFormPath('/notify', 'notifySubscribe');
+---
+
+<form class="notify-form" id="notify" method="POST" action={action}>
+  {notice && (
+    <p class="field-help notify-notice" id="notify-notice" role="status">{notice}</p>
+  )}
+  <div class="form-row form-row-inline">
+    <div>
+      <label class="field-label" for="notify-email">Email</label>
+      <input
+        class="field"
+        id="notify-email"
+        name="email"
+        type="email"
+        required
+        autocomplete="email"
+        value={value}
+        autofocus={error ? true : undefined}
+        aria-invalid={error ? 'true' : undefined}
+        aria-describedby={error ? 'notify-error' : undefined}
+      />
+    </div>
+    <button class="btn btn-primary" type="submit">Notify me</button>
+  </div>
+  {error && (
+    <p class="field-error" id="notify-error"><b>Fix:</b> {error}</p>
+  )}
+  <p class="field-help">We store your address to tell you when modules launch. <a href="/privacy">Privacy notice</a>.</p>
+</form>

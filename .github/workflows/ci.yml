@@ -1,0 +1,119 @@
+name: CI
+# Every action is pinned to a commit SHA with its version tag in the comment. F resolved the SHAs on
+# 2026-09-16 with: gh api repos/<owner>/<repo>/git/ref/tags/<tag> (each ref was a commit object).
+#   actions/checkout@v6             d23441a48e516b6c34aea4fa41551a30e30af803
+#   actions/setup-node@v6           249970729cb0ef3589644e2896645e5dc5ba9c38
+#   actions/upload-artifact@v5      330a01c490aca151604b8cf639adc76d48f6c5d4
+#   docker/setup-buildx-action@v3   8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+#   docker/build-push-action@v6     10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+# The image job builds the Dockerfile and smoke tests the result. It pushes nowhere until the author
+# confirms the registry (docs/decisions.md, open item 3). Blueprint section 12.4.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: node scripts/lint.mjs
+      - name: Content check
+        run: npm run content:check
+      - name: Type check (runs astro sync, validates content schemas)
+        run: npx astro check --minimumSeverity error
+      - name: Unit and component tests
+        run: npm test
+      - name: Build with draft preview for end-to-end tests
+        run: npm run build
+        env:
+          PREVIEW_DRAFTS: 'true'
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+      - name: End to end and accessibility
+        run: npm run test:e2e
+        env:
+          CI: 'true'
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        if: ${{ !cancelled() }}
+        with:
+          name: axe-reports
+          path: axe-reports/
+          retention-days: 30
+
+  image:
+    needs: web
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      IMAGE: becoming-an-aie:${{ github.sha }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Warn when the SITE_URL repository variable is unset
+        if: ${{ vars.SITE_URL == '' }}
+        run: |
+          echo "::warning title=SITE_URL is unset::The repository variable SITE_URL is not set. The image is built with SITE_URL=http://localhost:4321, which is right for the smoke test and wrong for a deployment. Set the variable under Settings, Secrets and variables, Actions, Variables before this image is deployed."
+      - name: Build the image (loaded into the runner's Docker, pushed nowhere)
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          push: false
+          load: true
+          # The Phase 0 image ships with accounts off (blueprint section 1.3). A repository variable
+          # FEATURE_ACCOUNTS overrides the default. Phase 1 flips the default here to 'true'.
+          build-args: |
+            SITE_URL=${{ vars.SITE_URL || 'http://localhost:4321' }}
+            FEATURE_ACCOUNTS=${{ vars.FEATURE_ACCOUNTS || 'false' }}
+          tags: ${{ env.IMAGE }}
+      - name: Smoke test the image as OpenShift runs it (arbitrary UID, read-only root filesystem)
+        run: |
+          # NOTIFY_TOKEN_SECRET is a placeholder so the subscribe handler gets past requireEnv and reaches
+          # getDb(); DATABASE_URL stays unset on purpose. Nothing here is a real secret.
+          docker run -d --name aie --read-only --tmpfs /tmp --user 12345:0 -p 8080:8080 \
+            -e NOTIFY_TOKEN_SECRET=ci-smoke-placeholder-token-not-real-000000 "$IMAGE"
+          ok=0
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8080/healthz | grep -q '"ok":true'; then ok=1; break; fi
+            sleep 1
+          done
+          test "$ok" = 1
+          # Without DATABASE_URL the pod is not ready, and a form POST fails closed with a 503 instead of
+          # storing the address in memory (docs/decisions.md, 2026-10-03). /healthz alone cannot see this.
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/readyz)" = 503
+          post_status=$(curl -s -o /tmp/notify.html -w '%{http_code}' -X POST \
+            -H 'Origin: http://127.0.0.1:8080' --data 'email=smoke@example.com' \
+            'http://127.0.0.1:8080/notify?_action=notifySubscribe')
+          test "$post_status" = 503
+          grep -q 'Something went wrong on our side' /tmp/notify.html
+          docker logs aie
+          docker logs aie 2>&1 | grep -q 'DATABASE_URL is not set'
+          docker rm -f aie
+          # The runtime install carries no optional packages: the embedded database is absent from the image.
+          docker run --rm --read-only --tmpfs /tmp --user 12345:0 "$IMAGE" \
+            node -e "import('@electric-sql/pglite').then(() => process.exit(1), () => process.exit(0))"
+          # npm must run under the same constraints. Without DATABASE_URL the TLS check exits 2 by design.
+          set +e
+          docker run --rm --read-only --tmpfs /tmp --user 12345:0 "$IMAGE" npm run db:tls-check
+          code=$?
+          set -e
+          test "$code" -eq 2

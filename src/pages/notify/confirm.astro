@@ -1,0 +1,59 @@
+---
+// src/pages/notify/confirm.astro
+// On demand. Confirms on GET through the notifyConfirm action (blueprint section 7.5). Every failure a
+// learner can cause reads the same, so the page never reveals whether an address is on the list. A
+// missing token fails the action's input check and lands on the generic message too. A server failure
+// is told apart (src/lib/notify-page.ts): the learner holds a working link and is not told it is bad.
+// The action runs for any method Astro routes here (HEAD and OPTIONS included); the POST-button page
+// waits for the mail provider (src/lib/notify.ts, docs/deploy-openshift.md deferred work).
+import { actions } from 'astro:actions';
+import Base from '../../layouts/Base.astro';
+import PageHeader from '../../components/site/PageHeader.astro';
+import { applyPrivateCache } from '../../lib/headers';
+import { CONFIRM_LINK_DAYS } from '../../lib/notify';
+import { tokenPageOutcome } from '../../lib/notify-page';
+
+const token = Astro.url.searchParams.get('token') ?? '';
+const { data, error } = await Astro.callAction(actions.notifyConfirm, { token });
+const outcome = tokenPageOutcome(data?.state === 'confirmed', error);
+Astro.response.status = outcome.status;
+applyPrivateCache(Astro.response.headers);
+---
+
+<Base title="Confirm your address" description="Confirm an address for launch notifications.">
+  <PageHeader kicker="Launch notifications" title="Confirm your address" />
+  <div class="prose">
+    {
+      outcome.kind === 'done' && (
+        <Fragment>
+          <p>Your address is confirmed.</p>
+          <p>
+            No mail goes out until a provider is chosen. Once one is, we will use this address to tell you when
+            modules launch, and every message will carry a link to remove it.
+          </p>
+        </Fragment>
+      )
+    }
+    {outcome.kind === 'limited' && <p role="status">{outcome.message}</p>}
+    {
+      outcome.kind === 'failed' && (
+        <Fragment>
+          <p role="status">{outcome.message}</p>
+          <p>Nothing changed. Your link still works. Open it again in a few minutes.</p>
+        </Fragment>
+      )
+    }
+    {
+      outcome.kind === 'invalid' && (
+        <Fragment>
+          <p>This link is not valid or has expired.</p>
+          <p>
+            Confirmation links work for {CONFIRM_LINK_DAYS} days. <a href="/#notify">Submit the form again</a> to get a
+            fresh one.
+          </p>
+        </Fragment>
+      )
+    }
+    <p><a href="/">Back to the program</a> · <a href="/privacy">Privacy notice</a></p>
+  </div>
+</Base>

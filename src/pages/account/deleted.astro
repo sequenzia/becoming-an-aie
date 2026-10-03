@@ -1,0 +1,14 @@
+---
+// placeholder, B replaces (blueprint section 6.6). Section 8 prerenders the real page. The placeholder
+// renders on demand so the accounts check below can answer 404 in the Phase 0 image (sections 1.3 and
+// 14.7): a prerendered 404 is written to disk as the 404 page's HTML and served with status 200.
+// B restores `export const prerender = true` with the real page (docs/decisions.md, 2026-10-02).
+import Base from '../../layouts/Base.astro';
+import { env } from '../../lib/env';
+
+if (!env.featureAccounts) return new Response(null, { status: 404 });
+---
+
+<Base title="Account deleted">
+  <div data-placeholder="B:src/pages/account/deleted.astro"></div>
+</Base>

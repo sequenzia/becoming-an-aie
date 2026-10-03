@@ -1,0 +1,17 @@
+---
+// src/components/site/Callout.astro
+// Plain callout (a Bold lead line, no fill) or surface callout (a card with a colored left edge and a
+// Bold label). Blueprint 10.4 and 4.7; the MDX default is surface.
+export interface Props {
+  kind?: 'plain' | 'surface';
+  label: string;
+}
+
+const { kind = 'surface', label } = Astro.props;
+const rootClass = kind === 'plain' ? 'callout' : 'callout-surface';
+---
+
+<div class={rootClass}>
+  {kind === 'plain' ? <p class="callout-lead">{label}</p> : <span class="callout-label">{label}</span>}
+  <slot />
+</div>

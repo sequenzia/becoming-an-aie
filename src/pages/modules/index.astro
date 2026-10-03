@@ -1,0 +1,165 @@
+---
+// src/pages/modules/index.astro
+// The catalog (blueprint section 8). Rendered on demand so a signed-in learner sees status
+// chips (CG-5). A planned module renders as a full entry without a link (summary, reading time,
+// prerequisites, a Planned chip), a superset of section 8's one-line form; deviation 11 in
+// docs/decisions.md waits for the author's answer. Anonymous responses carry public, max-age=300 from applyPublicCache; the
+// middleware marks signed-in responses private, no-store. No JavaScript beyond the theme script.
+// The class names catalog-group, catalog-list, catalog-entry, and catalog-chips are private to this page and
+// styled by the scoped block below; nothing outside it depends on them. The list carries role="list" because
+// Safari with VoiceOver drops list semantics from a list styled list-style: none (docs/decisions.md, 2026-10-03).
+import Base from '../../layouts/Base.astro';
+import PageHeader from '../../components/site/PageHeader.astro';
+import StatusChip from '../../components/site/StatusChip.astro';
+import { getDb } from '../../db';
+import { KIND_GROUP_TITLES, KIND_ORDER } from '../../lib/content-schema';
+import type { ModuleKind } from '../../lib/content-schema';
+import { applyPublicCache } from '../../lib/headers';
+import { getAllModules, isPublished } from '../../lib/modules';
+import type { ModuleEntry } from '../../lib/modules';
+import { moduleHref } from '../../lib/paths';
+import { listProgress } from '../../lib/progress';
+import { refIds } from '../../lib/types';
+import type { ProgressRow } from '../../lib/types';
+
+/** Group anchors. /modules#orientation (section 7.3) and /modules#electives (section 4.11) are contracted. */
+const KIND_ANCHORS: Record<ModuleKind, string> = {
+  orientation: 'orientation',
+  foundations: 'foundations',
+  area: 'areas',
+  closing: 'closing',
+  elective: 'electives',
+};
+
+const modules = await getAllModules();
+const user = Astro.locals.user;
+let progress: Record<string, ProgressRow> = {};
+if (user) {
+  const { db } = await getDb();
+  progress = await listProgress(db, user.id);
+} else {
+  applyPublicCache(Astro.response.headers);
+}
+
+const byId = new Map(modules.map((m) => [m.id, m]));
+const published = new Set(modules.filter(isPublished).map((m) => m.id));
+
+interface Row {
+  entry: ModuleEntry;
+  /** Null for a planned module: no page to link to. */
+  href: string | null;
+  prerequisites: Array<{ title: string; href: string | null }>;
+  /** The learner's status for a published module when signed in, else null. */
+  status: ProgressRow['status'] | null;
+}
+
+function toRow(entry: ModuleEntry): Row {
+  return {
+    entry,
+    href: published.has(entry.id) ? moduleHref(entry.id) : null,
+    prerequisites: refIds(entry.data.prerequisites).map((slug) => {
+      const target = byId.get(slug);
+      return { title: target?.data.title ?? slug, href: target && published.has(slug) ? moduleHref(slug) : null };
+    }),
+    status: user && published.has(entry.id) ? (progress[entry.id]?.status ?? 'not_started') : null,
+  };
+}
+
+const groups = KIND_ORDER.map((kind) => ({
+  kind,
+  id: KIND_ANCHORS[kind],
+  title: KIND_GROUP_TITLES[kind],
+  rows: modules.filter((m) => m.data.kind === kind).map(toRow),
+}));
+const plannedCount = modules.length - published.size;
+const plannedNote =
+  plannedCount === 0
+    ? ''
+    : plannedCount === 1
+      ? ' One module is planned and has no page yet. It opens when it is published.'
+      : ` ${plannedCount} modules are planned and have no page yet. Each opens when it is published.`;
+---
+
+<Base
+  title="Modules"
+  description="Every module of the program, grouped by kind, with its summary, reading time, prerequisites, and, when signed in, your progress."
+>
+  <PageHeader kicker="Modules" minimap="all" title="The catalog" />
+  <div class="prose">
+    <p>
+      {modules.length} modules in {groups.length} groups, in the talk's order. Each entry shows its summary, reading time, and
+      prerequisites. Prerequisites are recommendations, never locks.{plannedNote}
+    </p>
+  </div>
+  {
+    groups.map((group) => (
+      <section class="catalog-group" aria-labelledby={group.id}>
+        <h2 id={group.id}>{group.title}</h2>
+        {group.kind === 'area' && <p class="compact secondary">The six areas, in talk order.</p>}
+        {group.rows.length === 0 && <p class="compact secondary">Nothing here yet.</p>}
+        {group.rows.length > 0 && (
+          <ol class="catalog-list" role="list">
+            {group.rows.map(({ entry, href, prerequisites, status }) => (
+              <li class="card catalog-entry">
+                <h3 class="card-title">{href ? <a href={href}>{entry.data.title}</a> : entry.data.title}</h3>
+                {(href === null || entry.data.draft || status) && (
+                  <p class="catalog-chips">
+                    {href === null && <StatusChip status="planned" />}
+                    {href !== null && entry.data.draft && <StatusChip status="draft" />}
+                    {status && <StatusChip status={status} />}
+                  </p>
+                )}
+                <p>{entry.data.summary}</p>
+                <p class="small secondary">
+                  <span>{entry.data.readingMinutes} min read</span>
+                  {' · '}
+                  {prerequisites.length === 0 ? (
+                    <span>No prerequisites</span>
+                  ) : (
+                    <span>
+                      Prerequisites:{' '}
+                      {prerequisites.map((p, i) => (
+                        <>
+                          {i > 0 && ', '}
+                          {p.href ? <a href={p.href}>{p.title}</a> : p.title}
+                        </>
+                      ))}
+                    </span>
+                  )}
+                  {entry.data.catalogNote && (
+                    <>
+                      {' · '}
+                      <span>{entry.data.catalogNote}</span>
+                    </>
+                  )}
+                </p>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+    ))
+  }
+</Base>
+
+<style>
+  .catalog-group {
+    margin-block-start: var(--space-8);
+  }
+  .catalog-list {
+    list-style: none;
+    margin: var(--space-4) 0 0;
+    padding: 0;
+    display: grid;
+    gap: var(--space-3);
+  }
+  .catalog-entry {
+    display: grid;
+    gap: var(--space-2);
+  }
+  .catalog-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+</style>

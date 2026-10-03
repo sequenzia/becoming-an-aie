@@ -1,0 +1,11 @@
+# Public pages may be indexed. Routes that act on a token or a session are not for crawlers.
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /account
+Disallow: /assessment
+Disallow: /notify/confirm
+Disallow: /notify/unsubscribe
+Disallow: /progress
+Disallow: /sign-in
+Disallow: /sign-out

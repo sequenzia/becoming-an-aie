@@ -1,0 +1,18 @@
+---
+// src/components/site/ThemeToggle.astro
+// Three buttons. They carry no script: the inline head script in Base.astro handles clicks and
+// keeps aria-pressed in sync (blueprint 10.3, decision 24). "System" is pressed until the script runs.
+const CHOICES = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+] as const;
+---
+
+<div class="theme-toggle" role="group" aria-label="Theme">
+  {CHOICES.map((choice) => (
+    <button type="button" class="btn btn-outline" data-theme-choice={choice.value} aria-pressed={choice.value === 'system' ? 'true' : 'false'}>
+      {choice.label}
+    </button>
+  ))}
+</div>

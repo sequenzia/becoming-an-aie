@@ -1,0 +1,48 @@
+---
+// src/components/site/MiniMap.astro
+// One of the seven mini-maps on a dark tile, linking to /map (blueprint 10.4).
+// The SVG is inlined from src/assets/diagrams so the tile needs no request. The mini SVGs carry no ids,
+// so any number can share a page. The picture is a role=img named by aria-label with the section 7 alt
+// text (NFR-6.4.3). The link itself is named "Open the map", so the first Tab stop in main is a short
+// name and not the whole alt; the alt stays on the image for anyone who reads graphics. The 10.4 name
+// (the alt plus "Open the map") is superseded (docs/decisions.md, 2026-10-03).
+import type { MiniMapKey } from '../../lib/types';
+import { MINI_MAP_ALT, decorateSvg } from './diagrams';
+import miniModels from '../../assets/diagrams/mini-models.svg?raw';
+import miniContext from '../../assets/diagrams/mini-context.svg?raw';
+import miniTools from '../../assets/diagrams/mini-tools.svg?raw';
+import miniOrchestration from '../../assets/diagrams/mini-orchestration.svg?raw';
+import miniEvals from '../../assets/diagrams/mini-evals.svg?raw';
+import miniOperating from '../../assets/diagrams/mini-operating.svg?raw';
+import miniAll from '../../assets/diagrams/mini-all.svg?raw';
+
+export interface Props {
+  variant: MiniMapKey;
+}
+
+const SOURCES: Record<MiniMapKey, string> = {
+  models: miniModels,
+  context: miniContext,
+  tools: miniTools,
+  orchestration: miniOrchestration,
+  evals: miniEvals,
+  operating: miniOperating,
+  all: miniAll,
+};
+
+const { variant } = Astro.props;
+const alt = MINI_MAP_ALT[variant];
+const svg = decorateSvg(SOURCES[variant], {
+  attrs: { role: 'img', 'aria-label': alt, 'data-variant': variant },
+});
+---
+
+<a class="minimap" href="/map" aria-label="Open the map">
+  <Fragment set:html={svg} />
+</a>
+
+<style>
+  a.minimap {
+    display: block;
+  }
+</style>

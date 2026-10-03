@@ -1,0 +1,44 @@
+---
+// src/pages/notify/index.astro
+// PRG target for notifySubscribe (blueprint section 7.5). The landing form posts here without
+// JavaScript. Success redirects to /notify/thanks, which reads the same for a new and for an
+// existing address. An input error re-renders the form with the field message, the rejected text, and a
+// 400. A rate limit re-renders it with a notice and a 429. A request Astro rejected before the handler
+// (413, 415) keeps its status and says the form could not be read. Any other failure is the server's, not
+// the learner's: the page shows one generic sentence with a 503 and the detail stays in the log
+// (src/lib/notify-page.ts). A plain GET carries no action result and goes back to the form on the landing page.
+import { actions } from 'astro:actions';
+import Base from '../../layouts/Base.astro';
+import NotifyForm from '../../components/site/NotifyForm.astro';
+import PageHeader from '../../components/site/PageHeader.astro';
+import { applyPrivateCache } from '../../lib/headers';
+import { readFormBody, subscribePageOutcome } from '../../lib/notify-page';
+
+const result = Astro.getActionResult(actions.notifySubscribe);
+if (!result) return Astro.redirect('/#notify', 302);
+if (!result.error) return Astro.redirect('/notify/thanks', 303);
+
+const outcome = subscribePageOutcome(result.error);
+Astro.response.status = outcome.status;
+applyPrivateCache(Astro.response.headers);
+
+/**
+ * The submitted address, echoed into the field on an input error only, so the learner corrects the text
+ * instead of retyping it (docs/decisions.md, 2026-10-03).
+ */
+async function submittedEmail(request: Request): Promise<string | undefined> {
+  const email = (await readFormBody(request))?.get('email');
+  return typeof email === 'string' ? email : undefined;
+}
+
+const value = outcome.fieldError ? await submittedEmail(Astro.request) : undefined;
+---
+
+<Base title={outcome.title} description="Leave an address and hear when modules of the program launch.">
+  <PageHeader kicker="Launch notifications" title={outcome.title} />
+  <div class="prose">
+    <p>{outcome.lead}</p>
+    <NotifyForm error={outcome.fieldError} notice={outcome.notice} value={value} />
+    <p>No mail goes out until a provider is chosen.</p>
+  </div>
+</Base>

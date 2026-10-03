@@ -1,0 +1,98 @@
+---
+// src/pages/privacy.astro
+// The privacy notice (blueprint section 8, spec 5.1 and 6.6). Prerendered. It covers the notify list now
+// and accounts later. The contact address is open item 11 in docs/decisions.md and is a marked
+// placeholder until the author provides it.
+import Base from '../layouts/Base.astro';
+import PageHeader from '../components/site/PageHeader.astro';
+import Notice from '../components/site/Notice.astro';
+import { env } from '../lib/env';
+
+export const prerender = true;
+
+const accountsOpen = env.featureAccounts;
+const UPDATED = '2026-10-03';
+---
+
+<Base title="Privacy notice" description="What this site stores, why, and how to have it deleted.">
+  <PageHeader kicker="About this site" title="Privacy notice" />
+
+  <div class="prose">
+    <p class="small secondary">Last updated <time datetime={UPDATED}>{UPDATED}</time>.</p>
+    <p>This site exists to teach. It keeps as little as it can. This notice says what is stored, why, and how to have it removed.</p>
+
+    <h2>Purpose</h2>
+    <p>
+      The notify list exists to tell you when modules launch. Accounts exist to save your progress, your written responses, and your self-assessment plan across devices. Nothing is stored for any other purpose. Nothing is sold, shared, or used for advertising.
+    </p>
+
+    <h2>The notify list</h2>
+    <p>When you submit the notify-me form we store:</p>
+    <ul>
+      <li>your email address;</li>
+      <li>the time you submitted it (created);</li>
+      <li>the time you confirmed it, if you did (confirmed);</li>
+      <li>the time you unsubscribed, if you did (unsubscribed).</li>
+    </ul>
+    <p>
+      The address is stored unconfirmed. No mail goes out until a provider is chosen and confirmed opt-in is enabled. Until then, nothing reaches your inbox from this site. When mail is enabled, the first message will ask you to confirm the address by following a link. Every message will carry an unsubscribe link that works without signing in. Only a confirmed address that has not unsubscribed can receive a launch notification.
+    </p>
+    <p>
+      The confirmation and unsubscribe links carry the address itself, encoded but not hidden, together with a signature that proves the link came from this site. Anyone who can read a link can read the address in it. Treat a link the way you treat the address.
+    </p>
+    <p>
+      The server log records the address once at submission, with the confirmation and unsubscribe links, because there is no mail provider to send them to yet. Server logs are kept for at most 30 days.
+    </p>
+    <p>
+      Submitting an address that is already on the list gives the same response as a new address. The form never reveals whether an address is on the list.
+    </p>
+
+    <h2>Accounts</h2>
+    {!accountsOpen && (
+      <Notice label="Not open yet" neutral>
+        <p>Accounts are not open yet. This section says what will be stored when they open.</p>
+      </Notice>
+    )}
+    <p>Sign-in goes through GitHub or Google. This site never sees or stores a password. From the provider it keeps:</p>
+    <ul>
+      <li>the provider's name (GitHub or Google);</li>
+      <li>your account id at that provider;</li>
+      <li>your email address;</li>
+      <li>your display name, which you can change on the account page.</li>
+    </ul>
+    <p>The sign-in library also keeps: a user id created by this site, whether the provider reports the email as verified, the account's created and updated times, and the expiry time of each session.</p>
+    <p>Discarded at sign-in and never stored: provider access and refresh tokens, your avatar, your IP address, your browser details, and the scopes the provider granted.</p>
+    <p>Signing in sets one session cookie. Nothing else on this site sets a cookie. Your theme choice, if you set one, stays in your browser's local storage and is never sent anywhere.</p>
+
+    <h2>Progress</h2>
+    <p>For a signed-in learner, each module records whether it was started or completed and when. The catalog and the account page show these states.</p>
+
+    <h2>Workshop and failure exercise responses</h2>
+    <p>The text you write in a module's workshop and failure exercise is saved to your account so you can return to it. It is shown back to you as plain text and to nobody else. It is not reviewed or graded by a person.</p>
+
+    <h2>Self-check results</h2>
+    <p>For a signed-in learner, each module's self-check records your latest answers, the number of attempts, and whether you passed. The orientation self-check is different: it stays in your browser for everyone and is never sent to the server.</p>
+
+    <h2>Self-assessments and plans</h2>
+    <p>The guided self-assessment saves your ratings, your answers about your context, the plan it generated, and any edits you make to the plan text. Every version is kept so you can compare them and download any of them as Markdown.</p>
+
+    <h2>Anonymous feedback</h2>
+    <p>The feedback form on the assessment page is anonymous. What you send is stored with a timestamp and nothing that links it to an account. Because it is not linked, deleting your account does not remove it.</p>
+
+    <h2>Deletion</h2>
+    <p>
+      Your account and everything attached to it (progress, responses, self-check results, assessments, and plans) can be deleted from the account page in one action. Deletion is immediate and cannot be undone. Deleting the account also removes your address from the notify list.
+    </p>
+    <p>
+      An address on the notify list can be removed at any time. Once mail is enabled, every message carries an unsubscribe link. Until then, write to the contact address below and name the address to remove.
+    </p>
+
+    <h2>Contact</h2>
+    <p data-open-item="contact-address">
+      <b>Contact address:</b> not yet provided. This line is a placeholder and is replaced with a working address before the notify-me form goes live.
+    </p>
+
+    <h2>No trackers, no analytics</h2>
+    <p>This site loads nothing from third parties, sets no tracking cookies, and runs no analytics. There is nothing to opt out of.</p>
+  </div>
+</Base>

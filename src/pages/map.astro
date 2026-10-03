@@ -1,0 +1,71 @@
+---
+// src/pages/map.astro
+// The full anatomy diagram page (blueprint section 8). Prerendered. Two map instances with their own
+// title and desc ids; the long description is expanded on the first one. The mini-map links here.
+import Base from '../layouts/Base.astro';
+import PageHeader from '../components/site/PageHeader.astro';
+import AnatomyMap from '../components/site/AnatomyMap.astro';
+import { AREA_TITLES } from '../lib/content-schema';
+
+export const prerender = true;
+
+/** Where each area lives on the map (docs/research/design-tokens.md, area colors). */
+const AREA_HOMES = [
+  { title: AREA_TITLES.models, color: 'Blue', boxes: 'Model' },
+  { title: AREA_TITLES.context, color: 'Pink', boxes: 'Context and memory, Instructions, Data and knowledge' },
+  { title: AREA_TITLES.tools, color: 'Pink', boxes: 'Tools' },
+  { title: AREA_TITLES.orchestration, color: 'Pink', boxes: 'Orchestration' },
+  { title: AREA_TITLES.evals, color: 'Green', boxes: 'Verification, Evaluations' },
+  { title: AREA_TITLES.operating, color: 'Amber', boxes: 'Identity and access, Security, Guardrails, Observability, Governance' },
+];
+---
+
+<Base title="The map" description="The anatomy of an agentic AI system: the talk's map, with every box marked yours." wide>
+  <PageHeader kicker="The map" title="Anatomy of an agentic AI system" />
+
+  <div class="prose">
+    <p>
+      This is the talk's map. Every slide of the talk lives inside it, and every module of this program starts from one of its boxes. The mini-map at the top of a page shows which boxes that page is about.
+    </p>
+    <p class="takeaway"><b>Takeaway.</b> "Agent equals model plus harness. Everything that is not the model is what you engineer."</p>
+
+    <h2>The full map</h2>
+    <p>The map has four layers, from the inside out. The model decides what to do. The harness wraps it. The per-run services sit above the run, and every run draws on them. The across-runs services sit below, and they let you learn from and control many runs. The long description under the diagram lists every box.</p>
+  </div>
+
+  <AnatomyMap variant="base" descriptionOpen />
+
+  <div class="prose">
+    <h2>Every box is yours</h2>
+    <p>
+      When you are the user, your coding-tool provider operates the agent platform. When you are the owner, your team owns the product's behavior and operating limits. Every box on the map is then yours, and the model is yours to select.
+    </p>
+  </div>
+
+  <AnatomyMap variant="yours" describedBy={false} />
+
+  <div class="prose">
+    <h2>The six areas and where they sit</h2>
+    <p>Each area borrows its color from where it sits on the map. Three areas share the harness and its pink.</p>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Area</th>
+          <th scope="col">Color</th>
+          <th scope="col">Boxes on the map</th>
+        </tr>
+      </thead>
+      <tbody>
+        {AREA_HOMES.map((area) => (
+          <tr>
+            <td>{area.title}</td>
+            <td>{area.color}</td>
+            <td>{area.boxes}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</Base>

@@ -1,0 +1,14 @@
+---
+// src/components/site/Footer.astro
+// Privacy, changelog, the talk repository, and the framework credit (blueprint 10.4).
+import { TALK_REPO } from './links';
+---
+
+<footer class="site-footer">
+  <div class="container">
+    <a href="/privacy">Privacy</a>
+    <a href="/changelog">Changelog</a>
+    <a href={TALK_REPO}>The talk: Beyond the Coding Agent</a>
+    <a href="https://astro.build">Built with Astro</a>
+  </div>
+</footer>

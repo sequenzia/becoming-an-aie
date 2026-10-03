@@ -1,0 +1,17 @@
+---
+// src/components/site/Notice.astro
+// A surface callout with role note: prerequisite, stale, or generic (blueprint 10.4).
+// The left edge takes the page's area text color, or the secondary color when neutral.
+export interface Props {
+  label: string;
+  neutral?: boolean;
+  ariaLabel?: string;
+}
+
+const { label, neutral = false, ariaLabel } = Astro.props;
+---
+
+<aside class:list={['notice', { 'notice-neutral': neutral }]} role="note" aria-label={ariaLabel}>
+  <span class="callout-label">{label}</span>
+  <slot />
+</aside>

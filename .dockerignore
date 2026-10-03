@@ -1,0 +1,20 @@
+# Blueprint section 13.1. labs, e2e, test, and docs are not needed to build. Markdown files are not
+# excluded as a class: src/content/artifacts/*.md and src/content/changelog/*.md are content.
+.git
+node_modules
+dist
+.astro
+.env
+.env.*
+.pglite-dev
+test-results
+playwright-report
+axe-reports
+labs
+docs
+e2e
+test
+.github
+specs
+.claude
+.DS_Store

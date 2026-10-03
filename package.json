@@ -1,0 +1,57 @@
+{
+  "name": "becoming-an-aie",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Self-paced program: from software engineer to AI engineer. Follows the talk Beyond the Coding Agent.",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "npm run content:check && astro build",
+    "preview": "astro preview",
+    "start": "node ./dist/server/entry.mjs",
+    "check": "astro check --minimumSeverity error",
+    "test": "astro sync && vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "content:check": "node scripts/content-check.ts",
+    "drift:check": "node scripts/drift-review.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:tls-check": "node scripts/tls-check.mjs",
+    "lint": "node scripts/lint.mjs && astro check --minimumSeverity warning",
+    "check:content": "npm run content:check",
+    "check:a11y": "playwright test e2e/a11y.spec.ts",
+    "drift": "npm run drift:check"
+  },
+  "dependencies": {
+    "@astrojs/mdx": "8.0.1",
+    "@astrojs/node": "11.1.5",
+    "@astrojs/preact": "6.0.5",
+    "@better-auth/drizzle-adapter": "1.7.5",
+    "astro": "7.3.2",
+    "better-auth": "1.7.5",
+    "drizzle-orm": "0.45.2",
+    "pg": "8.23.0",
+    "preact": "10.29.8"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.10",
+    "@axe-core/playwright": "4.13.0",
+    "@electric-sql/pglite": "0.5.8",
+    "@playwright/test": "1.63.0",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/preact": "3.2.4",
+    "@testing-library/user-event": "14.6.7",
+    "@types/node": "24.13.5",
+    "@types/pg": "8.23.1",
+    "axe-core": "4.13.0",
+    "drizzle-kit": "0.31.10",
+    "gray-matter": "4.0.3",
+    "jsdom": "30.0.1",
+    "typescript": "5.9.3",
+    "vitest": "5.0.1"
+  }
+}

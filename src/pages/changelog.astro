@@ -1,0 +1,51 @@
+---
+// src/pages/changelog.astro
+// Prerendered from the changelog collection, newest first (blueprint section 8, AC-5.12.2).
+// The first entry is the launch. The quarterly review appends an entry per change.
+import { getCollection, render } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import PageHeader from '../components/site/PageHeader.astro';
+import { isoDate } from '../lib/dates';
+
+export const prerender = true;
+
+const entries = (await getCollection('changelog')).sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+const rendered = await Promise.all(
+  entries.map(async (entry) => {
+    const { Content } = await render(entry);
+    return { entry, Content, date: isoDate(entry.data.date) };
+  }),
+);
+---
+
+<Base title="Changelog" description="Every change to the modules, the artifacts, and the site, newest first.">
+  <PageHeader kicker="Changelog" title="What changed" />
+  <div class="prose">
+    <p>
+      Every change to the modules, the artifacts, and the site, newest first. The quarterly review records here which
+      dates it updated and which artifacts it replaced or captured again.
+    </p>
+    {
+      rendered.map(({ entry, Content, date }) => (
+        <article class="changelog-entry" aria-labelledby={`entry-${entry.id}`}>
+          <h2 id={`entry-${entry.id}`}>{entry.data.title}</h2>
+          <p class="small secondary">
+            <time datetime={date}>{date}</time>
+          </p>
+          <Content />
+        </article>
+      ))
+    }
+  </div>
+</Base>
+
+<style>
+  .changelog-entry {
+    display: grid;
+    gap: var(--space-3);
+  }
+  .changelog-entry :global(ul),
+  .changelog-entry :global(ol) {
+    padding-inline-start: 1.25rem;
+  }
+</style>

@@ -1,0 +1,54 @@
+---
+// src/pages/notify/unsubscribe.astro
+// On demand. Unsubscribes on GET through the notifyUnsubscribe action (blueprint section 7.5). It
+// works without a session (AC-5.1.4). Every failure a learner can cause reads the same, so the page
+// never reveals whether an address is on the list. A missing token lands on the generic message too.
+// A server failure is told apart (src/lib/notify-page.ts): the learner holds a working link and is
+// not told it is bad. The action runs for any method Astro routes here (HEAD and OPTIONS included); the
+// POST-button page waits for the mail provider (src/lib/notify.ts, docs/deploy-openshift.md deferred work).
+import { actions } from 'astro:actions';
+import Base from '../../layouts/Base.astro';
+import PageHeader from '../../components/site/PageHeader.astro';
+import { applyPrivateCache } from '../../lib/headers';
+import { tokenPageOutcome } from '../../lib/notify-page';
+
+const token = Astro.url.searchParams.get('token') ?? '';
+const { data, error } = await Astro.callAction(actions.notifyUnsubscribe, { token });
+const outcome = tokenPageOutcome(data?.state === 'unsubscribed', error);
+Astro.response.status = outcome.status;
+applyPrivateCache(Astro.response.headers);
+---
+
+<Base title="Unsubscribe" description="Remove an address from launch notifications.">
+  <PageHeader kicker="Launch notifications" title="Unsubscribe" />
+  <div class="prose">
+    {
+      outcome.kind === 'done' && (
+        <Fragment>
+          <p>You are unsubscribed.</p>
+          <p>We will not use this address to tell you about launches. Submit the form again at any time to come back.</p>
+        </Fragment>
+      )
+    }
+    {outcome.kind === 'limited' && <p role="status">{outcome.message}</p>}
+    {
+      outcome.kind === 'failed' && (
+        <Fragment>
+          <p role="status">{outcome.message}</p>
+          <p>Nothing changed. Your link still works. Open it again in a few minutes.</p>
+        </Fragment>
+      )
+    }
+    {
+      outcome.kind === 'invalid' && (
+        <Fragment>
+          <p>This link is not valid.</p>
+          <p>
+            To have an address removed without a working link, write to the address in the <a href="/privacy">privacy notice</a>.
+          </p>
+        </Fragment>
+      )
+    }
+    <p><a href="/">Back to the program</a></p>
+  </div>
+</Base>

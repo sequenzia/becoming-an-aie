@@ -1,0 +1,25 @@
+---
+// src/components/site/PageHeader.astro
+// Kicker, optional mini-map, title, divider (blueprint 10.4, design-tokens section 5).
+import type { MiniMapKey } from '../../lib/types';
+import MiniMap from './MiniMap.astro';
+
+export interface Props {
+  kicker: string;
+  /** Bold word in --color-area-text before the middle dot. */
+  area?: string;
+  minimap?: MiniMapKey;
+  title: string;
+}
+
+const { kicker, area, minimap, title } = Astro.props;
+---
+
+<div class="page-header">
+  <div>
+    {area ? <p class="kicker"><b>{area}</b> · {kicker}</p> : <p class="kicker">{kicker}</p>}
+    <h1 class="page-title">{title}</h1>
+  </div>
+  {minimap && <MiniMap variant={minimap} />}
+</div>
+<hr class="divider" />

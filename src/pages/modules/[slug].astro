@@ -1,0 +1,83 @@
+---
+// src/pages/modules/[slug].astro
+// The on-demand module page (blueprint section 8). getPublishedModule decides visibility, so a
+// draft returns 404 unless the build enabled PREVIEW_DRAFTS. From Phase 1 on, the static
+// pages/modules/orientation.astro shadows this route for /modules/orientation.
+// Sets locals.module, locals.learner, and locals.formError before Content renders (section 14.2).
+import { getEntries, render } from 'astro:content';
+import { actions, isInputError } from 'astro:actions';
+import type { ActionError } from 'astro:actions';
+import ModuleLayout from '../../components/module/ModuleLayout.astro';
+import { mdxComponents } from '../../components/module/mdx-components';
+import { getDb } from '../../db';
+import { SERVER_ERROR_MESSAGE } from '../../lib/actions-guard';
+import { WORKSHOP_MAX_CHARS, WORKSHOP_MIN_CHARS } from '../../lib/limits';
+import { getPublishedModule } from '../../lib/modules';
+import { readFormBody } from '../../lib/notify-page';
+import type { ModuleEntry } from '../../lib/modules';
+import { loadModuleState } from '../../lib/progress';
+import type { FormError, LearnerModuleState, PrerequisiteSummary } from '../../lib/types';
+
+const slug = Astro.params.slug ?? '';
+const entry = await getPublishedModule(slug);
+// A body-less 404 makes Astro serve the site's 404 page (core/routing/handler.js reroutes only when the
+// body is null). A text body would answer plain text with no h1 and no links (docs/decisions.md, 2026-10-03).
+if (!entry) return new Response(null, { status: 404 });
+
+/** The posted form fields, read through the shared helper so the body guard is written once. */
+async function readSubmission(request: Request): Promise<{ kind: FormError['form']; body?: string } | null> {
+  const data = await readFormBody(request);
+  if (!data) return null;
+  const kind = data.get('kind');
+  const body = data.get('body');
+  return { kind: kind === 'failure' ? 'failure' : 'workshop', body: typeof body === 'string' ? body : undefined };
+}
+
+function messageFor(error: ActionError): string {
+  if (isInputError(error)) {
+    if (error.fields.body) {
+      return `Write at least ${WORKSHOP_MIN_CHARS} characters and at most ${WORKSHOP_MAX_CHARS.toLocaleString('en-US')}.`;
+    }
+    return Object.values(error.fields).flat().join(' ');
+  }
+  if (error.code === 'UNAUTHORIZED') return 'Sign in to save your progress.';
+  if (error.status >= 500) {
+    // A thrown Error reaches the page as INTERNAL_SERVER_ERROR with its own text. The learner gets one sentence.
+    if (error.message !== SERVER_ERROR_MESSAGE) console.error(`[modules] saveResponse failed: ${error.code} ${error.message}`);
+    return SERVER_ERROR_MESSAGE;
+  }
+  return error.message;
+}
+
+// A form save landed here through ?_action=saveResponse. Redirect on success so the query string
+// never survives in the address bar (section 14.3); keep the message and the text on error.
+const submission = await readSubmission(Astro.request);
+const result = Astro.getActionResult(actions.saveResponse);
+let formError: FormError | undefined;
+if (result) {
+  if (!result.error) {
+    const anchor = submission?.kind === 'failure' ? 'failure-exercise' : 'workshop';
+    return Astro.redirect(`${Astro.url.pathname}#${anchor}`, 303);
+  }
+  formError = { form: submission?.kind ?? 'workshop', message: messageFor(result.error), value: submission?.body };
+}
+
+const user = Astro.locals.user;
+let learner: LearnerModuleState | undefined;
+if (user) {
+  const { db } = await getDb();
+  learner = await loadModuleState(db, user.id, entry.id);
+}
+
+const { Content, headings } = await render(entry);
+const prerequisiteEntries = (await getEntries(entry.data.prerequisites)).filter((p): p is ModuleEntry => Boolean(p));
+const prerequisites: PrerequisiteSummary[] = prerequisiteEntries.map((p) => ({ slug: p.id, title: p.data.title, area: p.data.area }));
+
+Astro.locals.module = { slug: entry.id, data: entry.data, headings, prerequisites, preview: entry.data.draft };
+Astro.locals.learner = learner;
+Astro.locals.formError = formError;
+---
+
+<ModuleLayout entry={entry}>
+  <Content components={mdxComponents} />
+</ModuleLayout>

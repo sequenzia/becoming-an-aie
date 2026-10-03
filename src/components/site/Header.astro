@@ -1,0 +1,45 @@
+---
+// src/components/site/Header.astro
+// Site name, nav, account links when the build enabled accounts, theme toggle (blueprint 10.4).
+// Prerendered pages have no locals.user, so they render the "Sign in" link.
+import { env } from '../../lib/env';
+import ThemeToggle from './ThemeToggle.astro';
+
+const user = Astro.locals.user ?? null;
+const accounts = env.featureAccounts;
+---
+
+<header class="site-header">
+  <div class="container">
+    <a class="site-name" href="/">Becoming an AI Engineer</a>
+    <nav class="site-nav" aria-label="Site">
+      <a href="/modules">Modules</a>
+      <a href="/map">Map</a>
+      {accounts && user && user.name && (
+        <span class="secondary">{user.name}</span>
+      )}
+      {accounts && user && (
+        <a href="/account">Account</a>
+      )}
+      {accounts && user && (
+        <form method="POST" action="/sign-out">
+          <button class="btn btn-outline" type="submit">Sign out</button>
+        </form>
+      )}
+      {accounts && !user && (
+        <a href="/sign-in">Sign in</a>
+      )}
+      <ThemeToggle />
+    </nav>
+  </div>
+</header>
+
+<style>
+  .site-name {
+    font-weight: var(--weight-bold);
+    text-decoration: none;
+  }
+  .site-name:hover {
+    text-decoration: underline;
+  }
+</style>

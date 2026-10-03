@@ -1,0 +1,11 @@
+---
+// placeholder, D replaces (blueprint section 9.7). Guarded by the middleware; 404 when accounts are off.
+import Base from '../layouts/Base.astro';
+import { env } from '../lib/env';
+
+if (!env.featureAccounts) return new Response(null, { status: 404 });
+---
+
+<Base title="Self-assessment" area="transition">
+  <div data-placeholder="D:src/pages/assessment.astro"></div>
+</Base>

@@ -1,0 +1,147 @@
+---
+// src/pages/index.astro
+// The landing page (blueprint section 8, spec 5.1). Prerendered. No JavaScript beyond the theme script in
+// Base.astro (CG-6). The thesis sentences and takeaway lines are the talk's, verbatim (docs/research/talk-kb.md).
+// The module list comes from the content collection, drafts included, so the fourteen names come from
+// content, not code (decision 34). The form posts to the on-demand /notify route (CG-1). The module lists
+// carry role="list" because Safari with VoiceOver drops list semantics from a list styled list-style: none
+// (docs/decisions.md, 2026-10-03).
+import Base from '../layouts/Base.astro';
+import PageHeader from '../components/site/PageHeader.astro';
+import AnatomyMap from '../components/site/AnatomyMap.astro';
+import NotifyForm from '../components/site/NotifyForm.astro';
+import StatusChip from '../components/site/StatusChip.astro';
+import { TALK_REPO } from '../components/site/links';
+import { getAllModules, isPublished } from '../lib/modules';
+import { KIND_GROUP_TITLES, KIND_ORDER } from '../lib/content-schema';
+import { moduleHref } from '../lib/paths';
+
+export const prerender = true;
+
+const modules = await getAllModules();
+const groups = KIND_ORDER.map((kind) => ({
+  kind,
+  title: KIND_GROUP_TITLES[kind],
+  entries: modules.filter((entry) => entry.data.kind === kind),
+})).filter((group) => group.entries.length > 0);
+const plannedCount = modules.filter((entry) => !isPublished(entry)).length;
+---
+
+<Base
+  title="Becoming an AI Engineer"
+  description="A free, self-paced program for software engineers moving into AI engineering. It follows the talk Beyond the Coding Agent and takes its six areas apart one module at a time."
+>
+  <PageHeader kicker="The map" minimap="all" title="Becoming an AI Engineer" />
+
+  <div class="prose">
+    <p class="display">Using AI makes you an AI-enabled software engineer. <b>Engineering systems that depend on AI makes you an AI engineer.</b></p>
+    <p>The difference is not the tools. It is what you are responsible for.</p>
+    <p>
+      This program is for software engineers making that move. It follows the talk <a href={TALK_REPO}>Beyond the Coding Agent</a> and takes its six areas apart one module at a time. Each module starts from what you already do, names what changes when you own the system, and gives you a way to check what you learned.
+    </p>
+    <p>
+      The program is free. It is self-paced. It has no certificate. It does not require a build: you can finish every module by reading, answering, and writing, and the code labs are optional.
+    </p>
+
+    <div class="opener">
+      <p class="display mono opener-lines">
+        <span class="visually-hidden">demo equals works dot any, product equals works dot all</span>
+        <span class="opener-line" aria-hidden="true"><span class="secondary">demo    = </span>works<span class="amber">.any()</span></span>
+        <span class="opener-line" aria-hidden="true"><span class="secondary">product = </span>works<span class="green">.all()</span></span>
+      </p>
+      <p class="attribution">Andrej Karpathy, June 2025.</p>
+    </div>
+    <p>
+      A demo proves that a useful path exists. A product needs reliable behavior across its intended use, with a safe response when it cannot complete the task. This program is about the distance between those two calls.
+    </p>
+
+    <h2>The map</h2>
+    <p>
+      Here is the whole discipline on one picture. A goal comes in. An agent, made of a model plus a harness, runs until a stopping condition is met. The services above the run serve every run. The services below it learn from many runs. Every module of this program starts from one of these boxes.
+    </p>
+  </div>
+
+  <AnatomyMap variant="base" />
+
+  <div class="prose">
+    <p class="takeaway"><b>Takeaway.</b> "Agent equals model plus harness. Everything that is not the model is what you engineer."</p>
+    <p><a href="/map">Open the map page</a> for the full-size diagram and the version where every box is yours.</p>
+
+    <h2>What you will leave with</h2>
+    <ol>
+      <li>A conceptual map of the discipline.</li>
+      <li>An honest sense of how much there is.</li>
+      <li>A roadmap for making the transition.</li>
+    </ol>
+    <p>For each area: when you are the user, what someone engineered, then when you are the owner.</p>
+
+    <h2>The modules</h2>
+    <p>
+      {modules.length} modules are planned. Each opens when its content is ready{plannedCount === modules.length ? ', and none has opened yet' : ''}. The list below is the plan of record, read from the program's content files. Area modules carry the talk's takeaway line.
+    </p>
+    {groups.map((group) => (
+      <Fragment>
+        <h3>{group.title}</h3>
+        <ul class="module-list" role="list">
+          {group.entries.map((entry) => (
+            <li>
+              {isPublished(entry) ? (
+                <a href={moduleHref(entry.id)}>{entry.data.title}</a>
+              ) : (
+                <span>{entry.data.title}</span>
+              )}
+              {' '}
+              {!isPublished(entry) && <StatusChip status="planned" />}
+              {entry.data.takeaway && <span class="small secondary module-takeaway">"{entry.data.takeaway}"</span>}
+            </li>
+          ))}
+        </ul>
+      </Fragment>
+    ))}
+    <p>The <a href="/modules">module catalog</a> shows the same list with prerequisites and reading times.</p>
+
+    <h2>Hear when modules launch</h2>
+    <p>Leave your email and we will use it for one thing: to tell you when a module opens. Orientation comes first. No mail goes out until a provider is chosen.</p>
+    <NotifyForm />
+
+    <h2>Where to start</h2>
+    <p>
+      Orientation opens first and needs no account. Foundations follows. Then the six areas in the talk's order: Models, Context and knowledge, Tools and extensibility, Orchestration, Verification and evals, Operating it. The self-assessment closes the program with a plan you can download. Electives follow.
+    </p>
+    <p class="small secondary">
+      The program follows the talk by Stephen Sequenzia. Every module names its sources. This site sets no trackers and runs no analytics; the <a href="/privacy">privacy notice</a> says what is stored and why.
+    </p>
+  </div>
+</Base>
+
+<style>
+  .opener {
+    margin-block-start: var(--space-8);
+  }
+  .opener-lines {
+    font-size: var(--size-heading);
+  }
+  @media (min-width: 40rem) {
+    .opener-lines {
+      font-size: var(--size-display);
+    }
+  }
+  .opener-line {
+    display: block;
+    white-space: pre;
+  }
+  .amber {
+    color: var(--color-amber-text);
+  }
+  .green {
+    color: var(--color-green-text);
+  }
+  .module-list {
+    list-style: none;
+    padding: 0;
+  }
+  .module-takeaway {
+    display: block;
+    margin-block-start: var(--space-1);
+  }
+</style>

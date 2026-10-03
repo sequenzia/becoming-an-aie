@@ -1,0 +1,21 @@
+---
+// src/pages/notify/thanks.astro
+// Prerendered success page for the notify form (blueprint section 7.5). The same page serves a
+// new and an existing address, so the outcome never reveals list membership. It never claims that a
+// mail was sent: none is, until a provider is chosen (AC-5.1.3 overlay).
+import Base from '../../layouts/Base.astro';
+import PageHeader from '../../components/site/PageHeader.astro';
+export const prerender = true;
+---
+
+<Base title="Thanks" description="Your address is stored. No mail goes out until a provider is chosen.">
+  <PageHeader kicker="Launch notifications" title="Thanks" />
+  <div class="prose">
+    <p>
+      We stored your address. No mail goes out until a provider is chosen. You can remove it at any time through
+      the link we will include in every message, or by writing to the address in the <a href="/privacy">privacy notice</a>.
+    </p>
+    <p>The program is free and self-paced. Published modules are open to read without an account.</p>
+    <p><a href="/">Back to the program</a> · <a href="/modules">See the modules</a></p>
+  </div>
+</Base>
