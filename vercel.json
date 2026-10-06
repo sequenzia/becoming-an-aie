@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm ci",
+  "buildCommand": "node scripts/vercel-preview.mjs",
+  "outputDirectory": "dist/client",
+  "redirects": [
+    { "source": "/modules", "destination": "/modules/orientation", "permanent": false },
+    { "source": "/notify", "destination": "/notify/closed", "statusCode": 303 }
+  ]
+}

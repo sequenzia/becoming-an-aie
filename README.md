@@ -66,6 +66,8 @@ The full local run of what CI checks, with the Playwright knobs (`E2E_PORT`, `E2
 
 The site deploys to OpenShift with Postgres on RDS. The image bundles the RDS CA at `certs/rds-global-bundle.pem` and leaves out the embedded database. `docs/deploy-openshift.md` is the runbook.
 
+A static preview also deploys to Vercel from `vercel.json`. `scripts/vercel-preview.mjs` builds with `FEATURE_ACCOUNTS=false` and Vercel serves only the prerendered pages from `dist/client`. `/modules` redirects to `/modules/orientation`, the notify form lands on a page that says the preview stores nothing, and `robots.txt` disallows everything. The preview has no server, database, or secrets. It is not a deployment target.
+
 ## Layout
 
 - `src/content/` modules (MDX), artifacts, and the changelog. `src/content.config.ts` defines the collections.
@@ -76,10 +78,10 @@ The site deploys to OpenShift with Postgres on RDS. The image bundles the RDS CA
 - `src/pages/` the routes, including `api/auth/` for Better Auth and `healthz` and `readyz` for the probes.
 - `src/components/` `module/` (the module layout parts), `forms/`, `islands/` (the Preact islands and their offline storage), and `site/`.
 - `src/layouts/`, `src/styles/` the base layout, design tokens, and styles.
-- `scripts/` plain Node scripts: content check and drift review with their shared content-file helper, migrate, TLS check, lint, the diagram import, and the static Better Auth config for the optional CLI diff.
+- `scripts/` plain Node scripts: content check and drift review with their shared content-file helper, migrate, TLS check, lint, the diagram import, the Vercel preview build, and the static Better Auth config for the optional CLI diff.
 - `drizzle/` generated migrations, committed.
 - `e2e/` Playwright specs and their runtime values. `test/` Vitest setup and fixtures.
-- `Dockerfile`, `certs/`, `.github/workflows/` the image, the RDS CA bundle, and CI.
+- `Dockerfile`, `certs/`, `.github/workflows/` the image, the RDS CA bundle, and CI. `vercel.json` the static preview.
 - `docs/` the blueprint (`architecture.md`), decisions, dependencies, authoring guide, runbook, gate records, and `research/`, the planning cheat sheets the blueprint cites.
 
 ## Phase commits
