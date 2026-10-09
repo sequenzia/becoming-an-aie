@@ -3,38 +3,829 @@ title: "Inference and hosting fundamentals"
 kind: elective
 area: none
 order: 2
-summary: "Memory, precision, prefill and decoding, batching, and tail latency. Managed inference against operating your own model weights."
-readingMinutes: 45
+summary: "What happens between a request and its token stream: prefill and decode, the KV cache, batching, quantization, throughput against tail latency, hosted against self-hosted, capacity and cost per request, and what to monitor."
+readingMinutes: 53
 prerequisites: []
 talkBeats: []
 bookChapters: [21]
-draft: true
-updatedOn: 2026-09-16
-checkedOn: 2026-09-16
+draft: false
+updatedOn: 2026-10-09
+checkedOn: 2026-10-09
 staleAfterDays: 90
-artifacts: []
-outcomes: []
-selfCheck: []
-sources: []
+artifacts: [inference-and-hosting-load-test, inference-and-hosting-serving-dashboard, inference-and-hosting-cost-comparison, inference-and-hosting-capacity-memo]
+outcomes:
+  - id: request-anatomy
+    text: Trace one request through queueing, prefill, and decode, and say which phase each latency metric measures.
+  - id: memory-budget
+    text: Estimate the memory a deployment needs for weights and KV cache from parameter count, precision, context length, and concurrency, and name the limiting resource.
+  - id: batching-tradeoff
+    text: Explain how continuous batching trades each request's latency for total throughput, and read a load test at the concurrency the product will run.
+  - id: quantization-quality
+    text: Explain quantization at the level of intuition, and require a task-quality check before a lower-precision copy replaces the model you measured.
+  - id: hosted-or-self-hosted
+    text: Compare a hosted API with self-hosted weights on cost per request at realistic utilization, capacity, data handling, and the operating work each one assigns to you.
+  - id: capacity-plan
+    text: Build a capacity plan and a cost per request from the measured workload, not from a vendor's benchmark.
+  - id: measure-right-percentile
+    text: Choose the measurement a latency or capacity decision needs, and recognize a decision made from the wrong percentile, input length, or load shape.
+  - id: monitor-serving
+    text: Name the serving signals an owner monitors, hosted or self-hosted, and say what each one warns of.
+selfCheck:
+  - id: q1-pause
+    outcome: request-anatomy
+    question: "Deep into a long coding-agent session, every reply starts after a noticeably longer pause, then streams at the usual speed. Which part of each request grew?"
+    options:
+      - "Prefill: the model processes the whole conversation before it can produce the first token"
+      - "Decode: each output token now takes longer to generate"
+      - "Network time between your machine and the vendor"
+    correct: [0]
+    feedback:
+      - "Correct. Time to first token grows with the input, and a long session sends a long input on every turn. Prompt caching is what keeps that pause short, which is why a cache miss on a long session is so visible."
+      - "Not yet. The stream runs at its usual speed once it starts, so time per output token did not change. Reread One request, three clocks."
+      - "Not yet. Network time does not grow with the length of your session. Reread One request, three clocks."
+  - id: q2-fast-mode
+    outcome: request-anatomy
+    question: "Claude Code's fast mode makes Opus up to 2.5x faster. Which request gains the most from it?"
+    options:
+      - "A one-line question over a 150,000-token conversation that gets a two-sentence answer"
+      - "A short prompt that asks for a 2,000-line file"
+      - "Both gain the same, because fast mode makes the model faster overall"
+    correct: [1]
+    feedback:
+      - "Not yet. Almost all of that request's time is prefill, and fast mode does not target time to first token. Reread Why prefill and decode behave differently."
+      - "Correct. A long output is mostly decode time, and decode is where a higher output rate shows."
+      - "Not yet. The two phases have different limits, and the documentation names which one fast mode targets. Reread When you are the user: the pause, then the stream."
+  - id: q3-memory
+    outcome: memory-budget
+    question: "A 13-billion-parameter model runs at 16-bit precision on an 80 GB accelerator. Its KV cache takes 192 KiB per token, and about 200,000 tokens of KV cache fit beside the weights. Which statements hold?"
+    options:
+      - "The weights take about 26 GB."
+      - "About 32 requests of 6,300 tokens each fill the KV cache."
+      - "Concurrency is limited by the weights, so shorter contexts do not let more requests fit."
+      - "At 4-bit precision the weights take about 6.5 GB plus overhead, which leaves more room for KV cache."
+    correct: [0, 1, 3]
+    feedback:
+      - "Correct. 13 billion parameters at 2 bytes each is 26 GB."
+      - "Correct. 32 times 6,300 is 201,600 tokens, about the whole pool."
+      - "Not yet. The weights are a fixed cost. The KV cache grows with tokens per request times requests, so shorter contexts fit more requests. Reread Memory: weights, precision, and the KV cache."
+      - "Correct. Fewer bytes per weight frees memory for the KV cache. Whether the smaller copy still does the job is a separate question."
+  - id: q4-batching
+    outcome: batching-tradeoff
+    question: "In Part A of the load test, raising concurrency from 32 to 128 raises throughput from 1,390 to 2,700 output tokens per second, TTFT p95 from 0.95 s to 4.8 s, and TPOT p95 from 31 ms to 96 ms. What does that say about one request?"
+    options:
+      - "It gets faster, because one read of the weights now serves more requests"
+      - "It gets slower, because it shares each step with more requests and waits longer for its first token"
+      - "It is unaffected, because continuous batching removes the tradeoff"
+    correct: [1]
+    feedback:
+      - "Not yet. The server is more efficient per token, and each user waits longer. Throughput is a property of the fleet. Latency is what one user feels. Reread Throughput and latency are one curve."
+      - "Correct. The server nearly doubled its output, while each request's TTFT tail grew about five times and its TPOT tail tripled. Both numbers are true at once."
+      - "Not yet. Continuous batching moved the curve. It did not remove it. Reread Batching: one pass over the weights, many users."
+  - id: q5-quantization
+    outcome: quantization-quality
+    question: "A team wants to replace its 16-bit model with a 4-bit weight-only copy so that more requests fit per accelerator. Which belong in the decision?"
+    options:
+      - "Rerun the quality suite on the 4-bit copy and compare per category, not only overall"
+      - "Look at long-input cases separately"
+      - "Load-test the 4-bit copy at production input lengths, because weight-only quantization does little for prefill"
+      - "Accept it because a published study found 4-bit weights competitive on another model family"
+    correct: [0, 1, 2]
+    feedback:
+      - "Correct. In the load test, the 4-bit copy lost under 3 points overall and 12 points on refund policy."
+      - "Correct. Long inputs are where the 4-bit copy in the load test lost the most."
+      - "Correct. In the load test the 4-bit copy decoded fastest and still held fewer requests within the SLO than the 8-bit copy, because its time to first token was the limit."
+      - "Not yet. A study measures its models on its tasks. It tells you which formats are worth testing, not what your copy does on your cases. Reread Quantization, at the level of intuition."
+  - id: q6-self-host-cost
+    outcome: hosted-or-self-hosted
+    question: "Which of these belong in the cost per request of a self-hosted deployment?"
+    options:
+      - "Accelerator hours for the whole month, including the quiet hours"
+      - "Platform and on-call engineering time"
+      - "Eval runs whenever the model, its precision, or the serving stack changes"
+      - "Accelerator hours during the peak only, since that is when the capacity is needed"
+    correct: [0, 1, 2]
+    feedback:
+      - "Correct. An accelerator you keep warm costs the same whether it serves one request or a thousand."
+      - "Correct. Someone patches the stack and answers the page at 3 a.m. A hosted API includes that work in its price."
+      - "Correct. A new precision or a new serving engine is a change to behavior, and it needs the same evidence as a model change."
+      - "Not yet. Accelerators that cannot start in time for the morning ramp stay on all month. Reread Cost per request, both ways."
+  - id: q7-utilization
+    outcome: hosted-or-self-hosted
+    question: "In the cost comparison, which change does the most for the case to self-host?"
+    options:
+      - "Traffic triples, so the same kind of fleet runs at much higher utilization"
+      - "Traffic halves"
+      - "The hosted vendor raises its cache read discount"
+    correct: [0]
+    feedback:
+      - "Correct. At three times the volume, the int8 fleet costs about half as much per 1,000 requests as the hosted API. Self-hosting is a utilization business."
+      - "Not yet. Less traffic leaves a fleet that cannot scale to zero even emptier. Reread Cost per request, both ways."
+      - "Not yet. That makes the hosted option cheaper. Reread Cost per request, both ways."
+  - id: q8-capacity
+    outcome: capacity-plan
+    question: "Peak arrivals are 2.9 requests per second, and each request spends about 8 seconds in the system. A configuration holds 16 in-flight requests per accelerator within the SLO. How many accelerators does the peak need, before any spare?"
+    options:
+      - "1"
+      - "2"
+      - "3"
+      - "23"
+    correct: [1]
+    feedback:
+      - "Not yet. Little's law gives about 23 requests in flight, more than one accelerator holds within the SLO. Reread Capacity planning from the workload you have."
+      - "Correct. 2.9 times 8 is about 23 in flight, and 23 divided by 16 rounds up to 2. Add one spare so that losing an accelerator does not breach the SLO, and the fleet is 3."
+      - "Not yet. Three is the answer with one spare. The question asked before any spare. Reread Capacity planning from the workload you have."
+      - "Not yet. About 23 is the number of requests in flight, not the number of accelerators. Each accelerator holds 16 within the SLO. Reread Capacity planning from the workload you have."
+  - id: q9-percentile
+    outcome: measure-right-percentile
+    question: "The SLO says time to first token at p95 is 1.5 seconds or less. A benchmark at the proposed batch limit reports TTFT p50 of 0.41 s and p95 of 4.8 s. What does the benchmark show?"
+    options:
+      - "The SLO is met, with the median well inside it"
+      - "The SLO is missed by more than three times, at the percentile the SLO names"
+      - "Nothing, because a p95 is too noisy to use"
+    correct: [1]
+    feedback:
+      - "Not yet. The SLO names p95. The median is not the percentile the promise is about. Reread Benchmarks that answer a different question."
+      - "Correct. Under batching, the median and the tail move apart. A decision has to read the percentile it promises."
+      - "Not yet. The p95 is the number the SLO is written in, so it is the number the decision has to read. Reread Choose the point from the SLO, at the percentile the SLO names, in Throughput and latency are one curve."
+  - id: q10-benchmark-lengths
+    outcome: measure-right-percentile
+    question: "A benchmark used fixed 1,000-token inputs. Production's p95 input is 9,200 tokens. Which consequences follow?"
+    options:
+      - "Time to first token in production will be longer than the benchmark shows, because prefill grows with input length"
+      - "Fewer requests fit in the KV cache, so the benchmark's concurrency may not be reachable without queueing or preemption"
+      - "Output tokens per second will be higher in production"
+      - "Nothing, as long as the output lengths match"
+    correct: [0, 1]
+    feedback:
+      - "Correct. Prefill work grows with every input token, and long prefills also slow the decode steps they share a batch with."
+      - "Correct. KV cache memory is tokens times requests. At about seven times the tokens per request, roughly a seventh as many requests fit."
+      - "Not yet. Longer inputs take KV cache memory from the batch, and long prefills take time from the decode steps they share. Reread Batching: one pass over the weights, many users."
+      - "Not yet. Input length drives prefill time and KV cache memory. Reread Memory: weights, precision, and the KV cache."
+  - id: q11-dashboard
+    outcome: monitor-serving
+    question: "On the serving dashboard, the alert panel stayed green after the order-context release. Which panels showed that capacity had run out?"
+    options:
+      - "TTFT p95 and p99"
+      - "Queue time and waiting requests"
+      - "KV cache use and preemptions"
+      - "Mean end-to-end latency"
+    correct: [0, 1, 2]
+    feedback:
+      - "Correct. The tail tripled and quadrupled while the median moved by a tenth of a second."
+      - "Correct. Requests waited for a slot. Queue time is the leading sign of a full server."
+      - "Correct. The cache was full at p95, and the server paused and restarted requests to make room."
+      - "Not yet. The mean rose 15% and stayed under its alert threshold. A mean hides a tail. Reread What the owner monitors."
+  - id: q12-rate-limit
+    outcome: monitor-serving
+    question: "Your product calls a hosted Claude model. Traffic is flat, but 429 errors appear after a prompt change put a per-user greeting at the top of the system prompt. Going by Anthropic's rate limit documentation on 2026-10-09, what explains it?"
+    options:
+      - "For most Claude models only uncached input tokens count toward the input-tokens-per-minute limit, and the change broke the cached prefix"
+      - "Output tokens per minute rose because the greeting is longer"
+      - "The vendor lowered the organization's tier"
+    correct: [0]
+    feedback:
+      - "Correct. The same traffic now counts every input token against the limit. Cache hit rate is a capacity metric on a hosted API, not only a cost metric."
+      - "Not yet. The greeting is input, not output. Reread step 7 of Capacity planning from the workload you have."
+      - "Not yet. Nothing in the scenario changed on the vendor's side. Reread step 7 of Capacity planning from the workload you have."
+sources:
+  - title: Beyond the Coding Agent, the talk repository
+    author: Stephen Sequenzia
+    date: "2026-09"
+    url: https://github.com/sequenzia/beyond-the-coding-agent
+    checkedOn: 2026-10-09
+    note: "The owner definition and the transfer table row 'Operations: cost, latency, incidents, rollback' to 'The same, in tokens', as compiled in the program's talk knowledge base on 2026-09-15. The research note on open weights against a hosted API (research/section-2.md) is marked UNVERIFIED there and is used here as a practitioner view only. The talk itself keeps hosted against self-hosted out of its Models slides."
+  - title: The Six Disciplines of Engineering Agentic AI Systems
+    org: Beyond the Coding Agent, the talk repository
+    date: "2026-09-16"
+    url: https://github.com/sequenzia/beyond-the-coding-agent/blob/main/research/external/ai-engineering-research-report.md
+    checkedOn: 2026-10-09
+    note: "A research report kept in the talk's repository at research/external/ai-engineering-research-report.md. It names no author. The three deployment options and the open-weights caution are quoted from its Model Selection section. It is background research, not the talk's own text."
+  - title: Becoming an AI Engineer, the book blueprint
+    date: "2026-09"
+    checkedOn: 2026-10-09
+    note: "Chapter 21, Inference and Hosting Fundamentals: topics, workshop, failure exercise, completion evidence, and its two sources. The public link is pending."
+  - title: "CS336: Language Modeling from Scratch"
+    author: Tatsunori Hashimoto and Percy Liang
+    org: Stanford University
+    date: "2026"
+    url: https://cs336.stanford.edu/
+    checkedOn: 2026-10-09
+    note: "Spring 2026 offering. The route into deeper systems and inference work. Its prerequisites are a model-building specialization, not a requirement for this elective."
+  - title: A postmortem of three recent issues
+    author: Sam McAllister
+    org: Anthropic
+    date: "2025-09-17"
+    url: https://www.anthropic.com/engineering/a-postmortem-of-three-recent-issues
+    checkedOn: 2026-10-09
+    note: "A first-party account, not independently audited, and not evidence of how often such failures happen."
+  - title: Efficient Memory Management for Large Language Model Serving with PagedAttention
+    author: Woosuk Kwon and colleagues
+    date: "2023-09-12"
+    url: https://arxiv.org/abs/2309.06180
+    checkedOn: 2026-10-09
+    note: "SOSP 2023. The vLLM paper. Throughput gains are against the systems and models it compared in 2023."
+  - title: "Orca: A Distributed Serving System for Transformer-Based Generative Models"
+    author: Gyeong-In Yu and colleagues
+    date: "2022-07"
+    url: https://www.usenix.org/conference/osdi22/presentation/yu
+    checkedOn: 2026-10-09
+    note: "OSDI 2022. Iteration-level scheduling, the idea now called continuous batching."
+  - title: "DistServe: Disaggregating Prefill and Decoding for Goodput-optimized Large Language Model Serving"
+    author: Yinmin Zhong and colleagues
+    date: "2024-01-18"
+    url: https://arxiv.org/abs/2401.09670
+    checkedOn: 2026-10-09
+    note: "OSDI 2024. Revised 2024-06-06."
+  - title: Taming Throughput-Latency Tradeoff in LLM Inference with Sarathi-Serve
+    author: Amey Agrawal and colleagues
+    date: "2024-03-04"
+    url: https://arxiv.org/abs/2403.02310
+    checkedOn: 2026-10-09
+    note: "arXiv preprint, revised 2024-06-17. Results are under the authors' tail-latency constraints on the models they tested."
+  - title: "LLM Inference Performance Engineering: Best Practices"
+    author: Megha Agarwal and colleagues
+    org: Databricks
+    date: "2023-10-12"
+    url: https://www.databricks.com/blog/llm-inference-performance-engineering-best-practices
+    checkedOn: 2026-10-09
+    note: "Figures are for the hardware and models in the post, in 2023. The definitions and the shape of the tradeoff are what transfer."
+  - title: How continuous batching enables 23x throughput in LLM inference while reducing p50 latency
+    author: Cade Daniel, Chen Shen, Eric Liang, and Richard Liaw
+    org: Anyscale
+    date: "2023-06-22"
+    url: https://www.anyscale.com/blog/continuous-batching-llm-inference
+    checkedOn: 2026-10-09
+    note: "One model on one accelerator against a naive static-batching baseline. The 23x combines continuous batching with memory optimizations."
+  - title: "LLM Inference Benchmarking: Fundamental Concepts"
+    author: Vinh Nguyen and colleagues
+    org: NVIDIA
+    date: "2025-04-02"
+    url: https://developer.nvidia.com/blog/llm-benchmarking-fundamental-concepts/
+    checkedOn: 2026-10-09
+  - title: "Give Me BF16 or Give Me Death? Accuracy-Performance Trade-Offs in LLM Quantization"
+    author: Eldar Kurtic and colleagues
+    date: "2024-11-04"
+    url: https://arxiv.org/abs/2411.02355
+    checkedOn: 2026-10-09
+    note: "ACL 2025. Revised 2026-05-26. Results are for the Llama 3.1 family and the tasks the authors chose, served with vLLM."
+  - title: Defeating Nondeterminism in LLM Inference
+    author: Horace He
+    org: Thinking Machines Lab
+    date: "2025-09-10"
+    url: https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/
+    checkedOn: 2026-10-09
+  - title: Rate limits
+    org: Anthropic
+    date: "2026"
+    url: https://platform.claude.com/docs/en/api/rate-limits
+    checkedOn: 2026-10-09
+    note: "RPM, ITPM, and OTPM, the token bucket, cache-aware ITPM, and the response headers, as documented on the day checked. Undated page."
+  - title: Batch processing
+    org: Anthropic
+    date: "2026"
+    url: https://platform.claude.com/docs/en/build-with-claude/batch-processing
+    checkedOn: 2026-10-09
+    note: "Undated page."
+  - title: Service tiers
+    org: Anthropic
+    date: "2026"
+    url: https://platform.claude.com/docs/en/api/service-tiers
+    checkedOn: 2026-10-09
+    note: "On the day checked the page said Priority Tier commitments were no longer available for purchase, and kept the page as a reference for existing commitments. Undated page."
+  - title: Reducing latency
+    org: Anthropic
+    date: "2026"
+    url: https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/reduce-latency
+    checkedOn: 2026-10-09
+    note: "Undated page."
+  - title: Fast mode (research preview)
+    org: Anthropic
+    date: "2026"
+    url: https://platform.claude.com/docs/en/build-with-claude/fast-mode
+    checkedOn: 2026-10-09
+    note: "A research preview. Supported models, prices, and behavior may change. Undated page; the beta header is dated 2026-02-01."
+  - title: Speed up responses with fast mode
+    org: Anthropic
+    date: "2026"
+    url: https://code.claude.com/docs/en/fast-mode
+    checkedOn: 2026-10-09
+    note: "Claude Code documentation, describing v2.1.280 and later on the day checked. Undated page."
+  - title: Codex CLI slash commands
+    org: OpenAI
+    date: "2026"
+    url: https://learn.chatgpt.com/docs/cli/slash-commands
+    checkedOn: 2026-10-09
+    note: "The /fast and /status commands as documented on the day checked. Undated page."
+  - title: Latency optimization
+    org: OpenAI
+    date: "2026"
+    url: https://developers.openai.com/api/docs/guides/latency-optimization
+    checkedOn: 2026-10-09
+    note: "Undated page."
+  - title: Batch API
+    org: OpenAI
+    date: "2026"
+    url: https://developers.openai.com/api/docs/guides/batch
+    checkedOn: 2026-10-09
+    note: "Undated page."
+  - title: Flex processing
+    org: OpenAI
+    date: "2026"
+    url: https://developers.openai.com/api/docs/guides/flex-processing
+    checkedOn: 2026-10-09
+    note: "Undated page."
+  - title: "Introducing SWE-1.5: Our Fast Agent Model"
+    org: Cognition
+    date: "2025-10-29"
+    url: https://cognition.com/blog/swe-1-5
+    checkedOn: 2026-10-09
+    note: "Vendor-reported speeds on the vendor's serving partner's hardware."
+  - title: Metrics
+    org: vLLM project
+    date: "2026"
+    url: https://docs.vllm.ai/en/stable/usage/metrics.html
+    checkedOn: 2026-10-09
+    note: "The stable documentation on the day checked, when the latest release was v0.31.0 (2026-10-05). Metric names can change between releases."
+  - title: Semantic conventions for generative AI metrics
+    org: OpenTelemetry
+    date: "2026"
+    url: https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-metrics.md
+    checkedOn: 2026-10-09
+    note: "Status Development. Metric names can still change."
 ---
 
 ## Transfer connection
 
-This module is planned. It is not yet written. This page holds its place in the catalog until it is.
+This elective expands one row of the talk's transfer table. You already do "Operations: cost, latency, incidents, rollback". The talk says it becomes "The same, in tokens". The book's chapter 21 says the same thing from the other side: "Capacity planning and profiling apply to model memory and token generation." This module is about what that sentence hides.
 
-Electives are optional. They never appear as prerequisites of a core module. The module will say what stays the same and what changes.
+You already run services with promises attached. You write a service level objective as a percentile, because users feel the tail. You load-test before a launch, and you know a load test with the wrong traffic shape tells you nothing. You size a fleet from arrival rate, service time, and headroom, and you keep a spare so that losing one machine does not breach the promise. You know that a queue near saturation does not degrade gently. You profile before you optimize, because the slow part is rarely where you guessed. You price a feature per request and you know which costs are fixed and which scale with traffic.
+
+What stays the same: the percentile in the promise, the load test with production-shaped traffic, the queue, the spare, and the habit of profiling before tuning. Capacity planning stays the same as a discipline. So does the rule that a change to configuration is a change to the product, and the rule that you roll out in stages and watch the tail while you do.
+
+What changes is the unit of work. A web request does roughly the same work whatever its body says. A model request does two different kinds of work, one that grows with the input and one that grows with the output, and they are limited by different parts of the hardware. Memory changes too. A web server holds a few kilobytes per in-flight request. A model server holds a cache that grows with every token of every conversation it is serving, and that cache, not the processor, usually decides how many users fit. Batching changes the relationship between users. Requests share the hardware step by step, so one user's long document slows another user's answer, and the server's load can even change the words a user gets back. The capacity contract changes when someone else hosts the model: your limit is written in tokens per minute, and a cache miss can spend it. And one change has no parallel in a web fleet. You can make the model smaller and faster by storing its numbers with fewer bits, and no load test will tell you whether it still gives the right answers.
+
+The talk's word for the person who answers for all of this is owner: "Owner means the engineer or team accountable for the delivered product's behavior and operating limits." Latency and capacity are operating limits. This module is about owning them when the thing behind the endpoint generates tokens.
 
 ## Topics and learning outcomes
 
 <Outcomes />
 
-The module draws on book chapter 21. It will introduce each concept with its outcome and a worked example, with every tool fact carrying its checked-on date.
+The book's chapter 21 asks for four things: explain memory, precision, quantization, and hardware constraints; introduce prefill, decoding, caching, batching, throughput, and tail latency; compare managed inference with operating available weights; and "Profile the actual workload before selecting optimizations." This page takes them in the order a request meets them. First the request itself, from arrival to last token. Then memory, because memory decides how many requests fit. Then batching, because batching decides how they share the hardware, and what that does to each user's latency. Then quantization, the lever that trades memory for quality. Then the business decision: a hosted API or your own weights, priced per request at the utilization you will actually have. Then capacity planning, the benchmarks that mislead it, and what you watch once it runs.
+
+You do not need a GPU to finish this module. The module says accelerator for the hardware a model is served on. An accelerator is a GPU or a similar chip built for this arithmetic. It has its own memory, and the model's weights and its KV cache, the working state it keeps for every request in flight, have to fit in that memory to be served from it. Every number in this module is either arithmetic you can check by hand or a public source with its date. The synthetic artifacts use a fictional model, a fictional accelerator, and invented numbers, so nothing in them is mistaken for a measurement of a real product. If you read in two sittings, stop after Profile before you optimize. That covers the mechanism. The second sitting starts at Hosted API or your own weights and covers the decisions.
+
+### When you are the user: the pause, then the stream
+
+Start with what you already feel. Ask a coding agent a question at the start of a session and the answer begins almost at once. Ask the same kind of question three hours later, deep into a long session, and there is a pause before the first word. Then the words arrive at the usual pace. Two clocks are running there, and they are different clocks.
+
+The pause is the model reading. Every turn sends the whole conversation, the system prompt, the tool definitions, and every file the agent has read so far. Before the model can write the first token of its answer, it has to process all of that input. The stream is the model writing, one token at a time. The first clock grows with what you send. The second grows with what it writes.
+
+Coding agents now expose a control for the second clock. In Claude Code, `/fast` toggles fast mode. Anthropic's documentation, checked on 2026-10-09, describes it as "a high-speed configuration for Claude Opus, making the model up to 2.5x faster at a higher cost per token." It is explicit about what it is not: "Fast mode is not a different model. It uses Claude Opus with a different API configuration that prioritizes speed over cost efficiency." The API documentation for the same feature says where the speed goes: "Speed benefits are focused on output tokens per second (OTPS), not time to first token (TTFT)." One request, three clocks defines both. On the day checked, the fast price for Claude Opus 5.5 was $8 per million input tokens and $40 per million output tokens, and the feature was a research preview.
+
+Read that as a lesson about the two clocks. A faster serving configuration made the writing faster and left the reading where it was. If your slow moment is the pause after a long session, fast mode is not aimed at it.
+
+The Claude Code page has a second lesson in its pricing note: "The first time you enable fast mode in a conversation, you pay the full fast mode uncached input token price for the entire conversation context." And the API page: "Requests at different speeds do not share cached prefixes." The prompt cache belongs to a serving configuration. Switch to the faster configuration mid-session and, the first time you do, the whole conversation is read again at the fast mode uncached price. That is why the documentation advises turning fast mode on at the start of a session rather than in the middle.
+
+Codex CLI has a control with the same shape. Its `/fast` command will "Toggle a Fast service tier when the model catalog exposes one", and `/status` will "Display session configuration and token usage", both as documented on 2026-10-09. A service tier is a hosting decision with a button on it: the same model, served with a different tradeoff between speed and cost.
+
+Claude Code's documentation also draws a line worth keeping. It compares fast mode with a lower effort level. Fast mode: "Same model quality, lower latency, higher cost". Lower effort: "Less thinking time, faster responses, potentially lower quality on complex tasks". Those are two different levers. One changes how the tokens are served. The other changes how many tokens the model generates, which changes what it can work out before it answers. The Models module covers effort as a configuration you measure. This module is about the first lever.
+
+Cognition went further for its own model. Its post of October 29, 2025, "Introducing SWE-1.5", says the company "worked with Cerebras" to "deploy and optimize SWE-1.5", and reports speeds of "up to 950 tok/s". The work it describes is serving work, not training work: "training an optimized draft model for faster speculative decoding" and "a custom request priority system for smoother end-to-end agent sessions." Speculative decoding is explained below, in Why prefill and decode behave differently. The post gives the reason in developer terms: an edit to a Kubernetes manifest that took about 20 seconds now takes under 5. It also notes that "lots of things become bottlenecks when a model runs 10x faster." Those are vendor-reported numbers on the vendor's chosen hardware. The point is not the number. The point is that a coding-agent vendor treated inference speed as a product feature worth engineering for, and named the techniques.
+
+### What someone engineered behind the stream
+
+The stream you watch is the end of a long pipeline. Someone built every stage of it, and each stage is a decision you will make if you host a model yourself.
+
+**Capacity.** Somebody bought or rented accelerators, decided how many requests each one admits at once, and decided what happens when they are all busy. When you see an "overloaded" error from a hosted API, that is the end of their capacity plan, not yours.
+
+**Placement and routing.** Anthropic's postmortem of September 17, 2025 states: "We deploy Claude across multiple hardware platforms, namely AWS Trainium, NVIDIA GPUs, and Google TPUs." A request is routed to one of them. The same postmortem explains why some users saw a bug much more than others: "some users were affected more severely, as our routing is 'sticky'." Routing is a design decision with consequences: routing that keeps a user on the same servers also keeps that user on the same fault.
+
+**Batching.** Your request did not have a processor to itself. It shared each step of generation with many other users' requests. The scheduler that decided who shares a step with whom set the tradeoff between the provider's cost and your latency.
+
+**Caching.** The provider kept the computed state of your conversation's prefix, so the next turn did not read it all again. The Context and knowledge module explains the mechanism and the prices in [Caching rewards a stable prefix](/modules/context-and-knowledge#caching-rewards-a-stable-prefix). Here, notice that a cache is memory on someone's accelerator, kept for some minutes, and that somebody decided how much of it to keep and for how long.
+
+**Precision.** Someone chose how many bits each number in the model takes when it is served. Fewer bits mean less memory and faster generation, and a risk to quality. You never saw the choice. You saw the answers it produced.
+
+**Rate limits and tiers.** Somebody turned capacity into a contract: requests per minute, input tokens per minute, output tokens per minute, and tiers with different prices and promises. That contract is the hosted version of your capacity plan.
+
+Here is the worked example in one table. The left column is what you touched as a user. The right column is what someone engineered so that it would work.
+
+| What you touched | What someone engineered for it |
+|---|---|
+| The pause before the first word of a long session | Prefill, reading the whole input (defined next), on a long input, shortened by a prompt cache kept on the provider's hardware |
+| The words streaming in | Decode, writing one token per step, sharing each step with other users in a batch |
+| `/fast` in Claude Code or Codex | A second serving configuration or tier for the same model, with its own price (and, for Anthropic's fast mode, its own rate limits) |
+| A cache miss after switching speed | Caches tied to one serving configuration |
+| "Overloaded" or a rate-limit message | A capacity plan and a contract written in tokens per minute |
+| Answers that looked the same quality every day | A precision choice, quality checks on the serving stack, and an incident process when they failed |
+
+Every row of the right column becomes yours when you serve a model. If you call a hosted API, some rows stay with the vendor and turn into numbers you must monitor. If you host the weights, all of them are yours.
+
+### One request, three clocks
+
+Follow one request through a model server. Three things happen, in order.
+
+First, it waits. If the server is admitting as many requests as it allows, the new one sits in a queue. This is the same queue you know from any server.
+
+Second, prefill. The server processes every input token: system prompt, tools, retrieved documents, conversation history, the user's message. It does this in parallel across the input, in one or a few large steps, and at the end it has the model's internal state for the whole input and the probabilities for the first output token. Foundations covers what the model computes in [Attention and the transformer, at the level of intuition](/modules/foundations#attention-and-the-transformer-at-the-level-of-intuition) and [Next-token prediction and decoding](/modules/foundations#next-token-prediction-and-decoding). This module cares about how long it takes and what it costs.
+
+Third, decode. The server picks the first token, appends it, and runs the model again to get the next one. A 300-token answer is 300 decode steps. Each step depends on the one before it, so decode cannot be parallelized across the output of one request.
+
+Each phase has a clock, and the industry has names for them. Databricks' engineering post of October 12, 2023 gives clean definitions:
+
+- **Time to first token (TTFT):** "How quickly users start seeing the model's output after entering their query." It covers the wait and the prefill.
+- **Time per output token (TPOT):** "Time to generate an output token for each user that is querying our system." It measures decode. NVIDIA's benchmarking guide of April 2, 2025 calls a close relative intertoken latency, "the average time between the generation of consecutive tokens in a sequence."
+- **Latency:** "The overall time it takes for the model to generate the full response for a user." This is end-to-end latency.
+- **Throughput:** "The number of output tokens per second an inference server can generate across all users and requests."
+
+The three latency clocks fit together in one line:
+
+```text
+end-to-end latency  =  queue time  +  prefill time  +  (output tokens - 1) x time per output token
+                       \______________________/
+                        time to first token
+```
+
+The formula tells you which lever moves which clock. A longer input moves TTFT. A longer output moves end-to-end latency, one TPOT at a time. A busy server moves the queue, and as you will see, it moves TPOT too.
+
+Work an example. Suppose TTFT is 0.4 seconds and TPOT is 25 milliseconds. A 40-token answer takes about 0.4 plus 39 times 0.025, which is 1.4 seconds. A 1,000-token answer takes about 0.4 plus 999 times 0.025, which is 25.4 seconds. The first clock decides the 40-token answer. The second decides the 1,000-token one. OpenAI's latency guide, checked on 2026-10-09, states the general rule: "Generating tokens is almost always the highest latency step when using an LLM." It says that cutting input tokens does lower latency, but that "this is not usually a significant factor." That is true for short inputs. It stops being true when the input is a whole codebase or a 60,000-token conversation, which is exactly the pause you felt in a long agent session.
+
+Two practical consequences follow.
+
+**Streaming changes which clock the user feels.** Without streaming, the user waits for end-to-end latency. With streaming, the user waits for TTFT, then reads while the rest arrives. Anthropic's latency guide, checked the same day, says streaming "can significantly improve the perceived responsiveness of your application". For a chat interface, TTFT is the clock that feels like responsiveness, and TPOT only has to stay ahead of reading speed. For a program that waits for a complete JSON object before acting, streaming changes nothing, and end-to-end latency is the clock.
+
+**Name the clock in the SLO.** "p95 latency under 2 seconds" means nothing for a model endpoint until you say which latency. A chat product cares about TTFT at p95 and TPOT at p95. A batch job cares about throughput and completion time. An agent loop that calls the model ten times in sequence cares about end-to-end latency per call, times ten. OpenTelemetry's generative AI metrics, still marked Development when checked on 2026-10-09, keep the clocks apart: a server metric for time to first token, which covers queue time and prefill, and a separate one for time per output token, which measures decode. Instrument both, from the start.
+
+### Why prefill and decode behave differently
+
+The two phases are not just two steps of the same work. They hit different limits in the hardware, and that difference explains most of what follows in this module.
+
+An accelerator has two resources that matter here: arithmetic, measured in operations per second, and memory bandwidth, the rate at which it can move numbers from its memory into the units that do the arithmetic. Every step of the model needs both. It needs to read the model's weights, and it needs to multiply them by something.
+
+**Decode is limited by memory bandwidth.** In one decode step for one request, the model reads every weight once and does a small amount of arithmetic with each: one new token's worth. The arithmetic units spend most of the step waiting for numbers to arrive. Databricks' post says it directly: "Generating the first token is typically compute-bound, while subsequent decoding is memory-bound operation."
+
+Do the arithmetic for a fictional model so that the shape is visible. A model with 13 billion parameters stored at 16 bits, 2 bytes each, has 26 GB of weights. A fictional accelerator, call it the G-80, moves about 2 TB per second from memory. Reading the weights once takes at least 26 divided by 2,000 seconds, about 13 milliseconds. So one request decoding alone cannot go faster than about 77 tokens per second on that hardware, however fast its arithmetic is. The weights have to cross the memory bus once per token.
+
+**Prefill is limited by arithmetic.** In prefill, the model reads the weights once and multiplies them by every input token at once. A 4,000-token input does about 4,000 times the arithmetic of one decode step for the same weight read. Now the arithmetic units are the bottleneck. A useful rule of thumb is about 2 operations per parameter per token, so prefill on 4,000 tokens for the 13-billion-parameter model is about 2 times 13 billion times 4,000, roughly 100 trillion operations. If the G-80 sustains 400 trillion operations per second on this work, that prefill takes about a quarter of a second. Prefill on 32,000 tokens takes about two seconds, and more, because attention over a long input costs more than this rule of thumb counts.
+
+So the two phases scale with different things:
+
+| | Prefill | Decode |
+|---|---|---|
+| Work grows with | input tokens | output tokens |
+| Limited by | arithmetic | memory bandwidth |
+| User feels it as | time to first token | time per output token, then total time |
+| Parallel across | the whole input | other users' requests, not the same request's tokens |
+
+That last row is the opening for everything in the batching section. Decode leaves arithmetic idle while it waits for weights. If many requests could share one read of the weights, each doing its own small arithmetic, the accelerator would do far more useful work per step. That is what batching is.
+
+It also explains why fast mode targets output tokens per second. Making decode faster is a matter of moving bytes faster or moving fewer of them. A configuration can do that for decode while prefill, limited by arithmetic, stays where it was.
+
+And it explains Cognition's speculative decoding. A small draft model guesses several next tokens cheaply. The large model then checks all the guesses in one pass, which looks like a small prefill: one weight read, several tokens of arithmetic. When the guesses are right, several tokens come out for the price of one memory-bound step. When they are wrong, the large model's own token wins, so the output follows the large model. The trick converts idle arithmetic into speed. It works only as well as the draft model guesses on your traffic, which is a reason to measure it on your traffic.
+
+### Memory: weights, precision, and the KV cache
+
+Memory is where most capacity plans for a self-hosted model are decided, and it has two parts: a fixed part and a part that grows with every token in flight.
+
+**Weights are the fixed part.** Weight memory is the number of parameters times the bytes per parameter. The bytes depend on the numeric precision you serve at.
+
+| Precision | Bytes per parameter | 13-billion-parameter model | 70-billion-parameter model |
+|---|---:|---:|---:|
+| 32-bit floating point | 4 | 52 GB | 280 GB |
+| 16-bit (bf16 or fp16) | 2 | 26 GB | 140 GB |
+| 8-bit (int8 or fp8) | 1 | 13 GB | 70 GB |
+| 4-bit | 0.5 | about 6.5 GB, plus overhead | about 35 GB, plus overhead |
+
+This is arithmetic, not a vendor claim. The overhead on the 4-bit row is the scale factors that quantized formats store alongside the numbers. A 70-billion-parameter model at 16 bits does not fit on one 80 GB accelerator at all. It has to be split across several, which adds communication between them on every step. At 4 bits it fits on one. That single fact drives many self-hosting decisions.
+
+The weights also need company: the serving engine's own working memory for each step, and the runtime. Plan for some of the accelerator to be unavailable for either weights or cache. The fictional load test in this module reserves about 14 GB of the 80 for that.
+
+**The KV cache is the part that grows.** During prefill and decode, the model computes two vectors, a key and a value, for every token at every layer. Later tokens look back at them through attention. Recomputing them for every new token would be slow, so the server keeps them. That store is the key-value cache, or KV cache. The Context and knowledge module met it as the thing a prompt cache reuses across requests. Here it is the thing that fills memory within a request.
+
+Its size per token is a product of the model's shape:
+
+```text
+KV cache bytes per token = 2 (key and value) x layers x KV heads x head size x bytes per number
+```
+
+For the fictional corvid-13b in the artifacts, with 48 layers, 8 KV heads, a head size of 128, and 16-bit numbers, that is 2 times 48 times 8 times 128 times 2, which is 196,608 bytes, 192 KiB per token. A 6,300-token conversation holds about 1.2 GB of KV cache. Many current models share key and value heads across groups of query heads, which is why the formula says KV heads rather than attention heads. A model with one KV head per attention head would hold several times as much per token.
+
+Now put the two parts together on one fictional G-80. 80 GB, minus 26 GB of weights at 16 bits, minus about 14 GB of working memory, leaves about 40 GB for the KV cache. At 192 KiB per token, that is about 200,000 tokens. Those 200,000 tokens are shared by every request in flight. So:
+
+- At 1,300 tokens per request (a 1,000-token input and a 300-token answer), about 150 requests fit.
+- At 6,300 tokens per request, about 32 fit.
+- At 32,000 tokens per request, about 6 fit.
+
+**The same hardware holds 150 short conversations or 6 long ones.** That is the sentence to remember from this section. Concurrency on a model server is not a fixed property of the hardware. It is a function of how long your requests are. A capacity plan that does not start from your length distribution is a guess.
+
+When the KV cache fills, the server has to choose. It can refuse new requests and queue them, which shows up as queue time and time to first token. Or it can pause a running request, discard or move its cache, and recompute it later. Serving engines call that preemption. A preempted request takes longer, and the recomputation wastes work. Either way, a full KV cache is the moment capacity runs out, and it can happen while the arithmetic units are far from busy.
+
+The research that made modern serving practical started from this memory problem. Woosuk Kwon and colleagues, in the vLLM paper of September 2023 (SOSP 2023), observed that serving systems of the time wasted much of their KV cache memory, because they reserved a contiguous block per request sized for the longest possible output, and fragmentation did the rest. They borrowed paging from operating systems: store the cache in fixed-size blocks, allocate them as tokens arrive, and keep a table from each request to its blocks. Their abstract reports "near-zero waste in KV cache memory" and throughput 2 to 4 times higher than the systems they compared, at the same latency. You know paging from operating systems. The transfer is exact: virtual memory for the attention cache. The numbers are for the systems and models of 2023. The design is now standard in open-source serving engines.
+
+Three practical rules come out of this section.
+
+- **Name the limiting resource.** For short inputs on a model that fits comfortably, the limit is often arithmetic or latency. For long inputs, it is usually KV cache memory. For a model that barely fits, it is the weights. The book's completion evidence for this chapter starts with exactly this: "Identify the limiting resource".
+- **Size from the tail of the length distribution.** Memory fills on the long requests. A plan built on the mean length overfills at the p95.
+- **Watch the context you add.** Every feature that adds context to a request, more retrieved passages, a longer history, a customer's order list, spends KV cache memory on every request in flight. The Context and knowledge module calls context a budget. On your own hardware, it is a budget in gigabytes.
+
+### Batching: one pass over the weights, many users
+
+Decode reads every weight for one token's worth of arithmetic. Batching makes the same read serve many requests. Put 32 requests in a batch, and one decode step reads the weights once and produces one token for each of the 32. If reading the weights were the whole cost, the step would take the same 13 milliseconds and produce 32 tokens instead of one. It is not the whole cost, because each request also reads its own KV cache, and that grows with the batch. But the first-order effect is large, and it is why every serious model server batches.
+
+You know batching from databases and message queues: group small writes so that the fixed cost is paid once. The difference here is what happens to each member of the batch. In a database, batching adds a little delay to a write. In a model server, a request stays in the batch for its whole generation, hundreds of steps, and every step is shared. That has three consequences, and each one is a design choice in the server you run or the one you rent.
+
+**Static batching waits for the slowest.** The naive approach collects a batch, runs it until every request is done, and only then admits new requests. A request that wants 20 tokens waits while its neighbor generates 2,000. New arrivals wait for the whole batch. The accelerator runs nearly empty at the end of each batch, when only the long requests are left.
+
+**Continuous batching schedules per step.** Gyeong-In Yu and colleagues described the fix in the Orca paper at OSDI 2022. They proposed "iteration-level scheduling, a new scheduling mechanism that schedules execution at the granularity of iteration." After every decode step, finished requests leave the batch and waiting requests join it. Anyscale's engineering post of June 22, 2023 explains it plainly: "once a sequence in a batch has completed generation, a new sequence can be inserted in its place." Orca reported about 36.9 times the throughput of the system it compared, at the same latency, on a 175-billion-parameter model. Anyscale's post reported up to 23 times the throughput of a naive static-batching baseline, combining continuous batching with the memory management from the vLLM work. Read both figures as what they are: improvements over particular baselines in particular setups. What transfers is the design. Continuous batching is now the default in open-source serving engines, and the provider behind your hosted API does something like it.
+
+**Prefill and decode compete for the same steps.** When a new request joins a batch, its prefill has to run. A long prefill is a big step, and every request decoding in that batch waits for it. Their next token arrives late. Users see this as a stutter in the stream, and it shows up in the numbers as a long tail on time per output token. Two lines of research address it. Sarathi-Serve, by Amey Agrawal and colleagues (arXiv, March 2024), splits a long prefill into "chunked-prefills" and uses "stall-free scheduling" so that new requests join a batch without pausing the decodes already running. DistServe, by Yinmin Zhong and colleagues (OSDI 2024), goes further and runs prefill and decode on different accelerators, removing what its abstract calls "strong prefill-decoding interferences." DistServe also names the metric that matters for an owner. It optimizes goodput: the rate of requests a system serves while meeting both its time-to-first-token and time-per-output-token targets. Throughput counts every token. Goodput counts only the requests that kept the promise.
+
+Write goodput on the capacity plan. A server that produces 2,700 tokens per second while half its requests miss the SLO has a high throughput and a low goodput, and only one of those numbers is about your users.
+
+So batching is not a single setting. It is a family of scheduler decisions: how many requests a batch may hold, how much prefill may run in one step, whether long prefills are chunked, whether prefill and decode share hardware, and what to do when the KV cache fills. Each one moves the balance between the provider's cost per token and each user's latency. When you host, those decisions are yours, usually as a handful of engine settings. When you rent, they were made for you, and you see their effect in your TTFT and TPOT percentiles.
+
+### Reading a load test
+
+Here is a load test of exactly these tradeoffs, for a fictional open-weights model on a fictional accelerator. It is the same kind of table you would produce before choosing a serving configuration. Read it slowly. The rest of this module returns to it.
+
+<Artifact id="inference-and-hosting-load-test" level={4} />
+
+Start with Part A, which looks like a vendor's benchmark: fixed 1,000-token inputs, fixed 300-token outputs. Read down the throughput column. From 1 user to 128, throughput climbs from 70 to 2,700 output tokens per second. That is batching paying off: one read of the weights serving many requests. Now read across the row for concurrency 1. TPOT is 14 milliseconds, close to the 13-millisecond floor worked out earlier for 26 GB of weights at 2 TB per second. The arithmetic and the measurement agree, which is a good sign the test is sound.
+
+Next read TPOT down the column. At concurrency 1 it is 14 milliseconds at the median. At 128 it is 45 milliseconds at the median and 96 at p95. Each decode step got bigger, because each step now serves 128 requests and reads 128 requests' worth of KV cache. Throughput went up by a factor of about 39. Each user's stream got about three times slower at the median and more than six times slower at p95.
+
+Then read TTFT. At concurrency 128, the median TTFT is 0.41 seconds. The p95 is 4.8 seconds. The gap between the median and the tail widened as concurrency rose, from 0.09 against 0.11 at concurrency 1 to 0.41 against 4.8 at 128. That widening is what batching does to a tail. A request that arrives while the batch is full waits for a slot, and a request that joins alongside several long prefills waits for them. The median request is lucky. The p95 request is not.
+
+Part B changes one thing: inputs of 6,000 tokens instead of 1,000. Everything gets worse, and the reason is in the KV cache column. At concurrency 32, the cache is 99% full and the server preempted 41 of every 1,000 requests. That is the memory arithmetic from the last section, now measured: 32 requests of 6,300 tokens fill the 200,000-token pool. Throughput at concurrency 32 is 980 tokens per second, against 1,390 in Part A. Prefill takes a larger share of every step, and preempted requests redo work.
+
+Part C uses lengths sampled from production logs, and adds two lower precisions. The requirement in the header is TTFT at p95 of 1.5 seconds or less and TPOT at p95 of 60 milliseconds or less. Find the largest concurrency that meets both targets, per precision. The workshop asks you to. One pattern is worth noticing first: the 4-bit copy has the lowest TPOT at every concurrency. Hold that against its TTFT column, and the quantization section will explain what you see.
+
+Last, the quality table. It is the part of a load test that most load tests leave out. The book's workshop for this chapter asks for benchmarking "across input lengths and concurrency levels, retaining quality checks." This table is the retained quality check.
+
+### Throughput and latency are one curve
+
+Every serving configuration traces a curve. As you admit more requests at once, throughput rises and each request's latency rises with it. At first throughput rises fast and latency barely moves, because the weights are being read for more users at almost no extra cost. Then throughput flattens and latency keeps climbing. NVIDIA's benchmarking guide describes the shape: "the throughput of the system generally saturates around the maximum batch size while the latency will continue to steadily increase." Databricks' post gives one measured point on one setup: on one accelerator, maximizing throughput with a batch size of 64 meant "latency increases by 4x while throughput increases by 14x." And past the bend, "every doubling of batch size just increases the latency without increasing throughput."
+
+You know this curve. It is the load-latency curve of any queueing system, and the bend is where utilization approaches saturation. What is new is that the batch, not just the queue, adds latency. In a web service, a request that gets a worker runs at full speed. In a model server, a request that gets a slot in the batch runs at a speed set by everyone else in the batch. There is no idle server at any load. There is only a choice of where on the curve to sit.
+
+Choosing that point is the core decision of a serving configuration. Three rules make it.
+
+**Choose the point from the SLO, at the percentile the SLO names.** Hold Part B of the load test against the requirement in its header. The SLO is written at p95. At concurrency 32, the median TTFT is 1.4 seconds and the median TPOT is 31 milliseconds, both inside their targets. The p95s are 6.8 seconds and 88 milliseconds. If you read the median, you admit 32 requests per accelerator and miss the promise on more than one request in twenty. Read at p95, Part B meets the TTFT target only at concurrency 1. At 8 it is already 1.9 seconds. Under batching, the median and the tail separate as load rises. The median tells you the configuration works for a typical request. The percentile in the SLO tells you whether it keeps the promise. Only the second answers the capacity question.
+
+**Use goodput, not throughput, as the objective.** The most throughput is at the top of the curve, where the SLO has long since broken. The best configuration is the one that serves the most requests per second while meeting the SLO. In Part A, held against the same requirement, that point is concurrency 32: TTFT p95 of 0.95 seconds, TPOT p95 of 31 milliseconds, and 1,390 tokens per second. It is not the 2,700 tokens per second at 128, which misses both targets.
+
+**Leave the bend alone.** A configuration at the bend of the curve has no room for a burst. A small rise in arrivals or in input length moves it up the steep part, where latency grows much faster than load. Sit below the bend, and size the fleet for the peak, with a spare.
+
+There is a second lesson in the shape of the curve: throughput is a fleet property, and latency is a user property. An engineer optimizing cost per token and an engineer optimizing user experience are pulling the same lever in opposite directions. Neither is wrong. The SLO decides where the lever stops, which is why it has to be written down, with its percentile, before anyone tunes the batch size. The Models module made the same point about routing: decide the quality requirement before you look at the costs. Here, decide the latency requirement before you look at the throughput.
+
+### The batch you share changes your answer
+
+Batching has one more effect. The other requests in your batch can change your output.
+
+Foundations introduced the finding in [Next-token prediction and decoding](/modules/foundations#next-token-prediction-and-decoding). Horace He of Thinking Machines Lab, in "Defeating Nondeterminism in LLM Inference" (September 10, 2025), traced why model APIs are not deterministic even at temperature 0. The common explanation is concurrency and floating-point rounding on the accelerator. His post finds a different cause. The arithmetic kernels compute the same mathematical result with a different order of operations depending on the batch size, floating-point addition is not associative, and "the load (and thus batch-size) nondeterministically varies!" In his words, the server's load "makes LLM inference 'nondeterministic' from the perspective of each user." His experiment sampled 1,000 completions of one prompt at temperature 0 from an open-weights model and got 80 unique completions. They agreed for the first 102 tokens and diverged at the 103rd. With kernels written to be batch-invariant, "all of our 1000 completions are identical", at a cost in speed: in his performance test, 26 seconds for the default setup against 42 for the deterministic one with an improved attention kernel.
+
+Anthropic's postmortem of September 2025 shows the same coupling as a failure. One of its three bugs was in an approximate top-k operation used in decoding: "This approximation sometimes returned completely wrong results, but only for certain batch sizes and model configurations." A defect that depends on batch size depends on load, and load depends on time of day and on everyone else's traffic. That is part of why the postmortem says the reports looked inconsistent, and why its evaluations missed the problem: "The evaluations we ran simply didn't capture the degradation users were reporting".
+
+Three lessons for an owner.
+
+- **The serving configuration is part of the behavior.** Precision, batch limits, kernels, and decoding implementation all reach the output. Treat a change to any of them as a change to the product, with the quality suite behind it, the way the Models module treats a model change.
+- **Run quality checks under load.** An eval run at concurrency 1 on an idle server tests a configuration that production never runs. Run at least part of the suite through the real serving stack, at a realistic concurrency.
+- **Do not promise bit-for-bit repeatability you have not measured.** If a downstream system needs identical outputs for identical inputs, cache the output, or verify that your stack provides it. Do not assume it from temperature 0.
+
+### Quantization, at the level of intuition
+
+Quantization stores the model's numbers with fewer bits. A weight that took 16 bits takes 8, or 4. The model gets smaller in memory, and because decode is limited by moving bytes, it usually gets faster too.
+
+Here is the intuition. A 16-bit floating-point number can represent a very large range of values with fine resolution. Most of a model's weights sit in a narrow range. Quantization picks a scale for a group of weights, divides each weight by the scale, and rounds it to one of a small set of levels: 256 levels for 8 bits, 16 for 4 bits. To use a weight, the server multiplies the level by the scale again. The result is close to the original weight but not equal to it. Every weight now carries a small rounding error.
+
+Whether those small errors matter depends on where they land. Two facts make it hard to predict.
+
+**Outliers.** A few values in a model are much larger than the rest. If the scale for a group is set by one huge value, the ordinary values in the group get rounded onto very few levels and lose most of their information. Practical quantization methods spend much of their effort on outliers: smaller groups, separate handling for the large values, or calibration on sample data to choose the scales.
+
+**Errors compound through layers and tokens.** One rounding error is tiny. A model applies dozens of layers per token and generates hundreds of tokens, each conditioned on the last. Small shifts in the probabilities can change which token is picked, and a changed token changes everything after it. The effect is not uniform. It tends to show on the hard cases: long inputs, rare facts, precise reasoning, the category the model was already marginal on.
+
+There are two broad families, and the difference matters for latency. They differ in what they quantize besides the weights. Activations are the intermediate numbers the model computes from your input at each layer. Weights are stored. Activations are produced fresh for every token.
+
+**Weight-only** quantization stores the weights in low precision and converts them back to 16 bits for the arithmetic, so the activations stay at 16 bits. It saves memory and speeds up decode, which is limited by reading weights. It does little for prefill, which is limited by arithmetic, and the conversion can even add work there.
+
+**Weight-and-activation** quantization also does the arithmetic in low precision, on hardware that supports it. It is often written W8A8, which means 8-bit weights and 8-bit activations. That can speed up prefill as well.
+
+So a 4-bit weight-only copy can decode fastest and still run out of time-to-first-token budget sooner than an 8-bit weight-and-activation copy, once production inputs are long enough to make prefill the binding constraint. Part C of the load test is where to check whether that happened.
+
+The best public evidence on the quality cost is careful and scoped. Eldar Kurtic and colleagues, in "Give Me BF16 or Give Me Death? Accuracy-Performance Trade-Offs in LLM Quantization" (November 2024, revised May 2026, ACL 2025), ran over 500,000 evaluations on the Llama 3.1 family across academic benchmarks and real-world tasks. They report 8-bit floating-point weights and activations as "effectively lossless across all model scales", 8-bit integer weights and activations as losing only "(1-3%)" with careful tuning, and 4-bit weight-only as performing better than expected, comparable to 8-bit. On cost, they found 4-bit weight-only the most cost-efficient for synchronous setups and 8-bit weights and activations the leader for asynchronous continuous batching. That is useful. It tells you which formats deserve a test. It does not tell you what your quantized copy does on your cases, because it measured their models on their tasks, and an average over many tasks can hide a large loss on one.
+
+The load test's quality table shows how. At 4 bits, the overall score fell 2.2 points, from 91.6% to 89.4%. That is the kind of loss a summary line calls acceptable. The refund policy category fell 12 points, from 93% to 81%, and long inputs fell 10 points. A 2-point overall loss and a 12-point loss on the category that costs money are the same configuration. Only the per-category table shows the second one.
+
+This is the book's failure exercise for the chapter, in its second form: a configuration that "reduces memory at the expense of task quality." The Models module already warned that serving your own copy means "proving that a quantized copy (compressed to lower numeric precision to run cheaper) or any self-hosted copy kept the quality you measured", in [Eligibility comes first](/modules/models#eligibility-comes-first). Here is what proving it means in practice.
+
+1. Treat a new precision as a new model. Run the full quality suite on it, the same cases and graders as the original, with repeated runs.
+2. Read the results per category, with the run-to-run range, and with the size of each category in mind. One case in a 70-case category is 1.4 points.
+3. Look hardest at long inputs and at the categories that were already marginal.
+4. Load-test the quantized copy at production lengths, because its latency profile differs from the original's in ways the bit count does not predict.
+5. Record the precision in the configuration, beside the model id, so that every eval result and every trace says which copy produced it.
+
+Hosted providers make the same choices, out of your sight. You cannot run step 1 on a precision you cannot see. You can run your suite on a schedule against the endpoint you call, which catches the effect of any serving change, announced or not. That is the regression monitoring the Models module asks for, aimed at the serving layer.
+
+### Profile before you optimize
+
+The book's fourth topic for this chapter is a rule you already follow: "Profile the actual workload before selecting optimizations." You have seen a team spend a month on a cache for a code path that was never slow. The model-serving version of that mistake is choosing a technique because it is famous rather than because it addresses the clock your users feel.
+
+Each common lever moves specific clocks, and you can only pick well once you know which clock is the problem.
+
+| Lever | Moves | At what risk |
+|---|---|---|
+| Shorter outputs, by instruction or a lower output limit | End-to-end latency, output cost | Truncated or less complete answers |
+| Prompt caching of a stable prefix | TTFT and input cost on long shared prefixes | Stale content if the prefix holds facts that change |
+| Fewer input tokens: curated context, trimmed history | TTFT, KV cache memory, input cost | Missing evidence |
+| Streaming | Perceived latency for a human reader | Nothing for a program that waits for the whole answer |
+| A smaller or lower-effort model | Every clock and every cost | Quality, measured per category |
+| A faster serving tier or fast mode | Mostly TPOT | Price per token |
+| Quantization | TPOT and memory; prefill only with weight-and-activation formats | Quality, often on the hard categories |
+| Larger batch limit | Throughput and cost per token | TTFT and TPOT tails |
+| Speculative decoding | TPOT | Gains that depend on how well the draft model guesses your traffic |
+| Parallel calls instead of sequential ones | End-to-end latency of a workflow | Cost, and coordination code |
+
+OpenAI's latency guide, checked on 2026-10-09, organizes the same space as seven principles: "Process tokens faster." "Generate fewer tokens." "Use fewer input tokens." "Make fewer requests." "Parallelize." "Make your users wait less." "Don't default to an LLM." The last one deserves a second look. Some steps in a workflow do not need a model at all, and a deterministic step has no TTFT. Anthropic's latency guide, checked the same day, makes a point about order: "It's always better to first engineer a prompt that works well without model or prompt constraints, and then try latency reduction strategies afterward." Get the quality first, measure where the time goes, then optimize the clock that matters, and check quality again.
+
+Profiling a model-backed feature means splitting its latency into the clocks. For each request in a trace, record queue time, TTFT, output tokens, TPOT, and the time spent in tools and your own code between model calls. An agent's end-to-end latency is often dominated by the number of sequential calls in its loop, not by any one call. The Orchestration module's [Tracing the loop](/modules/orchestration#tracing-the-loop) gives you the structure. Here, add the two model clocks to every model span, and the answer to "what is slow" is usually visible within a day of traffic.
+
+### Hosted API or your own weights
+
+There are more than two ways to run a model, and the differences are about who carries which responsibility. The research report "The Six Disciplines of Engineering Agentic AI Systems" (September 16, 2026), kept in the talk's repository, names three: "a hosted API, a managed deployment of open weights, or self-hosted inference." It adds a warning that belongs at the top of any comparison. Open weights do not by themselves establish "an unrestricted license, transparent training data, or low operating cost; these are separate properties to inspect."
+
+**A hosted API.** The vendor runs the model, the hardware, the batching, the precision, and the capacity. You pay per token. You get a contract written as rate limits and service tiers, a model with a lifecycle the vendor sets, and no access to the weights. It scales to zero: a quiet night costs nothing.
+
+**A managed deployment of open weights.** A cloud provider runs weights you chose on hardware it manages, usually billed per hour of capacity or per token. You choose the model and sometimes the precision. The provider runs the serving stack.
+
+**Self-hosted inference.** You run the weights on accelerators you rent or own, with a serving engine you operate. Everything in the engineered column of the earlier table is yours.
+
+Here is what each one gives you and costs you, set against the work you already know from running services.
+
+**Capacity.** On a hosted API, capacity is a contract. Anthropic's rate limit documentation, checked on 2026-10-09, measures limits in "requests per minute (RPM), input tokens per minute (ITPM), and output tokens per minute (OTPM) for each model class". It enforces them with a token bucket, so that "your capacity is continuously replenished up to your maximum limit, rather than being reset at fixed intervals." It warns that limits can bite inside a minute: "a rate of 60 requests per minute (RPM) might be enforced as 1 request per second." And it says what the numbers are: "All limits described here represent maximum allowed usage, not guaranteed minimums." Self-hosted, capacity is the fleet you sized, and it is guaranteed exactly as well as your capacity plan.
+
+**Tiers that trade speed for price.** Hosted providers sell the throughput and latency curve in pieces. Batch tiers sit at the slow, cheap end. Anthropic's Message Batches API, checked the same day, is "well-suited to tasks that do not require immediate responses, with most batches finishing in less than 1 hour while reducing costs by 50%". A batch that has not finished within 24 hours expires. OpenAI's Batch API offers a "50% cost discount compared to synchronous APIs" with completion "within 24 hours (and often more quickly)". It also comes with "a separate pool of significantly higher rate limits."
+
+Other tiers sell other points on the curve. OpenAI's flex processing prices synchronous requests at Batch API rates "in exchange for slower response times and occasional resource unavailability." At the other end, fast mode sells a faster point at a higher price. Anthropic's service tiers page describes a priority tier that "prioritizes requests in this tier over all other requests". On the day checked, the same page said that new priority commitments were "no longer available for purchase."
+
+Products like these change. What does not change is the shape: a provider with a big shared fleet can sell you a slow, cheap slice of its idle capacity or a fast, expensive slice of its best capacity. If part of your workload can wait, a batch tier is often the largest single saving available, and it needs no new infrastructure.
+
+**Data handling.** The Models module puts eligibility first, and hosting is one of the strongest eligibility levers. Self-hosting can settle a residency question that no vendor region answers. It does not settle it automatically: logs, traces, caches, and backups hold the same data, and your own infrastructure has to meet the same rules.
+
+**Lifecycle.** A hosted model retires on the vendor's schedule. Self-hosted weights do not retire. That is real control, and it is not freedom from upgrades: the serving engine, the drivers, the operating system, and the security patches all move, and each update is a change to the serving configuration that, as the batching section showed, can change outputs.
+
+**Customization.** Self-hosting is how you serve a model you adapted yourself, which the elective on [fine-tuning, distillation, and model adaptation](/modules/fine-tuning-and-adaptation) covers. It is also how you control precision, batch limits, and the serving engine.
+
+**Operations.** This is the cost that comparisons leave out. Self-hosting means on-call for the serving fleet, capacity planning, model loading and warm-up, redundancy across failures, upgrade testing, and a quality suite run on every change to the stack. The talk's research records a practitioner view, marked unverified there, that is worth testing against your own numbers: self-hosting "is priced as GPU rental but decided by operations, redundancy, and an eval harness proving a quantized model kept quality"; "hosted APIs scale to zero and GPUs do not"; self-hosting "earns its keep at sustained high utilization or when privacy, latency, or fine-tuning control forces it." Treat each clause as a hypothesis your cost model checks, not as a fact.
+
+The decision is rarely all or nothing. A common shape is a hosted API for the interactive path, a batch tier for the jobs that can wait, and self-hosted weights only where data handling, cost at high utilization, or a custom model requires them. Each path is a separate capacity plan with its own SLO.
+
+### Cost per request, both ways
+
+Hosted and self-hosted costs have different shapes, and a comparison that does not draw both shapes compares the wrong numbers.
+
+**Hosted cost is per token, so it scales with traffic.** For one request:
+
+```text
+hosted cost per request =
+    uncached input tokens x input price
+  + cached input tokens   x cache read price
+  + cache write tokens    x cache write price
+  + output tokens         x output price
+```
+
+The cost is linear in volume. Twice the traffic, twice the bill. Nothing is paid for idle time. The levers are the token counts and the cache hit rate, which the Operating it module puts on the dashboard in [The numbers that matter](/modules/operating-it#the-numbers-that-matter).
+
+**Self-hosted cost is per hour, so it scales with the fleet.**
+
+```text
+self-hosted cost per request =
+    ( accelerator hours x hourly price
+    + engineering and on-call time
+    + observability, storage, and eval runs )
+  / requests served
+```
+
+The numerator barely depends on traffic. It depends on how many accelerators you keep running, and you keep enough for the peak plus a spare, all day, unless you can add capacity faster than your traffic ramps. Loading a large model onto a fresh accelerator takes minutes, and the morning ramp of a business application usually takes less. So the fleet is sized for the peak and paid for around the clock, and the cost per request depends on utilization: the share of that capacity your traffic actually uses.
+
+Work the arithmetic on a fictional fleet. Four accelerators at $2.00 an hour cost $5,840 a month. With one of them held back as a spare, they serve up to 10 requests per second within their SLO. Give the fleet two workloads with the same peak of 8 requests per second.
+
+- A flat load runs at 8 requests per second around the clock. That is about 21 million requests a month, and the accelerators cost about $0.28 per 1,000 requests.
+- A business-hours load peaks at 8 and averages 1.6. That is about 4.2 million requests a month, and the accelerators cost about $1.39 per 1,000.
+
+Same hardware, same price, same peak, five times the cost per request. The first fleet runs at 80% of its capacity on average. The second runs at 16%. Add $6,000 a month for engineering, observability, and evals, and the totals are $0.56 and $2.82 per 1,000 requests. Set them against a hosted API that charges $2.00 per 1,000 for the same requests. The flat load is far cheaper on the fleet. The business-hours load is cheaper on the meter.
+
+That is the practitioner view from the last section, now as arithmetic: self-hosting is a utilization business. Volume moves utilization too. More traffic of the same shape fills a fleet that grows in whole accelerators while the engineering line barely moves, so the self-hosted cost per request falls and the hosted one stays about where it was. The break-even point depends on your traffic's shape as much as its volume. A flat, around-the-clock load favors a fleet. A spiky, business-hours load favors a meter that stops at night. The workshop's cost comparison asks you to work both effects for one service.
+
+Three cautions keep the comparison honest.
+
+- **Compare at equal quality.** The hosted model and the open-weights model are different models. They score differently on the same suite, and the difference can sit in the category that matters most. A cheaper configuration that misses the quality bar is not cheaper. The Operating it module's [The numbers that matter](/modules/operating-it#the-numbers-that-matter) works the same argument for cost per completed task.
+- **Count the people.** Engineering time is often the largest line in a small self-hosted deployment. It is also the most often left out, because nobody receives an invoice for it.
+- **Price the failure modes.** A hosted API's outage is the vendor's incident and your degraded mode. A self-hosted fleet's outage is your incident. The spare accelerator in every self-hosted line exists because without it, losing one machine breaches the SLO.
+
+### Capacity planning from the workload you have
+
+You already know how to plan capacity. The steps transfer. The inputs change.
+
+**1. Measure the workload, not a request.** Pull the distribution of input tokens and output tokens per request from your logs, at p50, p95, and p99. Pull arrival rates by hour, and the peak. If the product is new, build the distribution from a prototype's traffic or from the closest existing feature, and write down that it is an estimate. A model request has no typical size. In the load test's production workload, the p95 input is two and a half times the median and the p99 is almost five times.
+
+**2. Write the SLO with its clocks and percentiles.** For an interactive feature, TTFT and TPOT at p95, measured at a stated point: the server, the gateway, or the client. For a batch feature, completion time for the whole job. For an agent, end-to-end time per task, which multiplies through the loop.
+
+**3. Turn arrivals into concurrency with Little's law.** The average number of requests in the system equals the arrival rate times the average time each one spends there. At a peak of 2.9 requests per second and about 8 seconds per request, about 23 requests are in flight. That is the number a model server's capacity is expressed in, because the batch limit and the KV cache are both counted in requests in flight. Note that the time in the system depends on the configuration you choose, so this step and the next one inform each other.
+
+**4. Load-test at production shape.** Replay or sample real input and output lengths. Drive load the way users do. Report TTFT and TPOT at the SLO's percentiles, KV cache use, preemptions, and queue time, at several concurrencies around the expected peak. Keep the quality check in the same run.
+
+**5. Find the goodput point.** The largest concurrency per accelerator, or per unit of hosted rate limit, that meets the SLO at its percentile.
+
+**6. Size the fleet.** Divide peak concurrency by the goodput point and round up. Add a spare so that one failure does not breach the SLO. Add headroom for growth until the next review. For example, 23 in flight at a configuration that holds 10 per accelerator within the SLO needs three accelerators for the peak, four with a spare.
+
+**7. For a hosted API, translate into the vendor's units.** Peak requests per minute, peak uncached input tokens per minute, peak output tokens per minute, each against your tier's limits. Anthropic's documentation, checked on 2026-10-09, has a detail that matters here: "For most Claude models, only uncached input tokens count toward your ITPM rate limits." Its worked example: "With a 2,000,000 ITPM limit and an 80% cache hit rate, you could effectively process 10,000,000 total input tokens per minute." On that provider, your cache hit rate is part of your capacity. A prompt change that breaks the cached prefix can push you into rate limits with no change in traffic. Plan the headroom for a cache miss, not only for a traffic spike.
+
+**8. Plan for the inputs to drift.** Traffic grows, and so do requests. Features add context. Conversations get longer as users trust the product. Retrieval returns more. Every one of those raises KV cache use and TTFT per request at the same arrival rate. Put the input length percentiles on the capacity review, beside the arrival rate.
+
+The plan's output is a short record. The book's completion evidence for this chapter states the bar: "Identify the limiting resource and justify a deployment configuration with measured tradeoffs and clear hardware assumptions." When you are the owner, at the end of this page, lists the parts of that record.
+
+### Benchmarks that answer a different question
+
+Most capacity mistakes in model serving are not arithmetic errors. They are correct arithmetic on a measurement that answered a different question. You have seen this with web load tests. The model-serving versions have their own shapes, and they are worth learning to spot.
+
+**The headline percentile.** Anyscale's 2023 post is titled "How continuous batching enables 23x throughput in LLM inference while reducing p50 latency." The post itself reports improvements across percentiles on its setup, and that is fine for a post about a technique. But a headline that pairs peak throughput with a median is not an answer to a question written at p95. Under batching, the median and the tail move apart as load rises. A decision has to read the percentile it promises.
+
+**The fixed input length.** A benchmark that uses one input length, often short, tests one point of a distribution you do not have. Prefill time grows with input length. KV cache use grows with input length. A configuration that holds 128 short requests per accelerator may hold 30 of yours.
+
+**The wrong load shape.** NVIDIA's benchmarking guide distinguishes concurrency, "the number of concurrent users, each having one active request", from a request rate where "1 request is sent every 1/r seconds." A closed-loop test, where each simulated user waits for an answer before sending the next request, slows its own arrivals when the server slows. Real users do not. You know this problem from web load testing as coordinated omission: the test stops measuring the requests it would have sent during a stall. A test that starts every user at the same instant adds a burst that production may never see. Neither is wrong as a test. Each answers its own question.
+
+**Different definitions under the same name.** NVIDIA's guide warns that "there are some slight but significant differences between various benchmarking tools." Its examples: TTFT "generally includes both request queuing time, prefill time, and network latency", but not every tool includes all three; one tool's intertoken latency includes the first token and another's does not; one tool divides output tokens by the whole benchmark duration, including its own overheads. Two numbers called TTFT from two tools may not be comparable. Read the definitions before the numbers.
+
+**The batch size nobody runs.** A throughput number is a point on the curve. Peak throughput is reported at the top, where latency has stopped mattering to the benchmark. If the number you are shown is the most tokens per second, ask what the TTFT and TPOT percentiles were at that point. If nobody can say, the number does not belong in a capacity plan.
+
+**No quality column.** A benchmark of a quantized model's speed says nothing about its answers. A benchmark that changed the precision, the decoding method, or the batch size without a quality check measured a different model, in the sense that matters.
+
+The defense is the same habit the Models module asks for with public leaderboards: benchmarks discover, your workload decides. A vendor's or a paper's benchmark tells you which configurations are worth testing. Your load test, at your lengths, your arrival pattern, and your SLO's percentiles, with your quality suite, decides.
+
+### What the owner monitors
+
+A capacity plan is a prediction. Monitoring is how you find out where it was wrong. The signals below are the serving layer's part of the observability that the [Operating it](/modules/operating-it) module builds.
+
+**Self-hosted, from the serving engine.** The open-source engines export most of what you need. vLLM's metrics documentation, checked on 2026-10-09 when the latest release was v0.31.0, lists among others `vllm:time_to_first_token_seconds`, `vllm:inter_token_latency_seconds`, `vllm:e2e_request_latency_seconds`, `vllm:request_queue_time_seconds`, `vllm:num_requests_running`, `vllm:num_requests_waiting`, `vllm:kv_cache_usage_perc`, `vllm:num_preemptions`, and the prefix cache counters `vllm:prefix_cache_hits` and `vllm:prefix_cache_queries`. Names differ across engines and change between releases, so pin them with your engine version. What they measure does not change:
+
+| Signal | What it warns of |
+|---|---|
+| TTFT p95 and p99 | Prefill getting longer, or requests waiting for a slot |
+| TPOT p95 | Batches too large, or long prefills stalling decodes |
+| Queue time and waiting requests | The server is full; the leading sign of exhausted capacity |
+| KV cache use | Memory is the limit; preemptions follow when it nears full |
+| Preemptions | Work being redone; latency and cost both rising |
+| Input and output token percentiles | The workload changing shape under a constant arrival rate |
+| Prefix cache hit rate | A prompt change breaking the shared prefix |
+| Quality on a production sample | Any of the above changing the answers |
+
+**Hosted, from the responses.** You cannot see the provider's queue or KV cache. You can see what it tells you. Anthropic's responses carry headers such as `anthropic-ratelimit-input-tokens-remaining` and `retry-after`, and a 429 error "describing which rate limit was exceeded", per its documentation on 2026-10-09. The response's usage object reports cached and uncached input tokens, and for some features which tier or speed served the request: the fast mode documentation says the `speed` field reports "fast" or "standard". Log those fields per request. Track TTFT and TPOT yourself at the client, because the provider's dashboard measures from somewhere else. Watch rate-limit errors, overload errors, and cached share of input together, since on a cache-aware limit they move together.
+
+**Alert on the tail, by clock.** An alert on mean latency is an alert that fires late. A mean averages a fast majority with a slow tail and moves only when the tail is already large. Alert on TTFT and TPOT at the SLO's percentile, and on queue time, which moves before either.
+
+**Watch what users do, too.** A client that gives up before the first token often never reaches the server's error rate. A timeout at the client, an abandoned stream, a user who types "hello?" into a silent chat: those are the user-side view of a TTFT tail, and they belong on the same page.
+
+Here is a dashboard for a fictional self-hosted assistant, two weeks either side of a feature release. Read the alert panel first, the way the on-call engineer did. Then read the rest.
+
+<Artifact id="inference-and-hosting-serving-dashboard" level={4} />
+
+The alert panel is green. Availability held, mean latency rose 15% against a 25% threshold, and the error rate stayed under 1%. Nothing paged anyone. Underneath, the service ran out of capacity at every peak. TTFT p95 went from 1.3 to 4.2 seconds, and p99 from 2.4 to 9.8. Queue time p95 went from 0.1 to 2.9 seconds, and up to 19 requests waited at once. KV cache use at p95 hit 99%, and the server preempted 37 of every 1,000 requests. Users abandoned 2.6% of streams before the first token, which counted as client events, not errors.
+
+Arrivals did not cause it. Peak requests per second went from 2.8 to 2.9. The input did. The order context feature more than doubled the median input and pushed the p95 from 6,000 to 13,900 tokens. At 24 requests per accelerator, that much context does not fit in the KV cache, and every long prefill stalls the decodes around it. The prefix cache hit rate fell from 54% to 31% at the same time, because the new block went in after the system prompt and before the tool definitions, so the tool definitions stopped being part of a shared prefix. That made every prefill longer still. Three fixes are available, and they belong to different modules: curate the order context, as the Context and knowledge module would; move it after the stable prefix; and lower the per-accelerator limit or add capacity until the load test at the new lengths says the SLO holds. None of them was going to be found by an alert on the mean.
+
+### When you are the owner
+
+Pull the module together around the decision record the book asks for. A deployment decision for a model-backed feature has these parts.
+
+- **Workload.** Input and output length percentiles, arrival rate by hour, the peak, and where the numbers came from.
+- **Requirement.** The SLO, with its clocks, percentiles, and measurement point. The quality bar, per category. The data-handling constraints.
+- **Options considered.** Hosted tiers, managed weights, and self-hosted configurations, each complete: model, precision, engine and version, batch limit, fleet or tier.
+- **Evidence.** The load test at production shape, with its conditions, and the quality check for each configuration, per category, with the run-to-run range.
+- **Limiting resource.** For the chosen configuration, what runs out first: KV cache memory, prefill time, decode time, a rate limit, or the budget.
+- **Decision.** The configuration, why it meets the requirement at the percentile, and its cost per request at expected utilization, people included.
+- **Hardware and vendor assumptions.** The accelerator and its price, the spare, the tier and its limits, and the date you checked each one.
+- **Monitoring and review triggers.** The signals and their alert thresholds, and the changes that reopen the decision: a growth in input length, a new feature that adds context, a precision change, an engine upgrade, a price change, a new tier.
+
+That record is the talk's "The same, in tokens" for hosting: the habits you have, written in tokens per request, tokens per minute, gigabytes of cache, and the percentiles of clocks your web services never had.
 
 ## Workshop
 
 <Workshop>
 
-The workshop will be an analysis exercise on provided artifacts. No code. It will state the task in one paragraph and give a rubric.
+<Artifact id="inference-and-hosting-load-test" />
+
+<Artifact id="inference-and-hosting-cost-comparison" />
+
+The book's workshop runs the benchmark. Here the benchmark is supplied, and your job is the decision it has to support. You own the serving decision for the fictional support assistant in these two artifacts. Next quarter it runs either on the hosted API (H1) or on one of the self-hosted configurations (S1, S2, S3), and the team wants a decision this week. Read the load test and the cost comparison as the evidence for that decision. Then write the deployment decision in 400 to 600 words: the configuration you would run, or that you would not decide yet; the limiting resource for that configuration and the row that shows it; how it meets each part of the requirement, at the percentiles the requirement names; its cost per 1,000 requests at today's volume and what changes at three times the volume; which options you removed before comparing cost, and why; the hardware and vendor assumptions the decision rests on; what this evidence does not establish; and the signals and review triggers you would set up. No code. Your response is saved to your account and never graded. Apply the rubric below to it yourself.
+
+- Reads latency at p95, the percentile the requirement names, and finds the largest concurrency within the requirement for each precision from Part C, not from Part A, and checks each option's capacity basis in the cost comparison against it.
+- Names the limiting resource for the chosen configuration and points to the number that shows it, such as prefill arithmetic, shown by TTFT p95 of 1.4 s against 1.5 s at int8 and concurrency 24, with KV cache at 47%.
+- Removes any option that fails the quality requirement before comparing its cost, and reads the refund and long-input categories with their sizes, not only the overall score.
+- Compares cost only among options that meet both the latency and the quality requirement, and includes engineering time and the spare accelerator in the self-hosted totals.
+- Explains the role of utilization: why the self-hosted cost per request is high at today's volume and what happens at three times it.
+- States the assumptions: the accelerator price, the model load time, the spare, the vendor's rate limits and the headroom left if the cached prefix stops being cached, and whose estimate the engineering line is.
+- Names at least two evidence gaps, such as latency measured at the server rather than the user, a closed-loop test, or a quality comparison between two different models.
+- Defines monitoring and review triggers: the clocks and percentiles to alert on, queue time, KV cache use or rate-limit errors, input length percentiles, a quality sample, and the changes that reopen the decision.
 
 </Workshop>
 
@@ -42,11 +833,23 @@ The workshop will be an analysis exercise on provided artifacts. No code. It wil
 
 <FailureExercise>
 
-The failure exercise will plant a failure in an artifact and ask you to find it and explain it.
+<Artifact id="inference-and-hosting-capacity-memo" />
+
+This memo was approved on 2026-10-08 and rolls out on Monday 2026-10-12. It contains a capacity decision made from the wrong measurement, and the people who approved it believe the evidence supports it. Find the problem from the artifact alone. In a few sentences, say what the evidence actually shows about the SLO at the proposed configuration, point to the lines that show it, explain why the benchmark's conditions do not describe claims chat, and say what measurement would have to exist before this change could ship.
 
 <Fragment slot="explanation">
 
-The explanation appears here after a response is saved.
+The decision checks a p95 promise against p50 numbers, from a benchmark run at an input length and a load shape claims chat never has.
+
+Start with the SLO, which the memo states correctly: time to first token at p95 of 1.5 seconds or less, and time per output token at p95 of 60 milliseconds or less. Now read the row for concurrency 96 in Appendix 1. TTFT p95 is 3.9 seconds, more than two and a half times the limit. TPOT p95 is 88 milliseconds, 47% over. The memo quotes the medians from the same row, 0.52 seconds and 41 milliseconds, and calls the SLO met. Under batching the median and the tail separate as load rises, and this benchmark shows exactly that: the gap between p50 and p95 TTFT grows from 0.02 seconds at concurrency 1 to 3.4 seconds at 96. Read at its own percentile, the benchmark fails the SLO at 48 and at 96, and passes only at 24 or below. The evidence the memo cites argues against the memo.
+
+Then the benchmark's conditions. Its inputs are a fixed 1,500 tokens. Claims chat's are 3,800 at the median and 9,200 at p95, because every request carries policy wording and claim notes. Prefill grows with every input token, so time to first token in production is longer than anything in the appendix. Memory is worse. The appendix says 192 KiB of KV cache per token and about 200,000 tokens of room per accelerator. At the median request, about 4,040 tokens, about 49 requests fit. At p95 lengths, about 9,900 tokens, about 20 fit. The limit of 96 cannot be reached with these requests without queueing or preempting, so the line "No preemptions at any concurrency tested" is true only for 1,500-token inputs: 96 requests of 1,750 tokens is 168,000 tokens, the 84% in the table. The benchmark is also closed-loop with every user starting at once, which is not how policyholders arrive.
+
+The capacity check repeats the mistake in another unit. It divides peak output tokens by the throughput at the top of the curve, which is the number the benchmark reached by ignoring latency. That is throughput, not goodput. It also ignores prefill, which for claims chat is most of the work. "More than six times the peak demand" is a statement about tokens per second at a configuration that breaks the promise.
+
+And the fleet has no spare. At peak, 22 to 36 requests are in flight across the service. Two accelerators carry 11 to 18 each. That is already more than the load tests in this module support at these lengths: Part B at 6,000-token inputs missed TTFT p95 even at 8, and Part C held only 16 per accelerator at bf16 on shorter inputs than claims chat's. If one fails, all 22 to 36 land on the other, more than the roughly 20 p95-length requests its KV cache holds. The memo's risk section says only the batch limit changes. The batch limit is the setting that decides the tail.
+
+What would have to exist: a load test at claims chat's own input and output length distribution, driven at the peak arrival rate rather than a closed loop, reporting TTFT and TPOT at p95 and p99, queue time, KV cache use, and preemptions at several concurrencies per accelerator, including the case where one accelerator has failed and its share lands on the other; a quality check in the same run; and a fleet sized from the largest concurrency that meets the SLO at p95, plus a spare. If that test says three accelerators are enough, the saving is real. This memo cannot say it.
 
 </Fragment>
 

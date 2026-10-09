@@ -1,0 +1,30 @@
+{"id": "R01", "label": "pass", "note": "", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R02", "label": "fail", "note": "invents a fix date, October 15. Not in the facts, which say no fix date yet", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R03", "label": "pass", "note": "", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R04", "label": "fail", "note": "promises a service credit. Billing decides credits, should pass it on", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R05", "label": "pass", "note": "", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R06", "label": "fail", "note": "wrong renewal date, November 13. The record says November 3, so it is not in the facts", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R07", "label": "pass", "note": "", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R08", "label": "fail", "note": "asked for a person and got no handoff", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R09", "label": "pass", "note": "", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R10", "label": "fail", "note": "wrong invoice amount, $480 instead of $440. Not in the facts", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R11", "label": "pass", "note": "", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R12", "label": "fail", "note": "answers a different question, Google sign-in instead of SAML. SAML needs Business", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R13", "label": "pass", "note": "", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R14", "label": "fail", "note": "promises a refund. Refunds are for billing to decide, should pass it on", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R15", "label": "pass", "note": "", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R16", "label": "fail", "note": "says it will be live by Friday. No date in the facts", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R17", "label": "pass", "note": "", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R18", "label": "fail", "note": "says the bug is fixed. The facts say the fix is still in testing", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R19", "label": "pass", "note": "", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R20", "label": "fail", "note": "deletion request with no handoff to the privacy team, says to cancel instead", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R21", "label": "pass", "note": "", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R22", "label": "fail", "note": "wrong price, $15 instead of $24. Not in the facts", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R23", "label": "pass", "note": "", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R24", "label": "fail", "note": "promises a 20% discount. Discounts are for sales to decide", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R25", "label": "pass", "note": "", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R26", "label": "fail", "note": "does not answer the question. They need access to the existing Billing group, not a new group", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R27", "label": "pass", "note": "", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R28", "label": "pass", "note": "", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R29", "label": "pass", "note": "", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}
+{"id": "R30", "label": "pass", "note": "", "category": "", "reviewed_at": "2026-10-09T10:00:00+00:00"}

@@ -22,8 +22,8 @@ import { AREA_CONTENT_MAP, AREA_KEYS, AREA_TITLES, ELECTIVE_MODULES, ELECTIVE_TI
 import type { ModuleEntry } from '../../lib/modules';
 
 // The landing page reads the module list through src/lib/modules. The real store is visible under Vitest
-// (astro.config.mjs cacheDir, docs/decisions.md 2026-10-03), but every real module is a draft, so the helper
-// is mocked with the fourteen modules from the content map and two of them published: orientation and
+// (astro.config.mjs cacheDir, docs/decisions.md 2026-10-03), but since Phase 3 no real module is a draft, so the
+// helper is mocked with the fourteen modules from the content map and two of them published: orientation and
 // foundations link, everything else is planned, and both branches of the list render from one fixture.
 function entry(id: string, title: string, kind: string, order: number, draft: boolean, takeaway?: string): ModuleEntry {
   return { id, collection: 'modules', data: { title, kind, order, draft, takeaway } } as unknown as ModuleEntry;

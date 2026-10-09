@@ -20,6 +20,7 @@ artifacts:
   - tools-and-extensibility-task-shaped
   - tools-and-extensibility-ambiguous-call-trace
   - tools-and-extensibility-generated-toolset-pr
+lab: { path: "labs/tools-tool-contract", title: "A tool contract with validation" }
 outcomes:
   - id: tool-as-contract
     text: Describe a tool as a contract between deterministic code and a model caller, and say what each part is for, from the name and description to the input schema, the result, and the errors.
@@ -826,6 +827,18 @@ What to ask for before approving: a set of representative tasks drawn from the t
 </Fragment>
 
 </FailureExercise>
+
+## Optional lab
+
+<OptionalLab>
+
+A small Python project with one task-shaped tool: look up an order for the signed-in customer. A validator checks every call for schema, rules, and the customer's scope before anything runs, and returns typed errors. The lab runs it on 13 hand-written calls, then sends six requests to a model through a thin adapter and reports what was accepted, what was rejected, and why. The lab is optional and never counts toward completion. A full run costs a few cents, and the lab prints its estimate before any paid call. With no API key it shows the plan and stops. Step 1 is `first_call.py`, one raw SDK call. The adapter comes after it. Get it with `git clone https://github.com/sequenzia/becoming-an-aie.git`. It needs uv, checked with 0.11.7 on 2026-10-09. To start:
+
+```sh
+cd labs/tools-tool-contract && uv sync && uv run python run.py --dry-run
+```
+
+</OptionalLab>
 
 ## Completion evidence
 

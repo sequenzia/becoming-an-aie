@@ -85,11 +85,27 @@ describe('drift-review', () => {
   });
 
   test('draft modules are marked (draft)', () => {
+    // Every real module is published since Phase 3, so the draft comes from the draft-skipped case: the same
+    // Models fixture with draft: true. The published fixture tree carries no marker on the same slug.
+    const draft = run(['--dir', join(FIXTURES, 'cases', 'draft-skipped'), '--today', '2027-06-01']);
+    expect(draft.status).toBe(0);
+    expect(draft.stdout).toMatch(/^models \(draft\) \(checkedOn 2026-09-15, \d+ days\)$/m);
+    const published = run(['--dir', FIXTURES, '--today', '2027-06-01']);
+    expect(published.status).toBe(0);
+    expect(published.stdout).toMatch(/^models \(checkedOn 2026-09-15, \d+ days\)$/m);
+    expect(published.stdout).not.toContain('(draft)');
+  });
+
+  test('the real content store has no draft and lists all fourteen modules in catalog order', () => {
     const r = run(['--dir', join(ROOT, 'src', 'content'), '--today', '2027-06-01']);
     expect(r.status).toBe(0);
-    // Foundations is published since Phase 2; the closing module stays a draft until Phase 3.
-    expect(r.stdout).toMatch(/^self-assessment \(draft\) \(checkedOn \d{4}-\d{2}-\d{2}, \d+ days\)$/m);
-    expect(r.stdout).toMatch(/^foundations \(checkedOn \d{4}-\d{2}-\d{2}, \d+ days\)$/m);
+    expect(r.stdout).not.toContain('(draft)');
+    const headers = r.stdout.split('\n').filter((l) => /^\S/.test(l)).map((l) => l.split(' ')[0]);
+    expect(headers).toEqual([
+      'orientation', 'foundations', 'models', 'context-and-knowledge', 'tools-and-extensibility', 'orchestration',
+      'verification-and-evals', 'operating-it', 'self-assessment', 'fine-tuning-and-adaptation', 'inference-and-hosting',
+      'multimodal-systems', 'ai-engineering-team', 'career-and-learning',
+    ]);
   });
 
   test('an unreadable directory exits 2', () => {

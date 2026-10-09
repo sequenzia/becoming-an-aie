@@ -41,7 +41,7 @@ Chapter 28, the capstone, is out of scope. The check rejects it anywhere.
 ## How to add or write a module
 
 1. Start from the skeleton that already exists for the slug. Every skeleton has valid frontmatter, the required headings for its kind, and the components in place. Keep `draft: true` until the module is complete.
-2. Fill the frontmatter. For an area module the `title`, `talkBeats`, `bookChapters`, `takeaway`, `pitfall`, and `transferRows` must match the content map in `src/lib/content-schema.ts` word for word. The check rejects any other value. For an elective the `title` and the single chapter must match the elective list. Set `summary` (one line, at most 240 characters) and `readingMinutes` (45 to 90 for an area module, excluding the Workshop, Failure exercise, and Optional lab sections).
+2. Fill the frontmatter. For an area module the `title`, `talkBeats`, `bookChapters`, `takeaway`, `pitfall`, and `transferRows` must match the content map in `src/lib/content-schema.ts` word for word. The check rejects any other value. For an elective the `title` and the single chapter must match the elective list. Set `summary` (one line, at most 240 characters) and `readingMinutes` (45 to 90 for an area module, excluding the Workshop, Failure exercise, and Optional lab sections). The check estimates reading time for area modules only. For an elective or the closing module, count the body yourself with the same rule (220 words per minute, leaving out those three sections and fenced blocks) and set the result; the Phase 3 electives did.
 3. Write `outcomes`. Each outcome has an `id` (lowercase words joined by hyphens) and a `text`. The outcomes render under Topics and learning outcomes through `<Outcomes />`, one list item with the anchor `#outcome-<id>` each.
 4. Write the self-check questions (see below). Every question names an outcome. Every outcome is named by at least one question.
 5. Write the body in the section order for the kind (see below). Headings are written in Markdown by you. Components never render headings.
@@ -82,6 +82,27 @@ What each section holds:
 Orientation is the one module whose beats are fixed by the spec (5.3): the thesis and the definition of owner with the three-row table under Transfer connection, then, as `h3` subsections under Topics and learning outcomes, the prototype commitments, the map with `<AnatomyMap />`, what transfers with the `orientation-transfer-table` artifact, what is new with the ladder and the seven competencies (introduced as unranked), the seven pitfalls, the roadmap, and the book's "look before you build". A summary list sits before the first `h2`. Its reading time is 25 to 40 minutes including the self-check, which has 6 to 10 questions. The check does not estimate orientation's reading time; the author keeps `readingMinutes` honest by hand. Every quote in orientation is verbatim from the talk or the book blueprint, and every fact traces to a source in `sources`.
 
 Phase 1 used `models.mdx` as a fixture: a draft complete enough under `--drafts-as-published` to exercise the layout, the forms, the island, the artifact card, and the prerequisite notice. Phase 2 (2026-10-09) replaced it with the real Models module, published with foundations and the other five area modules. The fixture's six self-check questions kept their ids, and its artifact, `models-fixture-trace`, was deleted because no module placed it. `/modules/models` is still the area page the axe spec drives through the self-check states. The script tests keep their own copy of the trace under `test/fixtures/content`.
+
+## Labs
+
+A lab is optional practice in code for one module. It never counts toward completion. Three exist since Phase 3: `labs/models-first-measurable-feature` (Models), `labs/tools-tool-contract` (Tools and extensibility), and `labs/evals-first-grader` (Verification and evals).
+
+How a lab is wired to its module:
+
+1. The `lab` frontmatter field names it: `lab: { path: "labs/<dir>", title: "<lab title>" }`, after `artifacts`. Both values are required strings. The check does not open the path, so keep it equal to the directory name.
+2. An `## Optional lab` section sits between Failure exercise and Completion evidence. Only foundations, area, and elective modules may have one; the check rejects it anywhere else and out of place.
+3. The section holds one `<OptionalLab>` block. The card says labs never count toward completion and names the lab from the `lab` field, so set the field whenever you place the block. Inside it: one paragraph on what the lab does, what it costs, that it needs no key to start, where to get it, and the uv version you checked with and when; then one fenced `sh` block with the start command, `cd labs/<dir> && uv sync && uv run python run.py --dry-run`. Keep it near 140 words.
+4. The Optional lab section is left out of the reading-time estimate, like Workshop and Failure exercise.
+
+The `labs/` layout. Each lab is a standalone uv project (`uv init --app --python 3.12 --no-workspace --vcs none`), so a learner can copy one directory out of the repository and run it:
+
+- `pyproject.toml` with exact pins, `uv.lock`, `.python-version` (3.12), `.gitignore`, and a `README.md` that says the lab is optional and lists its departures from `docs/research/labs.md`.
+- `first_call.py`: step 1, one raw SDK call per provider before any abstraction.
+- `adapter.py`: the only module that imports a provider SDK. The same file in every lab; `labs/check_adapter_copies.sh` fails when a copy differs, and the canonical copy is the Models lab's. Change it there, copy it, and run the script.
+- `run.py` with `--dry-run`, `--limit N`, and `--resume`; with no key it prints the plan and stops, and it prints a cost estimate before any paid call. `prices.py` holds the list prices with the date each was checked.
+- The lab's own modules, `data/` for the synthetic fixtures, `tests/` for pytest, and `runs/` (and `work/` in the evals lab) for learner output, gitignored except `.gitkeep`.
+
+Nothing under `src/` imports a lab, and the site build never reads `labs/`. Python dependencies are in `docs/dependencies.md` under Labs. CI's `labs` job runs, per lab: the adapter copy check, `uv sync --locked`, `uv run ruff check .`, `uv run ruff format --check .`, `uv run pytest -q`, and `uv run python run.py --dry-run`, with no API key. Run the same commands in a lab directory before you commit a change to it. A live run on each provider is a manual step for the author.
 
 ## Components
 
@@ -135,7 +156,7 @@ What the body components render:
 - Quote the talk's thesis, takeaways, and pitfalls verbatim. The area takeaway and pitfall come from frontmatter, which the check holds to the content map.
 - Say "the talk" or "35 minutes of content", never "a 35-minute talk".
 - Keep headings ASCII. Heading ids are generated the way Astro's slugger generates them: lowercase, drop everything except letters, digits, spaces, and hyphens, then replace spaces with hyphens. "Topics and learning outcomes" becomes `topics-and-learning-outcomes`. "pass@k and pass^k" becomes `passk-and-passk`. A heading the rule cannot express must be rewritten. Two headings with the same id in one module get a warning; their anchors will not resolve.
-- Anchors: `/modules/<slug>#<heading-id>`. The check resolves every one, in bodies and in the closing module's plan steps, against the headings that exist.
+- Anchors: `/modules/<slug>#<heading-id>`. The check resolves every one, in bodies and in the closing module's plan steps, against the `h2` and `h3` headings that exist. It does not index `h4` ids, so a link to an `h4` fails the check even when the heading exists; link to the parent `h3`.
 - In `.mdx`, close every tag or the compile fails. In `.md` (artifacts, changelog), no raw HTML; the pipeline passes it through unchanged.
 - Fenced code blocks carry a language. Every fenced block is a Tab stop on the page, so do not scatter them.
 - Learner-facing tool facts name the tool, the version where applicable, and the date you checked them.
@@ -228,6 +249,8 @@ sources:
 ## The closing module
 
 `self-assessment.mdx` carries the assessment in frontmatter: the four-point scale, the three context questions, six areas in talk order with their transfer items and competencies, four plan steps per area with an `href` into that area's module, the four-step roadmap, and the uniform-high text and links. The item ids follow `<area>-<competency>` and `<area>-<transfer-row>`. The check confirms every `moduleSlug` is an area module and every step `href` resolves to a heading.
+
+A step's text is the area-specific application that follows the roadmap title and subline in the generated plan, so it does not repeat the subline. `{feature}` in a step is replaced with the learner's answer to the feature question, and `{role}` with the role answer (`src/lib/plan.ts`); the published module uses `{feature}` in every step and `{role}` nowhere. Each `href` points at the `h3` in the area module that teaches the step. The body has the four `h2` sections in order, with `h3` subsections under them, and no artifacts. Generating a plan completes the module.
 
 ## The checks
 

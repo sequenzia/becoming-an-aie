@@ -1,0 +1,67 @@
+{
+  "company": "Cedar Support Software",
+  "note": "Synthetic fixture data for the lab. Cedar Support Software and every customer below are fictional.",
+  "customers": [
+    {"customer_id": "cus_pellwick", "name": "Pellwick Dental Group"},
+    {"customer_id": "cus_tallgrass", "name": "Tallgrass Cycling Club"},
+    {"customer_id": "cus_orrin", "name": "Orrin and Shaw Architects"}
+  ],
+  "orders": [
+    {
+      "order_id": "ORD-10421",
+      "customer_id": "cus_pellwick",
+      "placed_on": "2026-08-03",
+      "status": "paid",
+      "lines": [
+        {"description": "Team plan, annual, per seat", "quantity": 10, "unit_price_cents": 9600}
+      ]
+    },
+    {
+      "order_id": "ORD-10433",
+      "customer_id": "cus_pellwick",
+      "placed_on": "2026-09-02",
+      "status": "paid",
+      "lines": [
+        {"description": "Extra seats, prorated to renewal", "quantity": 3, "unit_price_cents": 7400},
+        {"description": "Phone support add-on, annual", "quantity": 1, "unit_price_cents": 30000}
+      ]
+    },
+    {
+      "order_id": "ORD-10458",
+      "customer_id": "cus_pellwick",
+      "placed_on": "2026-10-01",
+      "status": "payment_failed",
+      "lines": [
+        {"description": "Knowledge base add-on, annual", "quantity": 1, "unit_price_cents": 18000}
+      ]
+    },
+    {
+      "order_id": "ORD-20877",
+      "customer_id": "cus_tallgrass",
+      "placed_on": "2026-09-14",
+      "status": "paid",
+      "lines": [
+        {"description": "Starter plan, monthly, per seat", "quantity": 3, "unit_price_cents": 1500}
+      ]
+    },
+    {
+      "order_id": "ORD-20890",
+      "customer_id": "cus_tallgrass",
+      "placed_on": "2026-10-02",
+      "status": "refunded",
+      "lines": [
+        {"description": "Starter plan, monthly, per seat", "quantity": 1, "unit_price_cents": 1500}
+      ]
+    },
+    {
+      "order_id": "ORD-31002",
+      "customer_id": "cus_orrin",
+      "placed_on": "2026-07-19",
+      "status": "paid",
+      "lines": [
+        {"description": "Team plan, annual, per seat", "quantity": 25, "unit_price_cents": 9600},
+        {"description": "Single sign-on add-on, annual", "quantity": 1, "unit_price_cents": 42000}
+      ]
+    }
+  ]
+}

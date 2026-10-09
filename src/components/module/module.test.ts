@@ -339,15 +339,26 @@ describe('ModuleLayout', () => {
     expect(html).toContain('aria-label="Prerequisite"');
     expect(html).toContain('<div class="module-body"><h2 id="transfer-connection">Transfer connection</h2><p>Body.</p></div>');
 
-    // A draft under preview (an elective, still a skeleton until Phase 3): the chip and the line.
-    const elective = await entry('inference-and-hosting');
+    // The elective is published since Phase 3: no chip and no line.
+    const published = await entry('inference-and-hosting');
+    expect(published.data.draft).toBe(false);
+    const live = await render(ModuleLayout, {
+      props: { entry: published },
+      locals: locals(moduleContext(published)),
+      slots: { default: '<p>Body.</p>' },
+      request: new Request('http://localhost/modules/inference-and-hosting'),
+    });
+    expect(live).not.toContain('chip-status-draft');
+    expect(live).not.toContain('Draft preview.');
+
+    // A draft under preview: no real module is a draft any more, so the same entry is marked draft here.
+    const elective: ModuleEntry = { ...published, data: { ...published.data, draft: true } };
     const draft = await render(ModuleLayout, {
       props: { entry: elective },
       locals: locals(moduleContext(elective)),
       slots: { default: '<p>Body.</p>' },
       request: new Request('http://localhost/modules/inference-and-hosting'),
     });
-    expect(elective.data.draft).toBe(true);
     expect(draft).toContain('<span class="chip chip-status-draft">Draft</span>');
     expect(draft).toContain('Draft preview.');
   });

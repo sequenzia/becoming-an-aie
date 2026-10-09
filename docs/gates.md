@@ -15,6 +15,7 @@ Gate records for the phase commits (blueprint sections 1.3 and 12.5; spec sectio
 | Build | `PREVIEW_DRAFTS=true npm run build` | The content check, then `astro build` with drafts visible for the e2e run |
 | End to end and accessibility | `npm run test:e2e` | `e2e/landing.spec.ts`, `e2e/notify.spec.ts`, `e2e/keyboard.spec.ts` (Phase 1), `e2e/a11y.spec.ts` against the built server with PGlite; axe reports uploaded as the `axe-reports` artifact |
 | Image | `docker/build-push-action` with `push: false` and `FEATURE_ACCOUNTS=true` (the Phase 1 default), then a smoke test | The Dockerfile builds; the container serves `/healthz`, the landing page, and `/modules/orientation` under an arbitrary UID on a read-only root filesystem; `/sign-in` is routed; a pod without a database fails closed (`/readyz` 503, the subscribe POST stores nothing and names the cause in the log only); the embedded database is absent; `npm run` works in the container |
+| Labs (job `labs`, since Phase 3) | Per lab directory, one matrix leg each: `sh ../check_adapter_copies.sh`, `uv sync --locked`, `uv run ruff check .`, `uv run ruff format --check .`, `uv run pytest -q`, `uv run python run.py --dry-run`, with `UV_LOCKED=1` and no API key | The three labs' adapter copies are identical, their locks are current, lint, format, and tests pass, and each dry run prints its plan without a model call |
 
 The automated checks never sign in (no OAuth registrations in CI, open item 12). Signed-in flows are covered by the component tests and by the manual gates below.
 
@@ -35,6 +36,17 @@ npx playwright install chromium
 npm run test:e2e                              # starts node ./dist/server/entry.mjs with the values in e2e/env.ts
 npm run test:e2e -- e2e/keyboard.spec.ts      # the keyboard flow alone
 npm run check:a11y                            # the axe spec alone
+```
+
+The labs, from each `labs/<dir>` with uv 0.11.7 on `PATH` (`~/.local/bin` for the standalone installer):
+
+```sh
+sh ../check_adapter_copies.sh
+uv sync --locked
+uv run ruff check .
+uv run ruff format --check .
+uv run pytest -q
+uv run python run.py --dry-run
 ```
 
 Knobs for `npm run test:e2e`: `E2E_PORT=<port>` moves the server off 4321. `E2E_REUSE=1` reuses a server already listening there; start it yourself with the values in `e2e/env.ts` and a fresh in-memory database, because the notify spec counts its own submissions against the per-IP rate rule. Reports land in `playwright-report/` and `axe-reports/`; both are gitignored.
@@ -156,7 +168,10 @@ Spec 9.4. Plan output reviewed against the talk's four-step roadmap for fidelity
 
 | # | Check | How | Done by | Date | Evidence |
 |---|---|---|---|---|---|
-| 3.1 | A generated plan follows the four steps (docs/research/talk-kb.md D.5) | Read one plan per focus area | | | |
-| 3.2 | `/assessment` opens and the first electives and labs are published | Catalog and routes | | | |
+| 3.1 | A generated plan follows the four steps (docs/research/talk-kb.md D.5) | Read one plan per focus area | fidelity review agent | 2026-10-09 | "Gate 3.1 evidence: PASS. I generated 16 plans with /private/tmp/claude-502/-Users-ada-dev-becoming-an-aie/d774f44e-026b-4fc0-bc5b-3712008efeea/scratchpad/plan-check.ts, run with node 24 from the repo and a resolve hook for plan.ts's extensionless import." "Every ranked plan's focus has four steps in roadmap order: the verbatim title, the subline, then an area-specific application that names the feature and links to a heading in that area's module that teaches it." Excerpts and the open human read are in the evidence notes below |
+| 3.2 | `/assessment` opens and the first electives and labs are published | Catalog and routes | integrator agent | 2026-10-09 | Default build (no `PREVIEW_DRAFTS`, the image shape), `node dist/server/entry.mjs` on port 4399 with the `e2e/env.ts` values: all fourteen `/modules/<slug>` answer 200; `/modules` answers 200 with 14 catalog entries, 14 distinct module links, no Planned line, no planned count, no Draft chip; anonymous `/assessment` answers `302 Found` with `location: /sign-in?next=%2Fassessment%2F` and `cache-control: private, no-store`; `/changelog` answers 200 with "The self-assessment, the five electives, and three labs open" as its first entry. The three labs pass `uv sync`, `uv run ruff check .`, `uv run ruff format --check .`, `uv run pytest -q` (121, 114, 125 passed), and `uv run python run.py --dry-run` (exit 0, no key) |
 
 Evidence:
+
+- Row 3.1 (2026-10-09). The fidelity review agent's run, with the context `{ role: 'backend engineer', feature: 'ticket triage', ownsSystem: 'partly' }` and again with an empty role and feature: all Not yet, each of the six areas low alone, and uniform high. Its evidence quotes Focus 1 for Verification and evals ("1. **Look before you build.** Monday: review 20 to 50 outputs by hand. For each output of ticket triage, write one short note on the first thing that went wrong. ... (/modules/verification-and-evals#error-analysis-before-infrastructure)") and for Operating it ("4. ... Move an action in ticket triage from human approval to async review or enforced policy only when a quality signal and a canary would catch what it breaks. Name who answers the page for a quality incident. (#you-own-the-approval-process)"). It read Models step 4 and Context step 4 as gating added capability rather than autonomy in the narrow sense, which the step-4 subline supports, and named two blemishes: the Orchestration step 3 text repeating its subline, and garden-path sentences when the feature is empty. The fix round changed both. The integrator reran the same script on the final content ("ok 16 plans; spec valid; items 16"): Orchestration step 3 now reads "In your own code, write the state, retries, idempotency keys, stop conditions, and budgets for ticket triage, so you can say why any run stopped." and the empty-feature plans read "the AI feature you are closest to" in each step. A human has not read a generated plan yet. The row's spec 9.4 intent, a fidelity review before publication, was met by an agent; the author or a representative learner should read one plan per focus area from the running site, signed in, before the gate closes.
+- Row 3.2 (2026-10-09). Also checked on the same server: every published module page, `/modules`, and `/changelog` measure 320 px wide at a 320 px viewport and show no axe violations (WCAG 2.0 and 2.1 A and AA) in either theme, the six Phase 3 pages included. `e2e/a11y.spec.ts` scans only its own page list, so this was a one-off probe, not a CI check. The signed-in `/assessment` flow is not exercised in CI (open item 12); gate row 1.13 covers it by hand.

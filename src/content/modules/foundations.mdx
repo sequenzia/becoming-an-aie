@@ -609,7 +609,7 @@ This is a good place to stop. Part 2 starts with what a model learns from data.
 
 ### What a model learns: parameters, loss, and optimization
 
-**Decision it affects.** Whether a behavior can be fixed with context, or needs adaptation, or needs a different model. Used in [Models](/modules/models), and in the elective on fine-tuning, distillation, and model adaptation.
+**Decision it affects.** Whether a behavior can be fixed with context, or needs adaptation, or needs a different model. Used in [Models](/modules/models), and in the elective on [fine-tuning, distillation, and model adaptation](/modules/fine-tuning-and-adaptation).
 
 Every model you will call is a function with a very large number of adjustable numbers inside it. Those numbers are the parameters, also called weights. Given an input, the function does a fixed sequence of arithmetic with the parameters and produces an output. Change the parameters and the same input produces a different output. A model that writes poetry and one that writes nonsense can differ only in those values.
 
@@ -685,7 +685,7 @@ An embedding is a vector that represents a piece of content. OpenAI's documentat
 
 It is also their weakness, and the reason the talk insists that retrieval methods are chosen "for the data and task". Embeddings encode whatever the training made them encode. Two support tickets that mention the same product line might sit close together whether one is a refund request and the other a compliment. An order number, a product SKU, or an error code carries meaning only as an exact string, and an embedding may place two different SKUs close together because they look alike. Anthropic's contextual retrieval write-up notes that embeddings "can miss crucial exact matches." That is why many production systems combine lexical search, which matches exact strings, with embedding search, which matches meaning.
 
-Matrices and tensors appear in model documentation. A matrix is a grid of numbers, and multiplying a vector by one takes many dot products at once. When a model card says "hidden size 4,096", each token is represented inside the model by a vector of 4,096 numbers. The Mathematical reference at the end of this section shows how to read shapes, which the elective on inference and hosting fundamentals uses.
+Matrices and tensors appear in model documentation. A matrix is a grid of numbers, and multiplying a vector by one takes many dot products at once. When a model card says "hidden size 4,096", each token is represented inside the model by a vector of 4,096 numbers. The Mathematical reference at the end of this section shows how to read shapes, which the elective on [inference and hosting fundamentals](/modules/inference-and-hosting) uses.
 
 <Callout kind="plain" label="End of part 2">
 
@@ -776,7 +776,7 @@ Decoding also lives in infrastructure you do not see, and it can fail there. Ant
 
 ### From pretraining to the assistant you call
 
-**Decision it affects.** Whether to fix a behavior with context, examples, adaptation, or a different model. Used in [Models](/modules/models), and in the elective on fine-tuning, distillation, and model adaptation.
+**Decision it affects.** Whether to fix a behavior with context, examples, adaptation, or a different model. Used in [Models](/modules/models), and in the elective on [fine-tuning, distillation, and model adaptation](/modules/fine-tuning-and-adaptation).
 
 The model you call through an API went through several training stages. The book's chapter 6 asks you to "Distinguish pretraining, supervised adaptation, preference optimization, and reinforcement learning." Each stage uses the same machinery from the section on parameters and loss, with a different objective and different data. Each one changes what the model tends to do, and none of them changes the basic fact that the model predicts tokens.
 

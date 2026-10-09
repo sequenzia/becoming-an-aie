@@ -52,6 +52,20 @@ Direct pins never change for an advisory without an entry here. The lockfile may
 - `@astrojs/markdown-remark`, `remark-*`, `rehype-*`, `sharp`, `hono`: not needed. Sätteri renders `.md` and `.mdx`. Images are SVG only.
 - `@better-auth/cli` and the `auth` CLI: `src/db/auth-schema.ts` is hand-written from the CLI's pg snapshot. The optional diff runs `npx auth@1.7.5` with `scripts/auth-cli.config.ts`, never a committed dependency.
 
-## Labs
+## Labs (Python, separate from the site)
 
-Python packages for `labs/` (Phase 3) are listed here when they are added, with the same approval rule.
+The three optional labs under `labs/` (Phase 3) are standalone uv projects. Nothing here enters `package.json`, the site build, or the image. Each lab pins exact versions in its `pyproject.toml` and commits its `uv.lock`; the three files pin the same versions, and the three locks hold the same 24 third-party packages (checked with `tomllib` on 2026-10-09). The same approval rule applies: no new package without the author's explicit approval.
+
+- Approved by the author on 2026-09-15 (the lab tooling): uv, ruff, pytest, Python 3.12.
+- Pending explicit sign-off: the two provider SDKs, `anthropic` and `openai`. Every lab installs both; `adapter.py` is the only module that imports them, and the tests and `run.py --dry-run` make no call through them.
+
+Pinned in all three `pyproject.toml` files (`labs/models-first-measurable-feature`, `labs/tools-tool-contract`, `labs/evals-first-grader`):
+
+- Python 3.12. `requires-python = ">=3.12"` and `.python-version` 3.12; uv installs CPython 3.12.13. Approved (2026-09-15).
+- uv 0.11.7. The project and environment manager; not a package of the labs. CI installs this version through `astral-sh/setup-uv` (`docs/decisions.md`, 2026-10-09 integrator entry). Approved (2026-09-15).
+- `anthropic` 1.13.0. Runtime dependency; the Anthropic calls in `adapter.py` and `first_call.py`. Pending explicit sign-off.
+- `openai` 3.27.0. Runtime dependency; the OpenAI calls in `adapter.py` and `first_call.py`. Pending explicit sign-off.
+- `pytest` 9.1.1. Dev group; the tests. Approved (2026-09-15).
+- `ruff` 0.16.10. Dev group; lint and format. uv resolved 0.17.0 with open pins on 2026-10-09; 0.16.10 is kept so the three labs match. Approved (2026-09-15).
+
+Transitive packages in each `uv.lock`, through the two SDKs and pytest: annotated-types 0.8.0, anyio 4.15.1, colorama 0.4.6, docstring-parser 0.18.0, h11 0.16.0, httpcore2 2.13.1, httpx2 2.13.1, httpx2-jsfetch 1.0, idna 3.20, iniconfig 2.3.1, jiter 0.17.0, packaging 26.3, pluggy 1.6.0, pydantic 2.14.0, pydantic-core 2.50.0, pygments 2.21.0, sniffio 1.3.1, truststore 0.10.4, typing-extensions 4.16.0, typing-inspection 0.4.4.

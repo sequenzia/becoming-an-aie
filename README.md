@@ -6,11 +6,11 @@ The program is free, self-paced, has no certificate, and does not require a buil
 
 ## Status
 
-Phases 0, 1, and 2 are committed on `main`. No phase gate is closed yet; `docs/gates.md` holds the open rows.
+Phases 0 to 3 are committed on `main`. No phase gate is closed yet; `docs/gates.md` holds the open rows.
 
-- Published: the landing page with notify-me, the map, the catalog, the changelog, privacy, the orientation module, Foundations, and the six area modules (Models, Context and knowledge, Tools and extensibility, Orchestration, Verification and evals, Operating it), with their synthetic and public artifacts.
+- Published: the landing page with notify-me, the map, the catalog, the changelog, privacy, and all fourteen modules: orientation, Foundations, the six area modules (Models, Context and knowledge, Tools and extensibility, Orchestration, Verification and evals, Operating it), the closing self-assessment with the guarded tool at `/assessment`, and the five electives (Fine-tuning, distillation, and model adaptation; Inference and hosting fundamentals; Multimodal systems; Working on an AI engineering team; Building your career and continuing to learn), with their synthetic and public artifacts. No module is a draft.
+- Labs: three optional Python labs under `labs/`, linked from Models, Tools and extensibility, and Verification and evals. See Labs below.
 - Platform: sign-in with GitHub or Google, the account page (data view, display name, one-click deletion), progress, mark complete, saved workshop and failure responses, the self-check and self-assessment islands, the plan, and feedback.
-- Drafts: the other six modules, the self-assessment and the five electives. They are skeletons until Phase 3.
 - Email: no provider yet. The no-op mailer writes the confirm and unsubscribe links to the log (`docs/decisions.md`, open item 9).
 
 ## Stack
@@ -27,7 +27,25 @@ npm run dev             # http://localhost:4321
 
 The dev server needs `NOTIFY_TOKEN_SECRET` and, because accounts are on by default, `BETTER_AUTH_SECRET` and the four OAuth values. Generate the secrets with `openssl rand -base64 32`. Placeholder OAuth values (as in `e2e/env.ts`) are enough to browse; signing in needs real GitHub and Google OAuth apps with the callback URLs `<BETTER_AUTH_URL>/api/auth/callback/github` and `/google`. To browse without accounts, set `FEATURE_ACCOUNTS=false`.
 
-With `DATABASE_URL` unset, the dev server uses PGlite in memory. Set `PGLITE_DATA_DIR=./.pglite-dev` to keep the data between restarts. Set `PREVIEW_DRAFTS=true` to render draft modules, which is how the Phase 3 skeletons and `/assessment` become reachable.
+With `DATABASE_URL` unset, the dev server uses PGlite in memory. Set `PGLITE_DATA_DIR=./.pglite-dev` to keep the data between restarts. Set `PREVIEW_DRAFTS=true` to render draft modules. Every module is published since Phase 3, so the flag changes nothing on today's content; it stays for the next draft.
+
+## Labs
+
+Three optional Python labs live under `labs/`, one directory each. They never count toward module completion, and each module's Optional lab section links to its lab.
+
+- `labs/models-first-measurable-feature` (Models): ticket triage on 24 synthetic tickets. A keyword rules baseline, then one explicit model call per ticket through a thin adapter, a confusion matrix with per-label precision and recall, and a selection note.
+- `labs/tools-tool-contract` (Tools and extensibility): one task-shaped tool, `lookup_order`, with a validator that checks schema, rules, and the signed-in customer's scope and returns typed errors, run on 13 hand-written calls and then on six model requests.
+- `labs/evals-first-grader` (Verification and evals): label 30 synthetic support replies by hand, edit the failure taxonomy the lab proposes, and measure a first code grader against your labels.
+
+Each lab is a standalone uv project (Python 3.12, pinned in its `pyproject.toml` and `uv.lock`) with the same `adapter.py` copied in; `labs/check_adapter_copies.sh` fails when the copies differ. The tests and the dry run need no API key and make no model call. Inside a lab directory:
+
+```sh
+uv sync
+uv run pytest -q
+uv run python run.py --dry-run
+```
+
+`uv run ruff check .` and `uv run ruff format --check .` are the lint and format checks. A paid run needs `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` and prints its cost estimate first; each lab's README says how. CI runs the adapter copy check, `uv sync --locked`, both ruff checks, the tests, and the dry run for every lab in the `labs` job, with no key.
 
 ## Configuration
 
@@ -62,7 +80,7 @@ The full local run of what CI checks, with the Playwright knobs (`E2E_PORT`, `E2
 
 ## CI and deployment
 
-`.github/workflows/ci.yml` runs on every push and pull request to `main`. The `web` job runs lint, the content check, `astro check`, the unit and component tests, a `PREVIEW_DRAFTS=true` build, and the end-to-end and axe specs. It uploads `playwright-report/` and `axe-reports/` as artifacts. The `image` job builds the Dockerfile and smoke tests the container as OpenShift runs it: arbitrary UID, read-only root filesystem, no database. It pushes nowhere until the registry is confirmed (`docs/decisions.md`, open item 3). CI never signs in; signed-in flows are covered by component tests and the manual gates.
+`.github/workflows/ci.yml` runs on every push and pull request to `main`. The `labs` job runs the Python checks of the three labs, one matrix leg each. The `web` job runs lint, the content check, `astro check`, the unit and component tests, a `PREVIEW_DRAFTS=true` build, and the end-to-end and axe specs. It uploads `playwright-report/` and `axe-reports/` as artifacts. The `image` job builds the Dockerfile and smoke tests the container as OpenShift runs it: arbitrary UID, read-only root filesystem, no database. It pushes nowhere until the registry is confirmed (`docs/decisions.md`, open item 3). CI never signs in; signed-in flows are covered by component tests and the manual gates.
 
 The site deploys to OpenShift with Postgres on RDS. The image bundles the RDS CA at `certs/rds-global-bundle.pem` and leaves out the embedded database. `docs/deploy-openshift.md` is the runbook.
 
@@ -81,6 +99,7 @@ A static preview also deploys to Vercel from `vercel.json`. `scripts/vercel-prev
 - `scripts/` plain Node scripts: content check and drift review with their shared content-file helper, migrate, TLS check, lint, the diagram import, the Vercel preview build, and the static Better Auth config for the optional CLI diff.
 - `drizzle/` generated migrations, committed.
 - `e2e/` Playwright specs and their runtime values. `test/` Vitest setup and fixtures.
+- `labs/` the three optional Python labs, one uv project each, and `check_adapter_copies.sh`. Separate from the site: nothing under `src/` imports them.
 - `Dockerfile`, `certs/`, `.github/workflows/` the image, the RDS CA bundle, and CI. `vercel.json` the static preview.
 - `docs/` the blueprint (`architecture.md`), decisions, dependencies, authoring guide, runbook, gate records, and `research/`, the planning cheat sheets the blueprint cites.
 
@@ -93,7 +112,7 @@ One commit per phase on `main`. Each commit is a working site. `docs/architectur
 | 0 | Landing page with notify-me, live by talk day | Committed, gate open |
 | 1 | Platform: accounts, module rendering, orientation | Committed, gate open |
 | 2 | Core content: foundations and the six area modules | Committed, gate open |
-| 3 | Closing content: self-assessment, `/assessment`, first electives and labs | Not started |
+| 3 | Closing content: self-assessment, `/assessment`, the five electives, and three labs | Committed, gate open |
 | 4 | Operations | Not started |
 
 ## Documentation

@@ -1,0 +1,109 @@
+{
+  "note": "Hand-written tool calls for the free step. No model wrote these. Each one says why it is there and what the validator must decide.",
+  "calls": [
+    {
+      "id": "f01",
+      "why": "A well-formed call for the signed-in customer's own order.",
+      "customer_id": "cus_pellwick",
+      "name": "lookup_order",
+      "arguments": {"order_id": "ORD-10421", "response_format": "summary"},
+      "expect": "accepted"
+    },
+    {
+      "id": "f02",
+      "why": "The same customer asks for line items.",
+      "customer_id": "cus_pellwick",
+      "name": "lookup_order",
+      "arguments": {"order_id": "ORD-10433", "response_format": "line_items"},
+      "expect": "accepted"
+    },
+    {
+      "id": "f03",
+      "why": "A valid shape for an order that belongs to another customer.",
+      "customer_id": "cus_pellwick",
+      "name": "lookup_order",
+      "arguments": {"order_id": "ORD-20877", "response_format": "summary"},
+      "expect": "not_yours"
+    },
+    {
+      "id": "f04",
+      "why": "The same order, asked for by the customer who owns it. Identity comes from the session.",
+      "customer_id": "cus_tallgrass",
+      "name": "lookup_order",
+      "arguments": {"order_id": "ORD-20877", "response_format": "summary"},
+      "expect": "accepted"
+    },
+    {
+      "id": "f05",
+      "why": "An order number in the right form that exists on no account.",
+      "customer_id": "cus_pellwick",
+      "name": "lookup_order",
+      "arguments": {"order_id": "ORD-99999", "response_format": "summary"},
+      "expect": "not_found"
+    },
+    {
+      "id": "f06",
+      "why": "A required field is missing.",
+      "customer_id": "cus_pellwick",
+      "name": "lookup_order",
+      "arguments": {"order_id": "ORD-10421"},
+      "expect": "missing_field"
+    },
+    {
+      "id": "f07",
+      "why": "The caller tries to name the customer itself. The schema has no such field.",
+      "customer_id": "cus_pellwick",
+      "name": "lookup_order",
+      "arguments": {"order_id": "ORD-20877", "response_format": "summary", "customer_id": "cus_tallgrass"},
+      "expect": "unknown_field"
+    },
+    {
+      "id": "f08",
+      "why": "The order number arrives as a number, not text.",
+      "customer_id": "cus_pellwick",
+      "name": "lookup_order",
+      "arguments": {"order_id": 10421, "response_format": "summary"},
+      "expect": "wrong_type"
+    },
+    {
+      "id": "f09",
+      "why": "response_format is outside its enum.",
+      "customer_id": "cus_pellwick",
+      "name": "lookup_order",
+      "arguments": {"order_id": "ORD-10421", "response_format": "everything"},
+      "expect": "not_in_enum"
+    },
+    {
+      "id": "f10",
+      "why": "The arguments are a list, not an object.",
+      "customer_id": "cus_pellwick",
+      "name": "lookup_order",
+      "arguments": ["ORD-10421", "summary"],
+      "expect": "not_an_object"
+    },
+    {
+      "id": "f11",
+      "why": "The caller names a tool that does not exist.",
+      "customer_id": "cus_pellwick",
+      "name": "get_order",
+      "arguments": {"order_id": "ORD-10421", "response_format": "summary"},
+      "expect": "unknown_tool"
+    },
+    {
+      "id": "f12",
+      "why": "The schema accepts any string. The order number rule does not.",
+      "customer_id": "cus_pellwick",
+      "name": "lookup_order",
+      "arguments": {"order_id": "10421", "response_format": "summary"},
+      "expect": "bad_format"
+    },
+    {
+      "id": "f13",
+      "why": "A lowercase prefix. The rule is exact, and the message says what it wants.",
+      "customer_id": "cus_pellwick",
+      "name": "lookup_order",
+      "arguments": {"order_id": "ord-10421", "response_format": "summary"},
+      "expect": "bad_format"
+    }
+  ]
+}

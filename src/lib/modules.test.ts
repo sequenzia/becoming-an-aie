@@ -25,21 +25,22 @@ describe('modules over astro:content', () => {
     expect(shuffled.sort(compareModules).map((m) => m.id)).toEqual([...MODULE_SLUGS]);
   });
 
-  test('orientation, foundations, and the six area modules are published and the six Phase 3 modules are drafts', async () => {
+  test('every module is published: no drafts remain after Phase 3', async () => {
     const modules = await getAllModules();
-    // Phase 2 (blueprint section 1.3): orientation, foundations, and the six area modules are real content with
-    // draft: false. The closing module and the five electives stay drafts until Phase 3.
+    // Phase 3 (blueprint section 1.3): the closing module and the five electives join orientation, foundations,
+    // and the six area modules with draft: false. Draft handling is pinned on fixtures: the content check's
+    // draft-skipped case (scripts/content-check.test.ts) and the drift review's (draft) marker.
     const drafts = modules.filter((m) => m.data.draft).map((m) => m.id);
-    expect(drafts.sort()).toEqual(
-      ['ai-engineering-team', 'career-and-learning', 'fine-tuning-and-adaptation', 'inference-and-hosting', 'multimodal-systems', 'self-assessment'],
-    );
-    for (const slug of ['orientation', 'foundations', 'models', 'context-and-knowledge', 'tools-and-extensibility', 'orchestration', 'verification-and-evals', 'operating-it']) {
+    expect(drafts).toEqual([]);
+    for (const slug of MODULE_SLUGS) {
       expect(modules.find((m) => m.id === slug)?.data.draft, slug).toBe(false);
     }
-    // vitest.config.ts sets PREVIEW_DRAFTS, so drafts count as published here, as in the e2e build.
+    // vitest.config.ts sets PREVIEW_DRAFTS; with no drafts the published list is the full fourteen either way.
     expect(await getPublishedModules()).toHaveLength(14);
     expect((await getPublishedModule('orientation'))?.id).toBe('orientation');
     expect((await getPublishedModule('models'))?.id).toBe('models');
+    expect((await getPublishedModule('self-assessment'))?.id).toBe('self-assessment');
+    expect((await getPublishedModule('career-and-learning'))?.id).toBe('career-and-learning');
   });
 
   test('a slug outside MODULE_SLUGS is null before any content-layer lookup', async () => {

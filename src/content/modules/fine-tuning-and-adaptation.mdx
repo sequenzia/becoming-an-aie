@@ -3,38 +3,746 @@ title: "Fine-tuning, distillation, and model adaptation"
 kind: elective
 area: none
 order: 1
-summary: "When a problem justifies changing model parameters, and how to prepare the data, protect the evaluation, and measure regressions."
-readingMinutes: 45
+summary: "When a problem justifies changing model parameters, and how to prepare the data, protect the evaluation, read distillation honestly, measure regressions, and count the cost of owning weights."
+readingMinutes: 51
 prerequisites: []
 talkBeats: []
 bookChapters: [20]
-draft: true
-updatedOn: 2026-09-16
-checkedOn: 2026-09-16
+draft: false
+updatedOn: 2026-10-09
+checkedOn: 2026-10-09
 staleAfterDays: 90
-artifacts: []
-outcomes: []
-selfCheck: []
-sources: []
+artifacts: [fine-tuning-and-adaptation-data-record, fine-tuning-and-adaptation-ownership-ledger, fine-tuning-and-adaptation-experiment-records, fine-tuning-and-adaptation-distillation-report]
+outcomes:
+  - id: justify-adaptation
+    text: Decide whether an observed problem justifies changing model parameters, after instructions, examples, retrieval, tools, task design, and model choice have been tried and measured.
+  - id: adaptation-methods
+    text: Explain supervised fine-tuning, parameter-efficient adaptation, distillation, and preference-based methods, and say what each one trains on and what it can change.
+  - id: prepare-data
+    text: Prepare adaptation data with its provenance, rights, labels, negative cases, and a record another engineer can rebuild it from.
+  - id: protect-evaluation
+    text: Protect an independent evaluation set from every path of leakage, including near-duplicates, paraphrases, teacher prompts, and selection.
+  - id: measure-regressions
+    text: Measure an adapted model's improvements alongside its regressions, per slice, including unsupported answers and behavior outside the target task.
+  - id: cost-of-weights
+    text: Account for the cost and operational burden of owning adapted weights, including retraining, serving, deletion, and the base model's retirement.
+  - id: defend-decision
+    text: Defend adoption or rejection with independent results and maintenance costs, and distinguish executed training from analysis of recorded results.
+selfCheck:
+  - id: q1-stale-policy
+    outcome: justify-adaptation
+    question: "A support assistant answers refund questions with last quarter's policy. The trace shows the retrieved policy page is the old version. A teammate proposes fine-tuning on the new policy. What does the failure call for first?"
+    options:
+      - "Fine-tuning, because the model needs the new policy in its weights"
+      - "A fix to retrieval, so the current policy is what the model reads"
+      - "Distilling a larger model that knows the new policy"
+    correct: [1]
+    feedback:
+      - "Not yet. Weights hold what was in the training data on the day it was trained, and the policy will change again. Reread Diagnose before you adapt."
+      - "Correct. The model answered from the evidence it was given. The evidence was stale. Fixing retrieval fixes this answer and the next policy change too."
+      - "Not yet. No model knows your current policy unless you supply it. A teacher reads the same stale page. Reread Diagnose before you adapt."
+  - id: q2-signals
+    outcome: justify-adaptation
+    question: "Which of these support treating adaptation as a candidate for a ticket-intake task?"
+    options:
+      - "The task is narrow, stable, and high-volume, and a large prompted model meets quality but breaks the latency and cost requirement"
+      - "An eval suite exists, and it shows the gap that remains after better instructions and retrieved examples were tried"
+      - "The model does not know about a plan the company launched last month"
+      - "The team has labeled examples it has the right to train on, and can label more when the taxonomy changes"
+      - "A competitor announced a fine-tuned model"
+    correct: [0, 1, 3]
+    feedback:
+      - "Correct. Cost and latency at a fixed quality bar, on a narrow task, is the classic case."
+      - "Correct. A measured gap after the cheaper fixes is the evidence that adaptation has something left to fix."
+      - "Not yet. A missing fact is a knowledge problem. Supply the plan catalog in context. Reread Diagnose before you adapt."
+      - "Correct. Data you may use, and the capacity to relabel, are preconditions. Without them the adapter cannot be rebuilt."
+      - "Not yet. Someone else's model is not evidence about your task. Reread Signals that adaptation may be justified."
+  - id: q3-lora
+    outcome: adaptation-methods
+    question: "What does LoRA change, according to the paper that introduced it?"
+    options:
+      - "It retrains every weight of the model at lower precision"
+      - "It freezes the pretrained weights and trains small low-rank matrices added to each layer"
+      - "It adds retrieved examples to the prompt at inference time"
+    correct: [1]
+    feedback:
+      - "Not yet. That describes neither LoRA nor full fine-tuning. Lower-precision storage of a frozen base is the idea QLoRA adds. Reread Parameter-efficient adaptation."
+      - "Correct. The paper's words: it \"freezes the pre-trained model weights and injects trainable rank decomposition matrices into each layer\"."
+      - "Not yet. That is in-context learning. No parameter changes. Reread Parameter-efficient adaptation."
+  - id: q4-imitation
+    outcome: adaptation-methods
+    question: "Gudibande and colleagues trained models to imitate ChatGPT's outputs. Crowd workers rated them competitive. What did targeted evaluations find?"
+    options:
+      - "The imitation models matched ChatGPT on factual tasks too"
+      - "They closed little to none of the gap on tasks the imitation data did not heavily cover, mimicking style but not factuality"
+      - "They agreed with the crowd workers: the imitations were competitive across the tasks tested"
+    correct: [1]
+    feedback:
+      - "Not yet. The paper's finding is the opposite. Reread Distillation: borrowing a teacher's behavior."
+      - "Correct. A preference signal can rise while the behavior you need does not. A student learns what its data shows."
+      - "Not yet. The targeted evaluations disagreed with the crowd ratings. That disagreement is the paper's point. Reread Distillation: borrowing a teacher's behavior."
+  - id: q5-negatives
+    outcome: prepare-data
+    question: "Every training example in an extraction dataset has a value in every field. In production, 40 percent of fields are absent from the ticket. What is the adapted model most likely to learn?"
+    options:
+      - "To return null when a field is absent, because the schema allows null"
+      - "To fill every field with something, because no training example showed an absent field"
+      - "Nothing about fields, because adaptation only changes tone"
+    correct: [1]
+    feedback:
+      - "Not yet. The schema permits null; the training data never showed it. A model learns the distribution it was trained on. Reread Coverage includes the cases where the answer is no answer."
+      - "Correct. If the data never shows the honest empty answer, the model learns that there always is one."
+      - "Not yet. Supervised adaptation changes format and behavior, which is exactly why missing negatives matter. Reread Coverage includes the cases where the answer is no answer."
+  - id: q7-leak-paths
+    outcome: protect-evaluation
+    question: "Which of these leak information from the acceptance set into an adapted model or the choices made about it?"
+    options:
+      - "Choosing the checkpoint with the best acceptance-set score"
+      - "Using acceptance-set questions as prompts for a teacher model in distillation"
+      - "Adding the acceptance cases the model failed to the next training set"
+      - "Choosing the checkpoint with the lowest development-set loss"
+      - "Training on paraphrases of acceptance questions, after an exact-match check found no overlap"
+    correct: [0, 1, 2, 4]
+    feedback:
+      - "Correct. Selection on the acceptance set is leakage. The reported number is then the best of several draws."
+      - "Correct. The teacher's answers to the acceptance questions become training targets."
+      - "Correct. Fixing a failure by training on its case makes that case stop measuring anything. Move it to development and replace it with a fresh one."
+      - "Not yet. That is what a development set is for. It is a separate set, so the acceptance set stays clean. Reread Defenses that hold."
+      - "Correct. Rephrased items pass an exact-match check and still teach the answers, as Yang and colleagues measured. Exclude the acceptance items from every generation step."
+  - id: q8-aggregate
+    outcome: measure-regressions
+    question: "An adapted expense-claim classifier raises overall accuracy from 91.0 to 94.5 percent. On claims that must go to audit, it sends 22 of 40 there, where the prompted model sent 38 of 40. What follows?"
+    options:
+      - "Adopt it. The overall rate rose."
+      - "The aggregate hid a regression in the slice where a miss costs most, so the overall rate cannot decide adoption."
+      - "The audit slice is too small to matter."
+    correct: [1]
+    feedback:
+      - "Not yet. An average can rise while one slice collapses. Reread Aggregates hide regressions."
+      - "Correct. Report per slice, and set a floor for the costly slice that an average cannot override."
+      - "Not yet. A fall from 38 to 22 of 40 is far outside any plausible noise. Small slices need intervals, not dismissal. Reread Aggregates hide regressions."
+  - id: q9-metric-definition
+    outcome: measure-regressions
+    question: "A field-accuracy metric is computed only over fields whose reference value is not null. What can it not see?"
+    options:
+      - "Wrong values in fields that have a reference value"
+      - "Values the model invented for fields the ticket never stated"
+      - "Fields where the model returned null for a value the ticket stated"
+    correct: [1]
+    feedback:
+      - "Not yet. Those are exactly what it counts. Reread Read the metric's definition."
+      - "Correct. A metric that excludes the null references excludes every invented value. Count unsupported values separately."
+      - "Not yet. Those fields have a reference value, so the metric counts a wrong null there as an error. Reread Read the metric's definition."
+  - id: q10-base-retirement
+    outcome: cost-of-weights
+    question: "OpenAI's documentation, checked on 2026-10-09, says fine-tuned models remain available for inference until their base models are deprecated. What does that mean for an owner?"
+    options:
+      - "A fine-tuned model is a permanent asset once trained"
+      - "The adapted model's life is bounded by the base model's, and the replacement is a retrain on a successor, not a migration of the adapter"
+      - "The vendor will retrain the adapter on the successor automatically"
+    correct: [1]
+    feedback:
+      - "Not yet. On a hosted platform, the adapter dies with its base. Reread The base model still retires."
+      - "Correct. Budget the retrain, the relabeling, and the full evaluation before you adopt."
+      - "Not yet. The deprecations page lists fine-tuned versions shut down with base-model replacements, not retrained adapters. Reread The base model still retires."
+  - id: q11-recorded
+    outcome: defend-decision
+    question: "You analyzed experiment records another team produced for a returns classifier, R3. Which sentence belongs in your decision record?"
+    options:
+      - "We trained R3 and it reached 94.1 percent accuracy."
+      - "Recorded results from runs rc-0803-s1 to s3, which we did not execute, report 94.1 percent accuracy for R3 on returns-accept v2."
+      - "Our R3 adapter reached 94.1 percent on returns-accept v2."
+    correct: [1]
+    feedback:
+      - "Not yet. You did not train it. The book asks you to distinguish executed training from analysis of recorded results. Reread Executed or recorded."
+      - "Correct. It names the source, the runs, the data version, and who executed them."
+      - "Not yet. It names the set, but not the runs, and it reads as your own execution. Reread Executed or recorded."
+  - id: q12-rft-grader
+    outcome: adaptation-methods
+    question: "A team trains a model with reinforcement fine-tuning against a judge that scores answers for helpfulness. Nothing in the judge checks an answer against the source documents. What will the model learn?"
+    options:
+      - "To answer correctly, because helpful answers are usually correct"
+      - "Whatever the judge rewards, including fluent answers the sources do not support"
+      - "Nothing new, because reinforcement fine-tuning changes only tone"
+    correct: [1]
+    feedback:
+      - "Not yet. The model learns the grader, not the intent behind it. Reread Preference-based methods and reinforcement."
+      - "Correct. The grader becomes the specification, blind spots included."
+      - "Not yet. Training toward a grader can change any behavior the grader scores. Reread Preference-based methods and reinforcement."
+  - id: q13-beyond-task
+    outcome: measure-regressions
+    question: "An adapter for a support assistant improves its target task. Which of these must the evaluation suite also measure before adoption?"
+    options:
+      - "Refusals of requests the product must never answer"
+      - "Escalation to a person on the cases that need one"
+      - "Other tasks the same model serves"
+      - "The final training loss"
+    correct: [0, 1, 2]
+    feedback:
+      - "Correct. Qi and colleagues showed that even benign fine-tuning can erode safety behavior."
+      - "Correct. A hand-off is a rare output in most training data, so training can make it rarer still."
+      - "Correct. Every weight that moved for your task moved for every other input too."
+      - "Not yet. Training loss says how well the model fit its training data, not how it behaves around the task. Reread Measuring improvements alongside regressions."
+sources:
+  - title: Beyond the Coding Agent, the talk repository
+    author: Stephen Sequenzia
+    date: "2026-09"
+    url: https://github.com/sequenzia/beyond-the-coding-agent
+    checkedOn: 2026-10-09
+    note: "Slide 3 (beat 1.3), the definition of owner, and the roadmap (beat 3.4, slide 24), as compiled in the program's talk knowledge base on 2026-09-15. The adaptation paragraph of research/external/ai-engineering-research-report.md, read from a local clone; it is research in the talk's repository, not talk content. The talk does not cover adaptation beyond slide 3; this module draws its depth from the book."
+  - title: Becoming an AI Engineer, the book blueprint
+    date: "2026-09"
+    checkedOn: 2026-10-09
+    note: "Chapter 20 (transfer statement, topics, workshop, failure exercise, completion evidence, and further reading) and the project and assessment guidance on dataset separation and recorded results. Read from the local blueprint. The public link is pending."
+  - title: "LoRA: Low-Rank Adaptation of Large Language Models"
+    author: Edward J. Hu and colleagues
+    date: "2021-06-17"
+    url: https://arxiv.org/abs/2106.09685
+    checkedOn: 2026-10-09
+    note: "arXiv 2106.09685. The book's further reading for chapter 20. Its figures compare against full fine-tuning of GPT-3 175B; they do not imply that an adapter matches full fine-tuning on every task, or that adaptation is ever necessary."
+  - title: "QLoRA: Efficient Finetuning of Quantized LLMs"
+    author: Tim Dettmers, Artidoro Pagnoni, Ari Holtzman, Luke Zettlemoyer
+    date: "2023-05-23"
+    url: https://arxiv.org/abs/2305.14314
+    checkedOn: 2026-10-09
+  - title: LoRA Learns Less and Forgets Less
+    author: Dan Biderman and colleagues
+    date: "2024-05-15"
+    url: https://arxiv.org/abs/2405.09673
+    checkedOn: 2026-10-09
+    note: "arXiv 2405.09673, revised 2024-09-20. Results for code and math domains in the authors' settings."
+  - title: Distilling the Knowledge in a Neural Network
+    author: Geoffrey Hinton, Oriol Vinyals, Jeff Dean
+    date: "2015-03-09"
+    url: https://arxiv.org/abs/1503.02531
+    checkedOn: 2026-10-09
+  - title: "Distilling Step-by-Step! Outperforming Larger Language Models with Less Training Data and Smaller Model Sizes"
+    author: Cheng-Yu Hsieh and colleagues
+    date: "2023-05-03"
+    url: https://arxiv.org/abs/2305.02301
+    checkedOn: 2026-10-09
+    note: "Results on the authors' benchmarks with models of 2023. A demonstration that distillation can work on a narrow task, not a forecast for yours."
+  - title: The False Promise of Imitating Proprietary LLMs
+    author: Arnav Gudibande and colleagues
+    date: "2023-05-25"
+    url: https://arxiv.org/abs/2305.15717
+    checkedOn: 2026-10-09
+  - title: "Direct Preference Optimization: Your Language Model is Secretly a Reward Model"
+    author: Rafael Rafailov and colleagues
+    date: "2023-05-29"
+    url: https://arxiv.org/abs/2305.18290
+    checkedOn: 2026-10-09
+  - title: Does Fine-Tuning LLMs on New Knowledge Encourage Hallucinations?
+    author: Zorik Gekhman and colleagues
+    date: "2024-05-09"
+    url: https://arxiv.org/abs/2405.05904
+    checkedOn: 2026-10-09
+    note: "arXiv 2405.05904, EMNLP 2024. Closed-book question answering in the authors' controlled setup."
+  - title: Rethinking Benchmark and Contamination for Language Models with Rephrased Samples
+    author: Shuo Yang, Wei-Lin Chiang, Lianmin Zheng, Joseph E. Gonzalez, Ion Stoica
+    date: "2023-11-08"
+    url: https://arxiv.org/abs/2311.04850
+    checkedOn: 2026-10-09
+  - title: Fine-tuning Aligned Language Models Compromises Safety, Even When Users Do Not Intend To!
+    author: Xiangyu Qi and colleagues
+    date: "2023-10-05"
+    url: https://arxiv.org/abs/2310.03693
+    checkedOn: 2026-10-09
+    note: "Measured on GPT-3.5 Turbo and Llama-2 in 2023. The cost figure is from the paper."
+  - title: Building effective agents
+    org: Anthropic
+    date: "2024-12-19"
+    url: https://www.anthropic.com/engineering/building-effective-agents
+    checkedOn: 2026-10-09
+  - title: Prompt engineering overview
+    org: Anthropic
+    date: "2026"
+    url: https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/overview
+    checkedOn: 2026-10-09
+    note: "The prerequisites before prompt engineering. Undated page."
+  - title: Fine-tune Claude 3 Haiku in Amazon Bedrock
+    org: Anthropic
+    date: "2024-07-10"
+    url: https://claude.com/blog/fine-tune-claude-3-haiku
+    checkedOn: 2026-10-09
+    note: "Moved from anthropic.com/news to claude.com/blog. An update dated 2024-11-01 says the feature became generally available. Vendor-reported results."
+  - title: Model deprecations
+    org: Anthropic
+    date: "2026"
+    url: https://platform.claude.com/docs/en/about-claude/model-deprecations
+    checkedOn: 2026-10-09
+    note: "Claude Haiku 3 retirement on Anthropic-operated platforms, and the statement that partner platforms set their own schedules. Undated page; its latest entry is 2026-09-30."
+  - title: Model optimization
+    org: OpenAI
+    date: "2026"
+    url: https://developers.openai.com/api/docs/guides/model-optimization
+    checkedOn: 2026-10-09
+    note: "The optimization loop, the four fine-tuning methods, and the notice that OpenAI is winding down its fine-tuning platform. Undated page."
+  - title: Supervised fine-tuning
+    org: OpenAI
+    date: "2026"
+    url: https://developers.openai.com/api/docs/guides/supervised-fine-tuning
+    checkedOn: 2026-10-09
+    note: "Example counts, holdout guidance, and the evals-first rule. Undated page; its examples date from about May 2025."
+  - title: Model distillation
+    org: OpenAI
+    date: "2026"
+    url: https://developers.openai.com/api/docs/guides/distillation
+    checkedOn: 2026-10-09
+    note: "The four distillation steps. Undated page."
+  - title: Deprecations
+    org: OpenAI
+    date: "2026"
+    url: https://developers.openai.com/api/docs/deprecations
+    checkedOn: 2026-10-09
+    note: "The 2026-05-07 update to self-serve fine-tuning, the 2026-04-22 removal of fine-tuned versions of legacy snapshots, and the fine-tuning entries of 2023 and 2024. Undated page."
+  - title: New GPT-4o Copilot code completion model available now in public preview for Copilot in VS Code
+    org: GitHub
+    date: "2025-02-18"
+    url: https://github.blog/changelog/2025-02-18-new-gpt-4o-copilot-code-completion-model-now-available-in-public-preview-for-copilot-in-vs-code/
+    checkedOn: 2026-10-09
+  - title: "The road to better completions: Building a faster, smarter GitHub Copilot with a new custom model"
+    author: Shengyu Fu and John Mogensen
+    org: GitHub
+    date: "2025-10-23"
+    url: https://github.blog/ai-and-ml/github-copilot/the-road-to-better-completions-building-a-faster-smarter-github-copilot-with-a-new-custom-model/
+    checkedOn: 2026-10-09
+    note: "Vendor-reported results from the vendor's own A/B tests."
+  - title: Fine-tuned models are now in limited public beta for GitHub Copilot Enterprise
+    author: Shuyin Zhao
+    org: GitHub
+    date: "2024-09-10"
+    url: https://github.blog/news-insights/product-news/fine-tuned-models-are-now-in-limited-public-beta-for-github-copilot-enterprise/
+    checkedOn: 2026-10-09
+    note: "Updated 2025-09-16. Describes a limited public beta; this module did not verify the feature's current status."
+  - title: CS336, Language Modeling from Scratch
+    author: Tatsunori Hashimoto and Percy Liang
+    org: Stanford University
+    date: "2026"
+    url: https://cs336.stanford.edu/
+    checkedOn: 2026-10-09
+    note: "Spring 2026 offering. The book's further reading for chapter 20 and the deeper pathway into training."
+  - title: AI Engineering book and other resources
+    author: Chip Huyen
+    date: "2025"
+    url: https://github.com/chiphuyen/aie-book
+    checkedOn: 2026-10-09
+    note: "The author-maintained README of AI Engineering (O'Reilly, 2025), used for scope only."
 ---
 
 ## Transfer connection
 
-This module is planned. It is not yet written. This page holds its place in the catalog until it is.
+This elective has no row of its own in the talk's transfer table. It draws on two habits you already have: running a build pipeline and keeping test data honest. The book's chapter 20 states the connection in one sentence: "Controlled releases and data discipline govern changes to model parameters."
 
-Electives are optional. They never appear as prerequisites of a core module. The module will say what stays the same and what changes.
+You already run a build pipeline. Source goes in, a pinned toolchain runs, and an artifact comes out. You record the commit that produced each artifact, so you can rebuild last month's release from its inputs. You store artifacts in a registry with versions, promote them through stages, and keep the previous one ready for rollback. You already manage test data, too. You keep fixtures apart from production data. You scrub personal data before it reaches a test environment. You know that a test which reads its expected answer from the code under test proves nothing, and you would reject a pull request that made the build pass by editing the assertions.
+
+What stays the same: reproducible builds from versioned inputs stay the same. A registry of versioned artifacts with a promotion path stays the same. Staged release with a rollback target stays the same. The separation between the data you build from and the data you test with stays the same, and so does the rule that nobody tunes the build against the release gate. A written record of why a release shipped, and what it was checked against, stays the same.
+
+What changes is what each of those words refers to. The source of the artifact is a dataset, not code. The toolchain is an optimizer, and it is stochastic: the same data with a different random seed produces a different model, so one training run is one sample, not the build. The artifact is a set of weights you cannot read. No diff tells you which behavior changed, so every question about the artifact is answered by measuring it. Test leakage changes character too. In ordinary code, a test that leaks into the build makes one test meaningless. In training, an evaluation case that reaches the training data teaches the model that case's answer, and the score rises on exactly the cases you use to decide. The leak does not stay quiet. It flatters you.
+
+One more thing changes, and it is the one this module returns to most. Adapting a hosted model is forking a vendor dependency. You take a base model you did not write, add weights of your own, and from that day you maintain a fork of something you cannot read, built on a base the vendor will retire. When upstream moves, you do not rebase a branch. You rebuild the dataset, retrain, and measure everything again. The talk's word for the person who carries that is owner: "Owner means the engineer or team accountable for the delivered product's behavior and operating limits." This module is about what it takes to own a model's parameters, and how to decide that you should not.
 
 ## Topics and learning outcomes
 
 <Outcomes />
 
-The module draws on book chapter 20. It will introduce each concept with its outcome and a worked example, with every tool fact carrying its checked-on date.
+This elective is about one decision and everything it drags behind it: whether to change a model's parameters for your product. The book's chapter 20 gives it four topics, quoted here as the book states them. "Determine whether an observed problem justifies changing model parameters." "Prepare adaptation data and protect independent evaluation." "Explain supervised fine-tuning, parameter-efficient adaptation, distillation, and preference-based methods." "Measure improvements alongside regressions, maintenance burden, and operational cost." Each topic gets a part of this page, in roughly that order, with distillation given a part of its own because it combines all four.
+
+The chapter's completion evidence is the bar the workshop holds you to: "Defend adoption or rejection using independent results and maintenance costs; distinguish executed training from analysis of recorded results." Read the second half carefully. This module does not ask you to run a fine-tune. Training costs money, needs a provider account, and produces results that differ from run to run, so a self-paced program cannot make it a requirement. The book's chapter 20 workshop offers the alternative this module takes: "analyze supplied reproducible experiment records, comparing it with prompting and the original model." The records in the workshop are synthetic and labeled that way. The habit you practice on them is the one you need with real ones: say what was run, by whom, on what data, and what the records do and do not establish.
+
+The module leans on four sections of earlier modules. Read them first if they are not fresh. Foundations' [What a model learns: parameters, loss, and optimization](/modules/foundations#what-a-model-learns-parameters-loss-and-optimization) explains what training changes. Its [Splits, leakage, and the grouping unit](/modules/foundations#splits-leakage-and-the-grouping-unit) is the base for everything said here about protecting evaluation. Its [From pretraining to the assistant you call](/modules/foundations#from-pretraining-to-the-assistant-you-call) separates knowledge from behavior, which decides most adaptation questions before they start. The Models module's [Diagnose before you swap](/modules/models#diagnose-before-you-swap) gives adaptation one row in a table of fixes, and this module is that row taken apart. Electives have no formal prerequisites, so none of this is enforced. It is advice.
+
+If you read in two sittings, stop after Distillation: borrowing a teacher's behavior. That covers the decision, the methods, and the data. The rest covers measurement, ownership, and the release.
+
+### Where adaptation sits in the talk
+
+The talk is about products, not models. Slide 3 draws the boundary this elective stands on. In the talk's words: "ML engineers typically focus on models and the pipelines that produce them. AI engineers typically focus on products around models. The roles overlap, including adaptation and fine-tuning." The slide adds a line of its own: "Application engineering includes adaptation. Roles overlap." Adaptation is where the two roles meet. An application engineer decides whether to adapt, prepares the data, guards the evaluation, reads the results, and owns what ships. Someone with deeper training experience may write the training loop. Often that someone is a vendor's tuning service, and the application engineer is the only engineer involved.
+
+The book places the work the same way. Chip Huyen's README for AI Engineering (O'Reilly, 2025) describes the book's subject as building "applications on top of foundation models, which involves more prompt engineering, context construction, and parameter-efficient finetuning." Parameter-efficient fine-tuning is on the application side of the line. Building a model is not. For the deeper path, the book's further reading for this chapter points to Stanford's CS336, Language Modeling from Scratch, offered in Spring 2026. Its assignments train a model from a tokenizer up and apply supervised fine-tuning and reinforcement learning to math reasoning. That is a specialization. You do not need it to make the decision this module teaches, and you should not let anyone tell you that you need it before you can say no to a fine-tune.
+
+The talk's roadmap gives the rule this module applies to parameters. Step 2, verbatim: "Start constrained. One call. Then a workflow. Then a loop, only when it earns it." The talk's research behind that step quotes Anthropic's December 2024 guidance: "For many applications, however, optimizing single LLM calls with retrieval and in-context examples is usually enough." Changing weights is a step up in what you own, the same way an agent loop is a step up from a workflow. It has to earn its place with measurements, and a constrained system that meets its requirement without it is a finished system.
+
+The research report in the talk's repository (research/external/ai-engineering-research-report.md) states the distinction in one paragraph worth keeping whole in memory. Prompting and examples shape behavior within the current request. Retrieval supplies external evidence. Fine-tuning changes model parameters to improve learned behavior or task specialization. Distillation can transfer a stronger system's behavior into a smaller model using curated examples. Its conclusion: "These techniques are complementary, but they address different failure causes." And its example, which is the most common misuse of fine-tuning in practice: "For example, tuning a model is a poor default response to a stale source document."
+
+### When you are the user: models someone adapted for you
+
+Start with what you already touch. If you use GitHub Copilot in an editor, the gray suggestion that appears as you type comes from a model someone adapted for that one job.
+
+GitHub's changelog of February 18, 2025 introduced the GPT-4o Copilot code completion model. It was built on GPT-4o mini and, in the changelog's words, "has additional training on over 275,000 high-quality public repositories" in "over 30 popular programming languages." On October 23, 2025, Shengyu Fu and John Mogensen described the next model in a GitHub blog post, "The road to better completions". It went through three stages. First, the team built "a code-specific foundational model via mid-training", which means further pretraining on a curated code corpus. Then supervised fine-tuning trained it "to behave like a great FIM engine": fill-in-the-middle, the completion task where the model sees the code before and after the cursor and writes what goes between. General chat models are trained to continue a conversation, not to fill a gap between a prefix and a suffix. Last, reinforcement learning, "teaching the model through rewards and penalties."
+
+The post reports the results as "20% more accepted and retained characters, 12% higher acceptance rate, 3x higher token-per-second throughput," and a 35 percent reduction in latency. Those are the vendor's numbers from the vendor's own tests. What makes the post worth studying is the part about measurement, not the numbers.
+
+First, the team watched more than one metric on purpose. Offline, an execution-based benchmark "measures build-and-test pass rates," and a model judge scored quality, relevance, and helpfulness. Before production, people inside and outside the company used it daily and reported on "readability, trust, and 'taste.'" In production, A/B tests tracked "accepted-and-retained characters, acceptance rates, completion-shown rate, time-to-first token, latency." The authors explain why acceptance rate alone was not enough: "a heavy focus on acceptance rates could lead to incorrectly favoring a high volume of simple and short suggestions."
+
+Second, the training optimized what it was told to optimize. An early reinforcement-learning version "over-optimized for longer completions, adding too many comments." The authors call it "reward hacking," and added guardrails on comments to constrain it. Even a team with a large evaluation program trained a behavior it did not want, and had to add a constraint against it.
+
+GitHub has also offered the per-customer version. On September 10, 2024, Shuyin Zhao announced fine-tuned models for Copilot Enterprise in limited public beta. The post says: "We customize each model using the LoRA (Low-Rank Adaptation) method." Training drew on "your private codebases and also incorporating telemetry" from how a team used suggestions. It made a data commitment: "your data is always yours. It is never used to train another customer's model." And it described what happens when the base changes: "future custom model retrainings will automatically roll forward to these new models". This module did not verify the feature's status on 2026-10-09. The design is what matters here.
+
+Here is the worked example in one table. The left column is what you touched. The right column is what someone engineered for it.
+
+| What you touched | What someone engineered for it |
+|---|---|
+| A suggestion that appears in a fraction of a second | A smaller model specialized for fill-in-the-middle, because a general chat model was slower and worse at the task |
+| Suggestions in your team's own idioms | A LoRA adapter per customer, trained on private code and usage telemetry, kept private, retrained when the base moved |
+| Suggestions that stopped padding themselves with comments | A reward that was gamed, and guardrails on comments added to constrain it |
+| A changelog line saying completions improved | Offline, pre-production, and production evaluation, with several metrics because any single one could be gamed |
+
+Now read the right column as an owner. The vendor adapted because every condition that justifies adaptation held at once. The task is narrow and stable: fill a gap in code. The volume is enormous, so a small saving per request is large in total. Latency is part of the product: a suggestion that arrives after you typed the line is worthless. The vendor owns the evaluation infrastructure, the training pipeline, the serving fleet, and a team to run them, and it has millions of users producing the signals it trains and measures on. Few of those are true of your first feature. That does not rule adaptation out. It tells you what you would be taking on, which is the subject of the rest of this page.
+
+### Diagnose before you adapt
+
+The book's first topic for the chapter is a question, not a technique: "Determine whether an observed problem justifies changing model parameters." Answering it starts with locating the failure. The Models module's [Diagnose before you swap](/modules/models#diagnose-before-you-swap) gives the full table. Its row for this module names the evidence: "The model has the facts and the instructions and still fails a narrow, stable, high-volume task". The fix it names: "Adaptation: examples in context first, then fine-tuning as a measured experiment". Every word of that row is a condition.
+
+Start from what training changes. Foundations' section on training stages draws the line: knowledge comes mainly from pretraining, and supervised adaptation "teaches format and role: answer the question, follow the instruction, use this structure. It adds relatively little new knowledge." So the first question about any failure is whether it is a knowledge failure or a behavior failure.
+
+A knowledge failure is a fact the model does not have or has wrong: this month's prices, a policy revised last week, a customer's order history, the name of a plan launched after the model's training data was collected. Adaptation is the wrong tool for it, for three reasons. Facts change, and every change would mean a retrain. Facts must be checkable, and a fact in the weights cannot cite a source. And training on new facts has a measured side effect. Zorik Gekhman and colleagues studied it in a controlled setup, published at EMNLP 2024. They found that "examples that introduce new knowledge are learned significantly slower" than examples consistent with what the model already knew, and that "as the examples with new knowledge are eventually learned, they linearly increase the model's tendency to hallucinate." Knowledge belongs in context, supplied at request time, and the [Context and knowledge](/modules/context-and-knowledge) module covers how.
+
+A behavior failure is the model doing the wrong thing with information it has: the wrong format, the wrong label for a well-defined category, the wrong tone, a missing refusal, a field filled when it should be empty. Behavior is what adaptation changes. But behavior is also what instructions and examples change, at far lower cost and with no weights to own. So the second question is whether the cheaper fixes were tried, and measured.
+
+Here is the order, cheapest first. Each of the first five is a change you can make and revert in a day, and every one is measured on the same cases.
+
+1. **Instructions.** State the rule the failures broke. Many failures trace to a rule nobody wrote down.
+2. **Examples in context.** Add a few worked examples to the prompt, chosen to cover the cases that fail. Retrieved examples, chosen per request from a labeled pool, go further: the model sees the closest labeled cases for each input.
+3. **Retrieval of evidence.** If the model lacks a fact, supply it. A plan catalog in the prompt is a retrieval fix, even when it is static.
+4. **Tools.** If the model needs to compute or look something up, give it a tool rather than training it to guess.
+5. **Task design.** Split a task that asks one call to do too much. Move a rule that must always hold into code. Define acceptance precisely.
+6. **Model choice.** A different model, or a different effort setting, may close the gap with no training at all. The [Models](/modules/models) module's selection run is the method.
+7. **Adaptation.** Change parameters, as a measured experiment, with the cheaper configurations as the baselines it must beat.
+
+The vendors' own guidance follows the same order. OpenAI's model optimization guide, checked on 2026-10-09, describes a loop of writing evals, prompting, and fine-tuning "For some use cases", and says that "The prompt engineering process may be all you need in order to get great results for your use case." Its supervised fine-tuning guide is blunter: "Good evals first! Only invest in fine-tuning after setting up evals." And: "If 50 examples have no impact, rethink your task or prompt before adding training data." Anthropic's prompt engineering overview, checked the same day, lists what you need before you even start on prompts: "A clear definition of the success criteria for your use case" and "Some ways to empirically test against those criteria". The same preconditions apply to adaptation, with more force, because a training run costs more than a prompt edit and its result is harder to inspect.
+
+### Signals that adaptation may be justified
+
+None of these signals decides by itself. Together, they say adaptation is worth an experiment.
+
+- **The task is narrow and stable.** One well-defined job whose correct output will mean the same thing next quarter. A classifier over a taxonomy that changes three times a year is narrow but not stable, and that cost belongs in the decision.
+- **The binding constraint is cost or latency at a fixed quality.** A large model meets the quality requirement, and a small one is fast and cheap enough but falls short. Adaptation that makes the small model meet the bar is the classic case, and it is the case in this module's workshop.
+- **The cheaper fixes were measured, and a gap remains.** Instructions, examples, retrieval, and model choice were each tried on the same eval suite, and the remaining gap is a behavior the suite shows clearly.
+- **You have the data, and the right to use it.** Labeled examples that represent production, in enough number, which your terms and your organization allow you to train on, and the capacity to label more when the task changes.
+- **You can own the result.** Someone will retrain it, evaluate it, serve it, and retire it. The section on owning weights below makes that concrete.
+
+And the anti-signals, each a reason to stop and fix something else:
+
+- The failure is a missing, stale, or changing fact. Fix the context.
+- There is no eval suite, or the suite has a few dozen cases with no categories. Build the instrument before the experiment.
+- Fewer than a handful of failure cases, all different. That is error analysis waiting to happen, not a training set.
+- The motivation is to have a model of your own. A model of your own is a cost, not an outcome.
+- The base model's retirement date, or the tuning service's future, is shorter than the time the adapter must earn back its cost.
+
+A worked example runs through the rest of this page. Quillfern, a fictional collaboration-software company, routes 1.2 million support tickets a month through an intake step. For each ticket, a model returns a queue, three fields, and a flag for tickets a person must read. In production today, a large prompted model meets the quality requirement at a p95 latency of 3.4 seconds and $41,000 a month. The requirement says 1.2 seconds and $9,000. A small prompted model is fast and cheap and misses the quality bar on queue accuracy, invented field values, and the flag. Adding retrieved examples to the small model closes part of the gap and not all of it. Every condition for an experiment holds: a narrow task, a cost and latency constraint at a fixed quality, measured cheaper fixes, and six months of tickets labeled by support leads. Notice that this establishes that an experiment is justified. It does not establish that the adapter should ship. That takes the rest of the module.
+
+### What adaptation methods change
+
+You already choose between changing a configuration, applying a patch, and forking a dependency, and you know each one changes more and costs more to keep than the last. Adaptation methods sit on the same scale. The book's third topic asks you to "Explain supervised fine-tuning, parameter-efficient adaptation, distillation, and preference-based methods." You will rarely implement any of them. You will choose among them, read their results, and own their output, so what you need for each is three facts: what it trains on, what it can change, and how it fails. Foundations' section on training stages covers the same machinery from the vendor's side, when the vendor turned a pretrained model into the assistant you call. Here the same methods are applied a second time, by you, to a model that has already been through all of them.
+
+All of them share one structure. A base model, a dataset, an objective, and an optimizer go in. Changed weights come out. The changed weights are a new model that answers every question differently from the base, not only the questions in your dataset. That last sentence is the source of most adaptation incidents.
+
+### Supervised fine-tuning
+
+Supervised fine-tuning is the closest thing adaptation has to a test-driven change: you write the expected output for each input, and the optimizer changes the model until it produces outputs like them. It trains the model on pairs: an input, and the output you want for it. The loss is the same next-token loss the model was pretrained with, applied to the output part of each pair. After training, the model is more likely to produce outputs like the ones in your pairs, for inputs like the ones in your pairs.
+
+OpenAI's model optimization guide, checked on 2026-10-09, describes the method in one line: "Provide examples of correct responses to prompts to guide the model's behavior." It lists what it is good for: classification, nuanced translation, generating content in a specific format, and correcting instruction-following failures. Every item on that list is a behavior. None is a body of facts.
+
+The supervised fine-tuning guide gives the scale. The minimum is 10 examples. The guide reports seeing improvements from 50 to 100 examples, and advises: "We recommend starting with 50 well-crafted demonstrations and evaluating the results". Read that as the size of a first experiment, not of a production dataset. It also gives advice on a holdout: carve it from the data you collected, and "Make sure the training and holdout data have roughly the same diversity of user input types and model responses." That is sound for a development set. For the set that decides adoption, you need more than similar diversity. You need independence, by group and by time, which the section on protecting the evaluation set explains.
+
+Full fine-tuning updates every weight. It is the most expressive form and the most expensive in memory and compute, which is why the next family of methods exists.
+
+Supervised fine-tuning has two failure modes you should expect before you see them. The first is forgetting: the model gets better at your task and worse at things outside it, because every weight that moved for your task moved for every other input too. The second is quieter. Xiangyu Qi and colleagues showed in October 2023 that fine-tuning can erode a model's trained safety behavior. They removed the guardrails of GPT-3.5 Turbo by "fine-tuning it on only 10 such examples at a cost of less than $0.20 via OpenAI's APIs." Their more important finding for a product team is the second: "simply fine-tuning with benign and commonly used datasets can also inadvertently degrade the safety alignment of LLMs, though to a lesser extent." The benign-data effect was smaller than the deliberate attack, and it was there. Nobody intended the regression. A team that measured only its target task would not have seen it. Refusals, escalations, and policy behaviors the base model had are behaviors your adapted model may have lost, and only a suite that tests them can tell you.
+
+### Parameter-efficient adaptation
+
+An adapter is a patch set against one pinned upstream release. It does not apply to the next release. Parameter-efficient methods train a small number of new parameters and leave the base model's weights untouched. The one you will meet most is LoRA, from Edward J. Hu and colleagues in June 2021, which the book lists as further reading for this chapter.
+
+LoRA "freezes the pre-trained model weights and injects trainable rank decomposition matrices into each layer". In plain terms: next to each large weight matrix, it adds two thin matrices whose product has the same shape as the original. Only the thin matrices are trained. Their product is added to the frozen weights at inference. The rank, how thin the matrices are, is the main setting: a lower rank means fewer trainable numbers and less capacity to change behavior. The paper's headline, against full fine-tuning of GPT-3 175B: "LoRA can reduce the number of trainable parameters by 10,000 times and the GPU memory requirement by 3 times". And because the product can be merged into the weights, it adds "no additional inference latency", unlike earlier adapter designs. The book's source notes attach a limitation, and it belongs with the numbers: the paper does not imply that adaptation is always necessary, or that an adapter matches full fine-tuning on every task.
+
+QLoRA, from Tim Dettmers and colleagues in May 2023, pushed the cost down further by storing the frozen base at lower numeric precision while training the adapter: fewer bits per weight, the quantization the Models module mentions under [Eligibility comes first](/modules/models#eligibility-comes-first). The abstract's example: it "reduces memory usage enough to finetune a 65B parameter model on a single 48GB GPU." Results like that are a large part of why adapting a model no longer needs a research lab's hardware.
+
+What does the low rank cost? Dan Biderman and colleagues measured it in 2024, in a paper titled to make the point: "LoRA Learns Less and Forgets Less." In their code and math experiments, "LoRA substantially underperforms full finetuning" in the standard low-rank settings. "Nevertheless, LoRA better maintains the base model's performance on tasks outside the target domain." They add that it "mitigates forgetting more than common regularization techniques such as weight decay and dropout." That is a trade, not a verdict. If your adapted model must keep doing other things well, an adapter's smaller footprint is protection. If your task needs a large change in behavior, the adapter may not reach it. Either way, you learn which one you got by measuring both sides.
+
+Three practical consequences of the adapter design matter to an owner.
+
+- **An adapter is small.** It is a file of megabytes, not the gigabytes of a base model. You can keep every version, roll back by swapping files, and serve several adapters on one shared base.
+- **An adapter is bound to its exact base.** The trained matrices are corrections to one specific set of weights. Applied to any other base, including the next version of the same model family, they are meaningless. The replacement for a retired base is a new training run, as the retirement section below shows.
+- **Less forgetting is not no forgetting.** The adapter changes outputs for every input, as any fine-tune does, so the behaviors around your task still need measuring.
+
+### Preference-based methods and reinforcement
+
+Some code is easier to review than to write: you can say which of two pull requests is cleaner without writing the clean one yourself. Some model behaviors are the same: which of two summaries is more focused, which reply has the better tone. Supervised fine-tuning needs the right answer written out. Preference-based methods train on that judgment.
+
+Foundations' [From pretraining to the assistant you call](/modules/foundations#from-pretraining-to-the-assistant-you-call) describes how vendors use preference data at scale, through reinforcement learning from human feedback (RLHF). Direct Preference Optimization, from Rafael Rafailov and colleagues in May 2023, made the method simpler. The abstract calls the earlier approach "a complex and often unstable procedure" that begins by "first fitting a reward model that reflects the human preferences." A reward model is a second model trained to score responses the way the raters would. DPO lets a team "solve the standard RLHF problem with only a simple classification loss", without "sampling from the LM during fine-tuning." For you, the important part is the data: pairs of responses to the same prompt, one marked preferred. OpenAI's guide, checked on 2026-10-09, describes its DPO option as "Provide both a correct and incorrect example response for a prompt", and lists summarization focus and tone or style in chat as what it is good for.
+
+Preference training has the weakness of its signal. It moves the model toward what the raters preferred, and a preference is not a correctness check. Foundations makes the point with calibration: post-training made a model's probabilities less calibrated. If your raters prefer confident answers, you will train a confident model, including where it should have declined.
+
+Reinforcement fine-tuning goes one step further. The model generates answers, a grader scores them, and training pushes toward higher scores. OpenAI's guide describes its option as reinforcing "the model's chain-of-thought for higher-scored responses", available for reasoning models only, and states its precondition plainly: it "Requires expert graders to agree on the ideal output from the model." That precondition is the whole method. The grader becomes the specification. Whatever the grader rewards, the model learns, including what the grader rewards by accident. GitHub's comment-padding completions, from the user section above, are the public example. The [Verification and evals](/modules/verification-and-evals) module's sections on graders apply with full force, because here a misleading grader does not only mislead a report. It trains the model.
+
+Here are the methods side by side.
+
+| Method | Trains on | Can change | Typical failure |
+|---|---|---|---|
+| Supervised fine-tuning, full | Input and desired-output pairs | Format, labels, style, task behavior; every weight | Forgetting outside the task; lost refusals and escalations |
+| Parameter-efficient, such as LoRA | The same pairs | The same behaviors, through a small trained add-on | Too little change for a large shift; still some forgetting |
+| Preference optimization, such as DPO | Pairs of responses, one preferred | Tone, focus, which of several acceptable outputs | Learns the raters' taste, including taste for confidence |
+| Reinforcement fine-tuning | Prompts and a grader | Multi-step reasoning toward graded outcomes | Learns the grader's blind spots: reward hacking |
+| Distillation | A teacher model's outputs, usually through supervised fine-tuning | A small model's behavior, toward the teacher's on your task | Inherits the teacher's errors and the filter's bias |
+
+<Callout kind="plain" label="What a parameter change can and cannot fix">
+
+Adaptation changes how a model behaves on inputs like your training data. It is a poor way to give a model facts, it cannot make a fact checkable, and it changes behavior on inputs you did not train on. Every method on this table produces a new model. Measure it as one: on your task, on the behaviors around your task, and on the cases where the right answer is to decline.
+
+</Callout>
+
+### Preparing adaptation data
+
+The book's second topic has two halves: "Prepare adaptation data and protect independent evaluation." This section is the first half. Treat the dataset as the source code of the model you are about to build, because it is. Every property of the adapted model that you did not get from the base, you got from these rows.
+
+Start with the task contract, before any data. Write down the input, the output format, and the rule for each label and field, including what to do when the input is ambiguous or the answer is absent. The [Models](/modules/models) module's output contract is the same document from the inference side. A dataset built before the contract is a dataset of whatever the first labeler decided.
+
+Then sample. Pull from production, weighted like real traffic, with a deliberate share of the hard tail, the same way the Models module builds a selection set. A dataset made only of clean, typical cases trains a model that is confident on clean, typical cases. Note the period you sampled from. The model will learn the world as it was in that period: the plans that existed, the queues that existed, the way customers wrote.
+
+Record provenance and rights for every source. Where did each example come from? Under which terms may it be used for training? Was personal data removed, and how? A fine-tune bakes its data into weights you cannot inspect, which makes the rights question harder than it is for a test fixture. A vendor that trains on customer data states its commitments in writing. GitHub's Copilot Enterprise post is one public example: "your data is always yours. It is never used to train another customer's model." Your organization needs an equivalent statement for your own training data, and someone who can answer for it.
+
+Label with guidelines, not intuition. Two labelers per example, a written guideline, and an adjudicator for disagreements give you two things: better labels, and a measure of how ambiguous the task is. If two support leads agree only 74 percent of the time on whether a ticket needs a person, as in the record below, a model cannot be expected to be much more consistent than they are, and the guideline for that call needs work before the labels do.
+
+Deduplicate, exactly and approximately. Support data is full of templates: the same order confirmation, the same password reset, a thousand tickets differing only in an order number. Foundations' [Splits, leakage, and the grouping unit](/modules/foundations#splits-leakage-and-the-grouping-unit) explains why exact matching misses them. Near-duplicate detection, by embedding similarity or by a model asked whether two items say the same thing, catches what string matching cannot.
+
+Split by the grouping unit and by time. Every ticket from one account goes in one set. Training data comes from an earlier period than the data you decide with. Both rules exist for the same reason: production will bring new accounts and new weeks, so the decision must be made on new accounts and new weeks.
+
+Version everything and write it down. A data record is to a dataset what a lockfile and a build manifest are to a release: the inputs, their versions, their hashes, and the rules that produced them. Here is one for the Quillfern intake experiment.
+
+<Artifact id="fine-tuning-and-adaptation-data-record" level={4} />
+
+Read it as an engineer who has to rebuild it. The three sets have separate names, versions, periods, and stated uses. The grouping unit is the account, with a check that found no account in two sets. The deduplication is both exact and by similarity, with a log of what was removed. The acceptance set is frozen, hashed, and unreadable by the training job, which is a defense enforced by access control rather than by good intentions. The rights basis names a document and a review date. And the record ends with what the data cannot teach: a plan launched after the training period, and languages under-represented relative to current traffic. Those gaps will show up in the workshop's results. A record that states them in advance turns a surprise into a prediction.
+
+### Coverage includes the cases where the answer is no answer
+
+One property of adaptation data deserves its own section, because it causes more unsupported answers than any other: a model learns what its training data shows, including what it never shows.
+
+Suppose every example in an extraction dataset has a value in every field. The schema allows null. The guideline says to use null when the ticket does not state the field. But no example ever does it. Training moves the model toward outputs like the training outputs, and in every training output, every field has a value. The model learns that there is always a value. In production, where 40 percent of fields are absent, it fills them anyway, with plausible order numbers and plan names it composed. Every one of those outputs is well formed. The Models module's T-90219, the order number the model produced for a ticket that had none, is this failure at inference time. A training set without nulls manufactures it.
+
+The same holds for every honest non-answer your task has. Tickets a person must read. Questions the help center does not cover. Requests outside policy. If the right output is to escalate, abstain, or refuse, the training data must contain those cases in roughly the proportion production will, with the right output written out. The Quillfern record shows 41 percent null fields and 7 percent of tickets flagged for a person in its training set. Those numbers are not incidental. They are the behavior the adapter is being taught.
+
+Gekhman and colleagues' result is the knowledge-side version of the same lesson. Training a model on answers it did not already know increased, in the authors' word, its tendency to hallucinate. Training data that always has an answer teaches answering. If you want a model that says "this ticket does not state an order number", show it that sentence, many times, on the tickets where it is true.
+
+### Protecting the evaluation set
+
+The second half of the book's second topic is "protect independent evaluation." Independent is the word that carries the weight. An evaluation is independent when nothing about it reached the model or the choices made about the model. Adaptation is the place where that independence is easiest to lose, because training is a machine for absorbing whatever you feed it.
+
+The book's project guidance states the rule for the collection that decides: "the final acceptance collection must not be used for prompt, model, or grader tuning." It also states how to split so that related cases do not leak: "Group duplicate conversations and related customers when splitting where necessary to prevent leakage." The [Verification and evals](/modules/verification-and-evals) module's [Designing eval data](/modules/verification-and-evals#designing-eval-data), in its part on held-out data and the purpose of each suite, explains the distinction between development cases, which are for iterating, and held-out cases, which are for deciding. With adaptation in the picture, you need three sets, not two, with three jobs.
+
+- **Training set.** The rows the optimizer sees. Everything about the model's new behavior comes from here.
+- **Development set.** The cases you use to make choices: which prompt, which checkpoint, which rank, how many epochs, which data mix. Every choice leaks a little information from this set into the result, which is why it cannot also be the set that decides.
+- **Acceptance set.** The cases that decide adoption. Frozen before the experiment starts, used once per candidate, never used to choose anything.
+
+Foundations calls the acceptance set the test set and makes the same point: "The test set is where you measure the final choice, once." Adaptation adds new ways to break the rule, and each one inflates the score you will use to decide.
+
+### Paths by which the evaluation leaks
+
+Here are the leak paths, from the obvious to the ones that pass every check a careful team usually runs.
+
+**Direct inclusion.** The acceptance cases are in the training data. It is easy to do by accident: the training set is built from "all labeled tickets" after the acceptance set was labeled from the same pool. An exact-match check catches it.
+
+**Near-duplicates and templates.** The acceptance case is not in the training data, but a ticket from the same template is, with a different order number. The model has learned the answer to that template. Exact matching misses it. Similarity matching catches most of it.
+
+**Shared groups.** The acceptance case's account, document, or conversation thread appears in training. Foundations' failure exercise shows the size of the effect: a fine-tuned classifier at 97.9 percent on a randomly split held-out set scored 82.0 percent on the slice of accounts it had never seen. Group splits prevent it.
+
+**Paraphrases and augmentation.** A team grows its training data by asking a large model to rephrase existing questions, and the pool it rephrased included the acceptance questions. The rephrased versions pass exact matching and often pass n-gram overlap checks, which look for shared word sequences. Shuo Yang and colleagues measured this directly in November 2023: "simple variations of test data (e.g., paraphrasing, translation) can easily bypass these decontamination measures." In their experiments, "a 13B model can easily overfit a test benchmark and achieve drastically high performance, on par with GPT-4." Their remedy was a stronger check: "a stronger LLM-based decontamination method". For your own data, the stronger remedy is upstream: never let acceptance items into any generation step.
+
+**Teacher prompts.** In distillation, a teacher model answers a pool of prompts, and the student trains on the answers. If the acceptance questions are in that pool, the student has been trained on the teacher's answers to the exam. No string in the training data matches an acceptance reference, and the leak is complete.
+
+**Selection.** Every time the acceptance score chooses something, information flows from the acceptance set into the model you report. Picking the best of nine checkpoints by acceptance score is selection. So is trying five data mixes and reporting the one that scored highest on the acceptance set. Foundations names this as the same failure as selecting on the test set, seen from the training side.
+
+**Repair by training.** The acceptance run shows twelve failures. The team adds those twelve cases, with correct labels, to the next training set. The next run passes them. The acceptance set now measures twelve fewer things, and nobody wrote that down. The fix is not to ignore failures. It is to move the failed cases to the development set, where learning from them is the point, and to replace them in the acceptance set with fresh cases of the same kind.
+
+**Time.** The training data covers a period after the acceptance period. The model has seen the month the acceptance set was drawn from, including the incidents, product changes, and phrasing of that month. Keep training strictly earlier than the data you decide with.
+
+### Defenses that hold
+
+Good intentions do not survive a deadline. The defenses that hold are the ones built into the pipeline.
+
+1. **Freeze and hash the acceptance set first.** Before any training data is generated, augmented, or labeled by a teacher, freeze the acceptance set, record a hash of its manifest, and treat any change to it as a new version that invalidates earlier comparisons.
+2. **Enforce separation with access control.** The training job and every data-generation job run with credentials that cannot read the acceptance set. The eval runner is the only reader. The Quillfern data record does this. It turns a rule into a permission error.
+3. **Exclude acceptance items from every upstream pool.** Teacher prompts, paraphrase seeds, example pools for retrieval, and synthetic generation all draw from pools that exclude the acceptance set by construction, not by a check afterward.
+4. **Check by similarity, not by string.** Run near-duplicate detection between every pair of sets, and keep a log of what was removed.
+5. **Make choices on the development set only.** Checkpoints, ranks, epochs, data mixes, and prompts are chosen by development-set results. The acceptance set sees each finished candidate once.
+6. **Keep a never-seen slice.** Report results separately for acceptance cases whose group never appears in training. If that slice scores much lower than the rest, the headline was measuring familiarity.
+7. **Refresh with fresh cases.** Add new acceptance cases from recent production on a schedule, and retire cases that leaked or were repaired. A shadow sample of live traffic, scored after the fact, is the freshest acceptance set there is.
+
+The test of whether your defenses work is simple. Could a teammate in a hurry, with good intentions, put an acceptance case into training without anything failing? If yes, the defense is a convention, and conventions leak.
+
+### Distillation: borrowing a teacher's behavior
+
+Distillation is the adaptation method you are most likely to be offered, because it promises exactly what the cost and latency signal asks for: the behavior of a large model at the price of a small one.
+
+The idea is old. Geoffrey Hinton, Oriol Vinyals, and Jeff Dean's 2015 paper built on earlier work showing it is possible to "compress the knowledge in an ensemble into a single model which is much easier to deploy." In today's usage, the recipe is more direct. OpenAI's distillation guide, checked on 2026-10-09, gives it in four steps. "Tune a prompt for a larger model (like `gpt-4.1`) until you get great performance against your eval criteria." "Capture results generated from your model using whatever technique is convenient". "Use the captured responses from the large model that fit your criteria to generate a dataset". "Tune a smaller model (like `gpt-4.1-mini`) using the dataset you created from the large model." The guide's purpose statement: to "train a small model to perform similarly on a specific task to a larger, more costly model."
+
+It can work on a narrow task. Cheng-Yu Hsieh and colleagues reported in May 2023 that with their method, "our finetuned 770M T5 model outperforms the few-shot prompted 540B PaLM model using only 80% of available data". A model hundreds of times smaller beat the large one on the authors' benchmarks. That is a demonstration on chosen tasks with the models of 2023, not a forecast for yours, and it is the result that makes distillation worth trying.
+
+Read each step of the recipe as an owner, and each one has a condition attached.
+
+**The teacher sets the ceiling.** The student learns the teacher's outputs, so on your criterion the student is unlikely to do better than the teacher, and it inherits the teacher's errors as targets. Step 1 says to tune the teacher's prompt "until you get great performance against your eval criteria." That assumes an eval exists, with criteria that cover what matters, and that the teacher meets them. If the teacher answers some unanswerable questions confidently, the student learns to as well, from examples marked correct.
+
+**The filter is a grader, and it shapes the data.** Step 3 keeps "the captured responses from the large model that fit your criteria". Whatever decides what fits is now choosing the student's training distribution. A filter is a grader, with every blind spot a grader can have. Any output the filter scores low becomes rarer in the kept set than it was in the teacher's raw outputs, and the student learns the kept set's proportions, not the teacher's. Nobody chose those proportions. The filter did. Count every behavior you care about in the kept set, not only in the teacher's raw outputs, and compare each count with the human-labeled data.
+
+**The teacher prompts are a data source like any other.** Step 2 captures results on some set of inputs. Where did the inputs come from? If they came from the pool the acceptance set was sampled from, or from paraphrases of it, the student has seen the exam. This is the leak path from the previous section, and distillation is where it most often happens, because generating more prompts is cheap and the easiest pool to draw from is the one already curated.
+
+**Imitation is not capability.** Arnav Gudibande and colleagues tested this in May 2023, in a paper titled "The False Promise of Imitating Proprietary LLMs". They fine-tuned open models on ChatGPT outputs. Crowd workers rated the imitations' outputs as "competitive with ChatGPT." Targeted automatic evaluations told a different story: the imitation models "close little to none of the gap from the base LM to ChatGPT" on tasks the imitation data did not heavily cover. The authors' explanation is the sentence to remember: the models "are adept at mimicking ChatGPT's style but not its factuality." A student can learn how the teacher sounds much faster than it learns what the teacher knows, and a grader that rewards how answers sound will report the first as success.
+
+**The provider's terms are part of the method.** Using one model's outputs to train another is governed by the provider's terms of service, which differ between providers and change over time. Read the terms that apply to your teacher on the day you generate the data, and record which version you read.
+
+**The teacher retires too.** A distilled student outlives its teacher, which is part of its appeal: the student keeps working after the teacher's model id stops answering. But the next distillation, after a taxonomy change or a base-model retirement, needs a teacher, and the new teacher will answer differently. Re-distilling is a new experiment, not a rebuild.
+
+Put together: distillation is supervised fine-tuning on data a model wrote, filtered by a grader you chose, on prompts you collected. Every weakness of those three inputs becomes a property of the student.
+
+### Measuring improvements alongside regressions
+
+You already refuse a release whose p50 latency improved while one endpoint's p99 doubled. Adaptation results need the same reading. The book's fourth topic puts the improvement and its costs in one sentence: "Measure improvements alongside regressions, maintenance burden, and operational cost." This section is the first two. The next is the last two.
+
+Start with what you compare against. The book's workshop names the baselines: an adapted model, "comparing it with prompting and the original model." In practice that is at least three configurations, measured on the same frozen acceptance set with the same grader.
+
+- **The original model, prompted.** Usually what runs in production today. It is the configuration the adapter has to justify replacing.
+- **The base you will adapt, prompted as well as you can.** Same instructions, plus the best examples in context you can manage. This is the strongest configuration that needs no training, and the adapter's real competitor. An adapter that beats a weak prompt and not a strong one has proved that prompting was neglected.
+- **Each adapted candidate.** Each with the prompt it will actually be served with. An adapter trained with a short prompt and evaluated with a long one is a different configuration from the one that will ship.
+
+Then account for the noise you added. Training is stochastic: the same data and settings with a different seed produce a different model. One training run is one draw. Train each candidate at least three times with different seeds, evaluate each, and report the spread beside the mean, the same way the Models module reports run-to-run variation for inference. When two configurations differ by less than their spread, the comparison has not established a difference. Foundations' [Comparing two systems](/modules/foundations#comparing-two-systems) gives the paired method for deciding whether a difference is real.
+
+Now list what you measure. The target task is the first line, not the whole list.
+
+1. **The target task, per category.** Queue accuracy by queue, field accuracy by field. Report counts beside rates, so a reader can see that 49 of 50 is one case away from 48 of 50.
+2. **Unsupported outputs.** Values the model invented where the reference is empty. Answers to questions the evidence does not cover. Claims not supported by the supplied context. These are the regression the book's failure exercise names: "Task-specific accuracy improves while unsupported answers increase".
+3. **Escalation and abstention.** Recall on the cases where the right output is to hand off or decline, and the rate of handoffs on cases that did not need one. Both directions cost something.
+4. **Behaviors the base model had.** Refusals, safety behavior, and policy compliance around the task. Qi and colleagues showed benign fine-tuning can erode them. Your suite should include the requests you never want answered.
+5. **Behavior outside the target task.** If the adapted model serves anything else, measure that too. Biderman and colleagues' "forgets less" is a comparison, not a guarantee.
+6. **Slices your data record predicted.** New accounts, new products, other languages, recent weeks. A data record that lists its gaps tells you which slices to report.
+7. **Latency and cost per completed task**, at production concurrency, on the serving path you will actually use.
+
+GitHub's completion work, from the user section above, is why the list is long: no single metric was safe to watch alone.
+
+### Aggregates hide regressions
+
+An overall score is a weighted average, and an average can rise while its most important part falls. Adaptation is especially prone to it, because training improves the common case, where most of the data is, and the case that costs most is often rare.
+
+Work one through with invented numbers. A team adapts a model to triage pull requests. The acceptance set has 1,000 of them: 950 routine changes, and 50 that touch authentication or payment code and must reach a security reviewer. The prompted model routes 855 of the 950 routine changes correctly and sends 47 of the 50 sensitive ones to security: 902 of 1,000, or 90.2 percent. The adapted model routes 930 of the 950 routine changes correctly and sends 30 of the 50 sensitive ones to security: 960 of 1,000, or 96.0 percent. The headline says the adapter is 5.8 points better.
+
+Now count the sensitive changes that skipped security review. The prompted model let 3 through. The adapted model let 20 through, almost seven times as many. Each one is a change to authentication or payment code merged without the review it needed. If one of those costs a hundred times what a misrouted routine change costs, the adapter is worse by a wide margin, and the average reported the opposite. The training data explains the direction: sensitive changes were 5 percent of it, and the optimizer improved where the other 95 percent was.
+
+Three habits prevent this.
+
+- **Set requirements per slice before the experiment.** An unsupported-answer ceiling and an escalation floor, written down beside the accuracy target, so that an average cannot override them. The Quillfern requirement in the workshop does this.
+- **Report every slice, every time.** A slice table is not an appendix. It is the result.
+- **Weight by consequence when you summarize.** If you must give one number, count the costly errors separately, or weight them by what they cost. The [Models](/modules/models) module's dashboard made the same point about an aggregate alert: a smoke detector in the wrong room.
+
+### Read the metric's definition
+
+Before you compare two numbers, read how each was computed. Adaptation reports are full of metrics that are correct as defined and blind by definition.
+
+- **Field accuracy over non-null references only.** The metric asks "when the ticket states an order number, did the model get it right?" It never asks "when the ticket states no order number, did the model invent one?" Every invented value lands in the fields the metric excluded. A model that fills every field with something can score higher on this metric than one that leaves the absent ones empty.
+- **Pass rate from a judge that scores helpfulness.** A confident, fluent, invented answer reads as helpful. The judge will pass it unless its rubric checks support against the evidence. The imitation study in the distillation section shows raters making the same mistake.
+- **Citation present.** A citation proves the model produced a link. It does not prove the cited article says what the answer claims.
+- **Accuracy on a set whose leak you have not ruled out.** Every metric computed on a contaminated set is high for the wrong reason.
+
+The workshop's records define field accuracy over every field, nulls included, and count unsupported values in a column of their own. That is the definition to ask for whenever a report gives you only the flattering one.
+
+### The cost of owning weights
+
+The second half of the fourth topic is "maintenance burden, and operational cost." This is where the forked dependency from the transfer connection gets its price. A prompt is a text file you edit and measure. An adapter is an artifact with a training pipeline, a dataset, a base it depends on, and a schedule of events that force you to rebuild it.
+
+List what you own once you adopt.
+
+- **The dataset and its pipeline.** Sampling, labeling, deduplication, splits, the data record, and the people who label. Every change to the task contract is a change to the dataset.
+- **The training pipeline.** Code, configuration, seeds, compute, and someone who can read a training curve and tell a bad run from a bad dataset.
+- **The evaluation suite, now larger.** Everything a prompted system needs, plus the slices and regression checks this module lists, run on every retrain.
+- **Serving.** A hosted adapter on the vendor's platform, with its own price and terms, or weights you serve yourself, with capacity, upgrades, and on-call. The [Inference and hosting fundamentals](/modules/inference-and-hosting) elective covers what self-serving involves.
+- **Retraining triggers.** Taxonomy changes, new products, drift in what customers ask, data deletion requests, and the base model's retirement. Each one is a training run plus a full evaluation, where the prompted alternative is often an edit.
+- **Data obligations.** Training data includes whatever your users wrote. If your organization must honor deletion requests, a deleted ticket that trained an adapter is still, in some diffuse sense, in the weights. One answer is to retrain on a schedule from the filtered data, as the Quillfern data record above and the ledger below both show. That is a recurring cost with a legal reason behind it, and your organization, not this module, decides what it requires.
+
+Here is the ledger the Quillfern team kept beside its experiment records.
+
+<Artifact id="fine-tuning-and-adaptation-ownership-ledger" level={4} />
+
+Read every row, not only the inference line. Inference is the only row where the adapter wins clearly. Most rows below it are recurring events, and in most of them the adapter's cost is a training run where the prompted options' cost is an edit. Check which prompt each candidate is served with: any fact the served prompt does not carry has to come from the weights, where only a retrain can update it. Check what the budget covers, and price the recurring rows into it. The self-hosted column shows the other direction of the trade: the weights never retire, and in exchange the serving stack becomes yours.
+
+### The base model still retires
+
+On a hosted platform, an adapted model's life is bounded by its base's life, and the platform's own life bounds both.
+
+OpenAI's documentation states the first bound. Its guides, checked on 2026-10-09, say: "All fine-tuned models will remain available for inference until their base models are deprecated." Its deprecations page shows the bound being reached. In an entry dated April 22, 2026, OpenAI listed legacy snapshots shutting down on October 23, 2026, and added: "We are also removing fine-tuned versions as below". That list names fine-tuned versions of `gpt-3.5-turbo`, `gpt-4`, `gpt-4.1-nano-2025-04-14`, `babbage-002`, and `davinci-002`, and the entry's main table adds a fine-tuned `o4-mini-2025-04-16`. The recommended replacement for each is a base model. Nothing carries the adapter forward. The same page records that history repeating: when the `/v1/fine-tunes` endpoint shut down on January 4, 2024, "models fine-tuned using the `/v1/fine-tunes` API will no longer be accessible".
+
+The second bound is the platform. The same pages carry a notice: "OpenAI is winding down the fine-tuning platform." The deprecations entry, "Update to OpenAI's self-serve fine-tuning", announced on May 7, 2026, closes job creation in stages. From that date, organizations that had not previously run fine-tuning cannot start. From July 2, 2026, organizations without recent inference on a fine-tuned model lost the ability to create jobs. On January 6, 2027, active existing customers can no longer create new fine-tuning jobs, while inference on existing fine-tuned models continues until the base models are deprecated. Those facts are as the page stated them on 2026-10-09. For an owner, the consequence is plain: an adapter on that platform can still serve, but the next retrain has to happen somewhere else.
+
+Anthropic's history shows the same structure through a partner. On July 10, 2024, Anthropic announced fine-tuning for Claude 3 Haiku in Amazon Bedrock, in preview in the US West (Oregon) region, with an update on November 1, 2024 saying it was generally available. Anthropic's deprecations page, checked on 2026-10-09, lists `claude-3-haiku-20240307` as deprecated on February 19, 2026 and retired on April 20, 2026 on Anthropic-operated platforms. The same page says that "Partner-operated platforms (Amazon Bedrock and Google Cloud) set their own retirement schedules, so a model's lifecycle status and dates can differ." So the date that governs a Bedrock fine-tune is Bedrock's, which an owner has to look up separately. The base's retirement on the vendor's own API is the signal that the clock is running.
+
+GitHub's per-customer Copilot models describe the vendor-side answer: "future custom model retrainings will automatically roll forward to these new models". When a vendor owns the pipeline, it absorbs the retrain. When you own it, the retrain is yours, on your schedule, with your evaluation.
+
+Put a number on it before you adopt. Take the base model's retirement date, or the date the platform stops training, whichever is earlier. Count the retrains you expect before then from taxonomy changes, new products, and deletions. Add one more for the successor base. Price each at a training run plus a full evaluation plus the engineer-days the ledger shows. Compare that against what the adapter saves. An adapter that saves a lot per month and must be rebuilt four times a year may still win. One that saves a little and must be rebuilt monthly does not. The comparison is the decision the book asks for: adoption or rejection, defended with "maintenance costs" as well as results.
+
+### Executed or recorded
+
+The second clause of the book's completion evidence is easy to skip and important: "distinguish executed training from analysis of recorded results." A training run is expensive and slow, so much of the evidence you will reason from was produced by someone else: a teammate's run, a vendor's report, a paper, a record in a repository. Reasoning from it is legitimate. Presenting it as your own execution is not, and neither is blurring the line.
+
+The book's project guidance says what a usable record identifies: "Supply inspectable recorded results where an expensive experiment is optional, and identify the originating code, inputs, model version, date, and environment." It is equally strict about the opposite case: "If an experiment has not been run, label it as an exercise specification instead of providing invented measurements." This module's workshop records are exercise material of that kind: synthetic, labeled as such, and not measurements of any system. And about replays: "A recorded fixture is identified as replay, not live inference."
+
+A reproducible experiment record carries:
+
+- **Run identity.** Run ids, the date, and who executed it.
+- **Code.** The commit of the training and evaluation code.
+- **Data.** The name, version, and hash of every set, with the data record that describes them.
+- **Base.** The exact base model id and its lifecycle status on the day of the run.
+- **Method and settings.** Method, rank, epochs, learning rate (the optimizer's step size), seeds, and how the checkpoint was chosen, including which set chose it.
+- **Evaluation.** The acceptance set's version and hash, the grader and its version, the number of runs, and every slice.
+- **Environment.** Hardware or platform, library versions, and the serving configuration the latency was measured on.
+
+When you write about records you did not execute, say so in the sentence that uses them. "Recorded results from runs rc-0803-s1 to s3, which we did not execute, report 94.1 percent accuracy for the returns classifier on returns-accept v2" is a claim a reviewer can check. "The returns classifier is 94 percent accurate" is a claim nobody can. The workshop asks you to write the first kind.
+
+### Releasing an adapted model
+
+An adapter that wins the comparison is a release candidate, not a release. The [Operating it](/modules/operating-it) module's [Releasing behavior, not just code](/modules/operating-it#releasing-behavior-not-just-code) applies in full, with three additions for weights.
+
+**The manifest grows.** The release records the base model id and its retirement date, the adapter version and hash, the data record version, the training configuration, the prompt the adapter is served with, the acceptance results by slice, and the fallback configuration. Any one of those changing is a new release.
+
+**The fallback is a measured configuration.** Keep the best prompted configuration deployable and measured, on the same suite, for as long as the adapter runs. It is your rollback target when the adapter regresses, your bridge while a retrain is in progress, and your continuity plan if the base retires or the tuning platform closes before a successor adapter is ready. The same Operating it section's part on the limits of rollback explains why a rollback target must be something you have actually run.
+
+**Monitoring watches the slices the adapter is weakest on.** Weights freeze the world of the training period. New products, new phrasing, and new kinds of requests arrive after it. Track the slices the data record predicted, on live traffic, and set the alert on each slice rather than on the average. A new product launch is a scheduled event: run the suite on the new product's cases before launch, not after the complaints.
+
+Stage the release as for any behavior change: shadow traffic first, scored after the fact, then a canary with a control group, then the rest, with the stop rule written before the rollout begins.
+
+### When you are the owner
+
+Pull the module together around the artifact the book asks for: a decision, adoption or rejection, defended with independent results and maintenance costs. An adaptation decision record has these parts.
+
+- **The problem.** The failure that motivated the experiment, located in the trace, and why it is a behavior failure rather than a knowledge failure.
+- **The cheaper fixes.** Instructions, examples, retrieval, tools, task design, and model choice, each with its measured result on the same suite.
+- **The requirement.** Every part of it, per slice, written before the results: accuracy, unsupported outputs, escalation, latency, cost, and data handling.
+- **The data.** The data record, its rights basis, and its stated gaps.
+- **The independence of the evaluation.** How the acceptance set was protected: frozen, hashed, unreadable by training, excluded from every generation pool, and checked by similarity. The never-seen slice and its result.
+- **The comparison.** Every configuration, with seeds and spread, per slice, with counts. Which results were executed by the author and which were recorded by someone else.
+- **The cost of ownership.** The ledger: retrain triggers and their expected frequency, the base's retirement date, the platform's terms, serving, deletion handling, and the people the adapter needs.
+- **The decision.** Adopt, adopt with conditions, or reject, and the evidence that would change it.
+- **The release plan.** The manifest, the fallback, the slices to monitor, and the retrain triggers.
+
+A rejection is a result. The book's project guidance says it plainly for the earlier selection milestone: "The candidate may be rejected if the baseline is adequate or constraints are not met." The same holds for an adapter. A team that ran a careful experiment, found that a prompted configuration with retrieved examples comes within the noise of the adapter at a fraction of the ownership cost, and wrote that down, has done the job this module teaches. So has a team that adopted an adapter with a stated fallback, a stated retrain budget, and a slice it watches every week.
+
+The talk's roadmap ends with "Add autonomy as your evals earn it." Changing parameters follows the same rule. Every step further from the vendor's model, from prompt to examples to an adapter to weights you serve yourself, adds something you own. Take each step only when an independent measurement says it pays for what it costs, and keep the cheaper step running beside it until you are sure.
 
 ## Workshop
 
 <Workshop>
 
-The workshop will be an analysis exercise on provided artifacts. No code. It will state the task in one paragraph and give a rubric.
+<Artifact id="fine-tuning-and-adaptation-data-record" />
+
+<Artifact id="fine-tuning-and-adaptation-experiment-records" />
+
+<Artifact id="fine-tuning-and-adaptation-ownership-ledger" />
+
+You own Quillfern's ticket intake. Production runs P0, which meets the quality requirement and breaks the latency and budget lines, and the team wants a decision this week on whether to adopt one of the two adapters, adopt one with conditions, or reject both and keep working without training. The data record, the records, and the ledger above are synthetic, and even within the exercise you did not run the experiments: treat the results as recorded by another team, and the ledger as that team's estimates. Write the Comparison, Cost of ownership, and Decision parts of an adaptation decision record, in 300 to 450 words in total: check every configuration against every line of the requirement, say which configurations are out and why, read the remaining differences against their spread and counts, explain what the slices tell you and what you would change before any release, weigh what the adapter saves against what it costs to own, and state your decision with the evidence that would change it. No code. Your response is saved to your account and never graded. Apply the rubric below to it yourself.
+
+- States that the results are recorded and synthetic, not executed by you, and cites run ids or set versions when it uses a number.
+- Checks every configuration against all eight lines of the requirement, numeric and data handling, not only queue accuracy.
+- Removes P0, P1, and P2 with the specific requirement each fails, rather than by overall score.
+- Notices that A2 beats A1 on queue and field accuracy but fails the unsupported-value and `needs_human` lines, and connects that to how the teacher-labeled tickets were filtered.
+- Reads A1's margins as counts, seed by seed: mean security recall at 49 of 50 is exactly at the floor, `needs_human` at 41 of 48 is one case above it, and 0.9 percent unsupported is about 7 of 760 fields, one value from the limit. Asks whether every seed meets every line, and notes that shipping the one seed that does, chosen by its acceptance result, would be selection on the acceptance set.
+- Connects the Teams Plus slice to the dropped plan catalog and to the gap the data record predicted, and proposes a measured fix before release.
+- Uses the ledger: names the retrain triggers, prices the weekly deletion retrain, checks A1's monthly total against the budget with one seed and with three, and notes the base model's retirement date and the tuning terms.
+- Ends with a decision, a fallback configuration, and the result that would reverse the decision.
 
 </Workshop>
 
@@ -42,11 +750,25 @@ The workshop will be an analysis exercise on provided artifacts. No code. It wil
 
 <FailureExercise>
 
-The failure exercise will plant a failure in an artifact and ask you to find it and explain it.
+<Artifact id="fine-tuning-and-adaptation-distillation-report" />
+
+This report recommends replacing the production help answers on 2026-10-20. The author believes the student is better and the evaluation is clean. Using the report alone, would you approve the switch? In a few sentences, point to the lines that decide it and say what would have to change.
 
 <Fragment slot="explanation">
 
-The explanation appears here after a response is saved.
+Two failures are planted, and both push the headline in the flattering direction. One is a regression hidden by an aggregate. The other is an evaluation leak.
+
+Start with the regression. The pass rate rose 4.4 points, and the appendix shows where that came from. On the 60 unanswerable questions, production said it could not find the answer 51 times. The student said so 9 times. The student's 26 passes on those questions therefore include 17 answers to questions the help center does not cover, which the judge scored 4 or 5 out of 5. The judge's rubric scores helpfulness, clarity, and tone. Nothing in it checks whether an answer is supported by the articles, so a fluent invented procedure passes. The human check on shadow traffic confirms it: 9.4 percent of the student's claims were not supported by the supplied articles, three times production's 3.1 percent. "Answers with a citation: 99%" says nothing about support. This is the book's failure exactly: "Task-specific accuracy improves while unsupported answers increase".
+
+The training data section shows how the student learned it. The filter kept teacher answers the same judge scored 4 or above. Abstentions do not score as helpful, so the kept set has 41 of them in 8,120, half a percent. The student was trained on data in which the honest answer almost never appears. It learned to answer.
+
+Now the leak. The eval set is 500 questions sampled from qbank v2. The 2,500 synthetic training prompts are paraphrases of 500 seed questions sampled from the same qbank v2, with a different random seed and no exclusion. Two independent samples of 500 from 1,180 questions share about 212 questions on average, since 500 times 500 divided by 1,180 is about 212. So roughly 200 eval questions probably reached training as five paraphrases each, with the teacher's answers as targets. The overlap check was exact match, and paraphrases never match exactly. That is the failure Yang and colleagues measured: rephrased test items pass the check and still teach the answers. The conclusion's sentence "No training question appears in the eval set" claims more than an exact-match check can show.
+
+The report contains the tell. The student's overall pass rate falls from 92.4 percent on the eval set to 84.0 percent on 200 live questions from shadow traffic, a drop of 8.4 points. Production's falls from 88.0 to 86.5, a drop of 1.5 points. Both systems face the same live mix, including questions the help center does not cover, so the student's abstention regression explains part of its drop. It does not explain a drop more than five times production's. A gap that large between the eval set and fresh traffic, in one system only, is the signature of a set the system has seen.
+
+Three smaller gaps sit underneath. There is no small-model prompted baseline, so the report cannot say how much of the gain needed training at all. The student was trained once, with no seed spread. And the requirement never states an abstention floor or an unsupported-claim ceiling, which is how a 42-question collapse in correct handoffs became a footnote.
+
+What would have to change: rebuild the acceptance set from questions excluded from every generation pool, or from fresh logged questions after the training period, and check it by similarity against all training prompts. Write per-slice requirements for abstention on unanswerable questions and for unsupported claims before rerunning. Replace or extend the judge's rubric so it checks support against the supplied articles, and calibrate it against human labels. Rebuild the filter so the teacher's correct abstentions are kept in their production proportion, and count them in the kept set. Add the prompted small model as a baseline and train at least three seeds. On the evidence in this report, the decision for 2026-10-20 is not to replace production.
 
 </Fragment>
 

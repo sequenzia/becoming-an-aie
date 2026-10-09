@@ -77,7 +77,10 @@ const plannedCount = modules.filter((entry) => !isPublished(entry)).length;
 
     <h2>The modules</h2>
     <p>
-      {modules.length} modules are planned. Each opens when its content is ready{plannedCount === modules.length ? ', and none has opened yet' : ''}. The list below is the plan of record, read from the program's content files. Area modules carry the talk's takeaway line.
+      {plannedCount > 0
+        ? `${modules.length} modules are planned. Each opens when its content is ready${plannedCount === modules.length ? ', and none has opened yet' : ''}. The list below is the plan of record, read from the program's content files.`
+        : `${modules.length} modules are published. The list below is read from the program's content files.`}{' '}
+      Area modules carry the talk's takeaway line.
     </p>
     {groups.map((group) => (
       <Fragment>

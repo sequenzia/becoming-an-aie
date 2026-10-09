@@ -4,13 +4,13 @@ kind: closing
 area: none
 order: 0
 summary: "Rate yourself on what transfers and what is new in each area, then get a four-step plan for the areas with the largest gaps."
-readingMinutes: 20
+readingMinutes: 10
 prerequisites: [models, context-and-knowledge, tools-and-extensibility, orchestration, verification-and-evals, operating-it]
 talkBeats: ["3.1", "3.2", "3.4"]
 bookChapters: []
-draft: true
-updatedOn: 2026-09-16
-checkedOn: 2026-09-16
+draft: false
+updatedOn: 2026-10-09
+checkedOn: 2026-10-09
 staleAfterDays: 90
 assessment:
   contextQuestions:
@@ -30,17 +30,17 @@ assessment:
           text: "Cost and latency as design constraints."
       steps:
         - step: 1
-          text: "Placeholder step for {feature}."
-          href: /modules/models#topics-and-learning-outcomes
+          text: "Take them as the model returns them from {feature}, and tag each failure by mode: an unsupported claim, a fact missed in a long input, an answer that changes between runs. Those tags name the cases your first model eval must hold."
+          href: /modules/models#how-models-fail-in-one-page
         - step: 2
-          text: "Placeholder step for {feature}."
-          href: /modules/models#workshop
+          text: "Pin one configuration for {feature}: one model ID, one effort setting, one prompt version, all named in one configuration file. A second model or a router waits until it beats that configuration on your cases."
+          href: /modules/models#route-when-more-than-one-model-earns-its-place
         - step: 3
-          text: "Placeholder step for {feature}."
-          href: /modules/models#failure-exercise
+          text: "Find out which model ID sits behind {feature}. Is it a pinned version or a moving alias? Write down its retirement date. Then own the matching check: a migration runbook for a pin, scheduled regression monitoring for an alias."
+          href: /modules/models#pinned-version-or-moving-alias
         - step: 4
-          text: "Placeholder step for {feature}."
-          href: /modules/models#completion-evidence
+          text: "Turn the tagged outputs into a case set with outcome checks before you change the model, effort, or routing of {feature}. A cheaper model or a new snapshot ships only after the suite runs on both configurations, per category."
+          href: /modules/models#the-migration-step-by-step
     - area: context
       moduleSlug: context-and-knowledge
       transfers:
@@ -51,17 +51,17 @@ assessment:
           text: "Context engineering."
       steps:
         - step: 1
-          text: "Placeholder step for {feature}."
-          href: /modules/context-and-knowledge#topics-and-learning-outcomes
+          text: "For each output of {feature}, read the actual input the model saw, not only the answer. Tag what you find: poisoning, distraction, confusion, clash, or evidence that was missing."
+          href: /modules/context-and-knowledge#how-context-fails
         - step: 2
-          text: "Placeholder step for {feature}."
-          href: /modules/context-and-knowledge#workshop
+          text: "Write a context budget for the main call in {feature}: what enters, a ceiling for each part, and the access and version filters applied in code before inclusion. One call with selected retrieval and a few examples comes before memory or long histories."
+          href: /modules/context-and-knowledge#constructing-the-context-for-one-call
         - step: 3
-          text: "Placeholder step for {feature}."
-          href: /modules/context-and-knowledge#failure-exercise
+          text: "Write the compaction policy and memory convention yourself instead of inheriting a default, for {feature}: what is kept raw, what is pinned, what is read back from the system of record, and what expires."
+          href: /modules/context-and-knowledge#state-memory-and-compaction
         - step: 4
-          text: "Placeholder step for {feature}."
-          href: /modules/context-and-knowledge#completion-evidence
+          text: "Remove before you add. When you do add a source, a memory, or a longer history, write the eval cases that cover it first: retrieval cases, constraint-survival cases across compaction, and tenant-isolation cases for {feature}."
+          href: /modules/context-and-knowledge#when-you-are-the-owner
     - area: tools
       moduleSlug: tools-and-extensibility
       transfers:
@@ -72,17 +72,17 @@ assessment:
           text: "Tool design, for a caller that reads the description every time."
       steps:
         - step: 1
-          text: "Placeholder step for {feature}."
-          href: /modules/tools-and-extensibility#topics-and-learning-outcomes
+          text: "Read the tool calls behind each output of {feature}: which tool the model picked, with what arguments, and what came back. Mark every wrong pick, every ID carried between calls, and every result too large to use."
+          href: /modules/tools-and-extensibility#task-fit-and-granularity
         - step: 2
-          text: "Placeholder step for {feature}."
-          href: /modules/tools-and-extensibility#workshop
+          text: "Cover what you read with the fewest task-shaped tools in {feature}, scoped reads first. Hold reversible changes and consequential actions until each has its control."
+          href: /modules/tools-and-extensibility#three-kinds-of-action
         - step: 3
-          text: "Placeholder step for {feature}."
-          href: /modules/tools-and-extensibility#failure-exercise
+          text: "Write each tool description as a prompt for the model that calls it in {feature}. Enforce identity and permission in the code behind the tool. A rule written only in a description is guidance, not a control."
+          href: /modules/tools-and-extensibility#authorization-lives-outside-the-model
         - step: 4
-          text: "Placeholder step for {feature}."
-          href: /modules/tools-and-extensibility#completion-evidence
+          text: "Before you add a tool, a server, or an action without approval to {feature}, run a task-based eval that checks outcomes in the system of record. Rerun it when a description, schema, or model changes."
+          href: /modules/tools-and-extensibility#descriptions-are-prompts-and-prompts-need-evals
     - area: orchestration
       moduleSlug: orchestration
       transfers:
@@ -93,17 +93,17 @@ assessment:
           text: "Harness and loop design."
       steps:
         - step: 1
-          text: "Placeholder step for {feature}."
-          href: /modules/orchestration#topics-and-learning-outcomes
+          text: "Read the trace of each run of {feature}: which code or model chose each step, why the run stopped, and what it spent. Mark every run that ended on a limit, a timeout, or a success claim nothing checked."
+          href: /modules/orchestration#tracing-the-loop
         - step: 2
-          text: "Placeholder step for {feature}."
-          href: /modules/orchestration#workshop
+          text: "Draw a workflow for {feature}: predefined code paths, with a gate in code after each model step. If it meets the requirement, stop there: that is a finished system."
+          href: /modules/orchestration#workflows-and-agents
         - step: 3
-          text: "Placeholder step for {feature}."
-          href: /modules/orchestration#failure-exercise
+          text: "In your own code, write the state, retries, idempotency keys, stop conditions, and budgets for {feature}, so you can say why any run stopped. Judge any framework against that code before you adopt it."
+          href: /modules/orchestration#owning-the-loop
         - step: 4
-          text: "Placeholder step for {feature}."
-          href: /modules/orchestration#completion-evidence
+          text: "Find the one stage where the next step depends on evidence in the traces of {feature}. Turn only that stage into a bounded loop, and compare it with the workflow on the same cases and budget. A second agent needs the same comparison."
+          href: /modules/orchestration#a-worked-design-from-workflow-to-loop
     - area: evals
       moduleSlug: verification-and-evals
       transfers:
@@ -114,17 +114,17 @@ assessment:
           text: "Evals and error analysis."
       steps:
         - step: 1
-          text: "Placeholder step for {feature}."
-          href: /modules/verification-and-evals#topics-and-learning-outcomes
+          text: "For each output of {feature}, write one short note on the first thing that went wrong. Group the notes into a failure taxonomy and count each category: that table is your first eval."
+          href: /modules/verification-and-evals#error-analysis-before-infrastructure
         - step: 2
-          text: "Placeholder step for {feature}."
-          href: /modules/verification-and-evals#workshop
+          text: "For the most frequent failure in {feature}, write one check in code that reads the outcome in the system of record, not the success sentence in the transcript. Add a model judge only for a quality code cannot check."
+          href: /modules/verification-and-evals#check-the-result-inspect-the-trace
         - step: 3
-          text: "Placeholder step for {feature}."
-          href: /modules/verification-and-evals#failure-exercise
+          text: "Own the eval data and graders for {feature}: cases from requirements and real failures, negative cases, a held-out set, and any judge calibrated against an expert. Keep them versioned in a form you control."
+          href: /modules/verification-and-evals#designing-eval-data
         - step: 4
-          text: "Placeholder step for {feature}."
-          href: /modules/verification-and-evals#completion-evidence
+          text: "Before you reduce review on any action in {feature}, put a verifier in the loop for that action and measure it across repeated trials. Then run the regression suite on every change and grade sampled production traffic each week."
+          href: /modules/verification-and-evals#keep-both-checks-running
     - area: operating
       moduleSlug: operating-it
       transfers:
@@ -141,17 +141,17 @@ assessment:
           text: "Cost and latency as design constraints."
       steps:
         - step: 1
-          text: "Placeholder step for {feature}."
-          href: /modules/operating-it#topics-and-learning-outcomes
+          text: "Pull the full trace behind each output of {feature}. Read it as an operator: what the run cost, how long it took, which configuration produced it, and what message content the trace kept. A run you cannot reconstruct is your first finding."
+          href: /modules/operating-it#observability-with-a-new-schema
         - step: 2
-          text: "Placeholder step for {feature}."
-          href: /modules/operating-it#workshop
+          text: "List every tool and data source in {feature} and mark each for private data, untrusted content, and external communication. Start with the smallest set, with credentials scoped to the user, and break any complete path outside the model."
+          href: /modules/operating-it#the-lethal-trifecta
         - step: 3
-          text: "Placeholder step for {feature}."
-          href: /modules/operating-it#failure-exercise
+          text: "Write one release manifest that names the prompt, model, index, tool, and router versions of {feature}, and make every trace carry it. Track cost per completed task, with p95 and p99 tokens, beside it."
+          href: /modules/operating-it#releasing-behavior-not-just-code
         - step: 4
-          text: "Placeholder step for {feature}."
-          href: /modules/operating-it#completion-evidence
+          text: "Pick one action in {feature}. Move it from human approval to async review or enforced policy only when a quality signal and a canary are in place to detect a regression. Name who answers the page for a quality incident."
+          href: /modules/operating-it#you-own-the-approval-process
   roadmap:
     - step: 1
       title: "Look before you build."
@@ -166,25 +166,163 @@ assessment:
       title: "Add autonomy as your evals earn it."
       subline: "Every step up is paid for by a check that catches what it breaks."
   uniformHigh:
-    text: "You rated every item Confident. The electives and the book blueprint's build track are the next step."
+    text: "You rated every item Confident, in all six areas. There is no gap for this plan to rank, so it names no focus areas. The next step is depth: the electives. Reread the roadmap before you start, and retake this assessment when your work changes."
     links:
       - text: "Browse the electives"
         href: /modules#electives
+      - text: "Reread the roadmap in Orientation"
+        href: /modules/orientation#the-roadmap
+sources:
+  - title: Beyond the Coding Agent, the talk repository
+    author: Stephen Sequenzia
+    date: "2026-09"
+    url: https://github.com/sequenzia/beyond-the-coding-agent
+    checkedOn: 2026-10-09
+    note: "Section 3, beats 3.1, 3.2, and 3.4 (slides 21, 22, and 24): the transfer table, the seven competencies, and the four roadmap steps with their sublines, as recorded in the program's talk knowledge base from commit 323bc2e. The repository was read again on 2026-10-09 at commit d90f230, where a later revision rewords the roadmap as four different steps. This module keeps the wording the talk delivered."
+  - title: Becoming an AI Engineer, the book blueprint
+    date: "2026-09"
+    checkedOn: 2026-10-09
+    note: "The project and assessment design, read from the local copy: the recurring support application and its five stages. The public link is pending."
+  - title: "AI Evals: Everything You Need to Know"
+    author: Hamel Husain and Shreya Shankar
+    date: "2026-09-18"
+    url: https://hamel.dev/blog/posts/evals-faq/
+    checkedOn: 2026-10-09
+    note: "Published 2026-09-18, modified 2026-09-21. The source of roadmap step 1: start with error analysis, not infrastructure."
+  - title: Building effective agents
+    org: Anthropic
+    author: Erik Schluntz and Barry Zhang
+    date: "2024-12-19"
+    url: https://www.anthropic.com/engineering/building-effective-agents
+    checkedOn: 2026-10-09
+  - title: 12-Factor Agents
+    author: Dex Horthy, HumanLayer
+    date: "2025"
+    url: https://github.com/humanlayer/12-factor-agents
+    checkedOn: 2026-10-09
+    note: "A living repository with no publication date. Factors 2, 3, and 8 are the source of the talk's own-the-harness line."
 ---
+
+You have read the six areas. This module turns them into a plan for your own work. The reading is here. The tool is at [the self-assessment page](/assessment), which needs you signed in, because it saves your answers and your plan to your account.
+
+The talk's Section 3 gives the frame. It says what transfers from the engineering you already do, what is new, and what to do next. Its line for the first part: "You are not starting over. You are adding a layer." The assessment asks where you stand on both, area by area, and writes the talk's four steps out for the areas where the layer is thinnest.
 
 ## How the assessment works
 
-This module is planned. It is not yet written. This page holds its place in the catalog until it is.
+The tool has eight steps: your context, one step per area in the talk's order, then the plan. You can go back to any step before you generate it.
 
-The assessment walks through the six areas in talk order. For each area it presents the transfer items and the new competencies and asks for a rating on a four-point scale: Not yet, Aware, Practiced, Confident. Three context questions come with it: your current role, the AI feature you are closest to at work, and whether you own a model-dependent system today. The plan ranks the areas by gap and applies the talk's four-step roadmap to your context.
+### The context questions
+
+Three questions come first, word for word as the tool asks them.
+
+1. "What is your current role?" Optional. It is recorded in your plan's context section.
+2. "Which AI feature are you closest to at work?" Optional, and the most useful answer you will give. Every step of your plan names it. Leave it blank and the plan says "the AI feature you are closest to" instead.
+3. "Do you own a model-dependent system today?" Required: Yes, No, or Partly.
+
+The third answer changes the plan's opening line. Yes: start step 1 on that system this week, beginning with your feature. Partly: you share responsibility, so start step 1 on the part you can change. No: start step 1 on your feature as an observer, then build the smallest constrained version yourself. The steps are the same in all three cases. Where you start them is not.
+
+If you answered No, step 1 is the only step you take on the real feature. Take steps 2 to 4 on the small constrained version you build, because a release manifest or a scoped credential needs a system you can change. If you cannot get production outputs at all, run 20 to 50 realistic inputs through the feature yourself and read those.
+
+### The scale
+
+Each area step shows two groups of items. Under "What transfers" sit the rows of the talk's transfer table that the area expands. Under "What is new" sit the talk's competencies that live in that area. You rate every item on four points: Not yet, Aware, Practiced, Confident. The tool will not move past an unrated item. It names the item and puts the focus on it.
+
+The labels are the tool's. What they mean is up to you, so here is the reading this program suggests. Not yet: you could not explain it to a colleague. Aware: you can explain it, and you have not done it. Practiced: you have done it, in this program's workshops or on a system nobody depends on. Confident: you have done it on a system people depend on, and you could review someone else's work on it. Rate what you have done, not what you understood while reading. Reading the Models module does not make you confident about a migration you have never run.
+
+### How the plan ranks the areas
+
+Each rating becomes a gap: Confident 0, Practiced 1, Aware 2, Not yet 3. The tool averages the gaps for each group in each area. An area's score is twice its average gap on what is new, plus its average gap on what transfers. The highest possible score is 9.
+
+**What is new weighs double.** That is the talk's frame turned into arithmetic. The transfer rows are habits you already carry from ordinary software. The competencies are the layer you are adding. A gap there is the one this program exists to close.
+
+A worked example. Suppose that in Operating it you rate Observability and Operations Practiced and Security and least privilege Aware. Your transfer gaps are 1, 1, and 2, an average of 1.333. You rate AI security Not yet and Cost and latency Aware. Your new gaps are 3 and 2, an average of 2.5. The score is 2 times 2.5 plus 1.333, or 6.333. In Models you rate Testing discipline Confident, Model behavior intuition Practiced, and Cost and latency Aware. That scores 2 times 1.5 plus 0, or 3. Operating it ranks above Models.
+
+When two areas tie, the larger gap on what is new goes first, then the talk's order. The plan shows all six areas in a table with both gaps and the score, so you can see why it chose what it chose.
+
+### The four steps, applied
+
+The plan takes the three highest-ranked areas with any gap at all as your focus areas. If only two areas have a gap, you get two. For each focus area it writes out the talk's roadmap. The step names and the first three sublines are the slide's, verbatim. Step 4's line is the sentence the talk speaks for it.
+
+1. **Look before you build.** Monday: review 20 to 50 outputs by hand.
+2. **Start constrained.** One call. Then a workflow. Then a loop, only when it earns it.
+3. **Own the harness.** Prompts, context window, control flow. Learn the loop before a framework.
+4. **Add autonomy as your evals earn it.** Every step up is paid for by a check that catches what it breaks.
+
+After each subline the plan adds a sentence or two that apply that step to that area, for your feature, and a link to the section of the area module that teaches it. In Verification and evals, step 1 becomes a note on the first thing that went wrong in each output, grouped into a failure taxonomy. In Tools and extensibility, it becomes reading the tool calls behind each output.
+
+The steps come from Hamel Husain and Shreya Shankar, from Anthropic, and from Dex Horthy's 12-Factor Agents, and step 4 is the talk's own. [Orientation](/modules/orientation#the-roadmap) covers each.
+
+No model writes your plan. The same answers always give the same plan. Each area has four fixed steps, written for this program, and the tool fills in your feature. Your role is recorded in the plan's context section and changes nothing else. The ranking is only as good as your ratings, and nothing checks them. It also does not know how the areas depend on each other: Operating it leans on Verification and evals, for one. An area ranked fourth can trail the third by a fraction and still drop out of the focus. Read the table, not only the top three.
+
+Twelve steps is a lot, so take them in this order. Step 1 is one review, not three. Pull the outputs once and read them with each focus area's step 1 in hand: failures for one area, inputs for another, tool calls or traces for a third. Then take steps 2 to 4 one area at a time, in the plan's order. Retake the assessment when step 4 of the first area is done.
+
+Step 2 is a place you may stay. A constrained workflow that meets its requirement is a finished system, and nothing in the plan asks you to climb past it.
 
 ## The six areas
 
-Models, Context and knowledge, Tools and extensibility, Orchestration, Verification and evals, Operating it. Each area's items are listed in this module's frontmatter, so the assessment and this page cannot drift apart.
+Here are the items you will rate, area by area in the talk's order, with what a Confident rating means in each. On a transfer item, Confident means the habit is already yours in ordinary software and you have seen how this area changes it. The sentences below are about the new items, where the line is harder to draw.
+
+### Models
+
+[Models](/modules/models). What transfers: Testing discipline. What is new: Model behavior intuition, informed by reading outputs, and Cost and latency as design constraints.
+
+Confident means you have chosen or replaced a model for a real system on your own cases, read the result per category against the run-to-run noise, and written down which configuration you chose, what you could not measure, and the checks for the next migration. On cost and latency, Confident means you have chosen or rejected a model on cost and latency you measured for your cases, not on list price.
+
+### Context and knowledge
+
+[Context and knowledge](/modules/context-and-knowledge). What transfers: Decomposition and systems thinking. What is new: Context engineering.
+
+Confident means you can put the actual input of a failing call beside its answer, name the failure, and fix the rule that caused it, and that your system has a written context budget and compaction policy that tests check.
+
+### Tools and extensibility
+
+[Tools and extensibility](/modules/tools-and-extensibility). What transfers: Interface design. What is new: Tool design, for a caller that reads the description every time.
+
+Confident means you have designed tools from representative tasks rather than from an API surface, kept their descriptions under a task-based eval, and enforced identity and permission in code outside the model.
+
+### Orchestration
+
+[Orchestration](/modules/orchestration). What transfers: Decomposition and systems thinking. What is new: Harness and loop design.
+
+Confident means you have shipped a workflow with gates before any loop, and that for any run of a loop you own, you can say which code decided each step, why it stopped, and what it spent.
+
+### Verification and evals
+
+[Verification and evals](/modules/verification-and-evals). What transfers: Testing discipline. What is new: Evals and error analysis.
+
+Confident means you have built a failure taxonomy from real traces, written checks that read the outcome rather than the transcript, calibrated a judge against an expert, and kept a suite running after launch.
+
+### Operating it
+
+[Operating it](/modules/operating-it). What transfers: Observability; Security and least privilege; and Operations: cost, latency, incidents, rollback. What is new: AI security, where the attack surface is the model's reasoning, and Cost and latency as design constraints.
+
+Confident means you can trace one run from request to outcome, state its cost per completed task, mark every capability against the lethal trifecta, and name who approves each consequential action.
+
+Two things in this list are deliberate. Cost and latency appears twice, in Models and in Operating it, as two separate ratings, because the talk spreads it across selection and production. Rate it in Models for how you choose, and in Operating it for how you run. And the competencies carry no rank. The talk lists them unranked, and the plan ranks your gaps, not the competencies.
+
+When you are ready, open [the self-assessment](/assessment).
 
 ## After the plan
 
-The plan is saved to your account, editable, and exportable as Markdown. A retake keeps the previous plan as a dated version. Completing the assessment does not require completing every area module; the plan names the ones you have not finished. An optional feedback form closes the module.
+Generating the plan completes this module. The plan is saved to your account as a numbered version, version 1 the first time.
+
+**Edit it.** Under the plan sits its text in Markdown, in an editor. Reword a step, add a date, delete what you have covered. Save edits writes to your latest version. The ranked table and the focus areas do not change when you edit; only the text does. Earlier versions are read-only.
+
+**Export it.** Download as Markdown saves your text exactly as you saved it, as ai-engineering-plan-v1.md for version 1. Its links are absolute, so the file stands on its own.
+
+**Retake it.** Retake the assessment starts again from the context step, with your last answers filled in. Generating a new plan saves a new version. The old one stays, with its date, in the list of previous versions, and each can be downloaded. Retake when your work changes: a new feature, a new role, a system you now own. Comparing two versions is the honest way to see what moved. The new version starts from a freshly written plan. Your edits stay with the old version, so download it first if you want to copy them across.
+
+**Finish what is open.** You can take the assessment before every area module is complete. The tool tells you which ones are not, and the plan lists each as a next step, "Complete" followed by the module's title, with a link. A gap you rated from an unfinished module is a guess. Finish the module and retake.
+
+**If you rated everything Confident.** The plan has no gap to rank, so it names no focus areas. It says so, and it points you to the electives. It also links back to [the roadmap](/modules/orientation#the-roadmap). One check before you accept that result: reread the scale. Confident means a system people depend on. If that is true in all six areas, the [electives](/modules#electives) are where to go deeper. The book that pairs with the talk goes further still: its project grows one support application through five stages, from measurable extraction to a monitored release. Its public link is pending.
+
+**Tell us what changed.** Below the tool on the assessment page is an optional feedback form. It is anonymous: it is stored without your account, it is not shown on your account page, and it is not deleted with your account, because nothing links it to you. Write what the program changed in how you work, or what it missed. It is how the program measures, in learners' own words, whether it did its job.
+
+Then start step 1 this week. Take the outputs of your feature and read them by hand, once, with every focus area in mind. The talk's two closing sentences say why it matters.
+
+> Using AI makes you an AI-enabled software engineer.
+>
+> Engineering systems that depend on AI makes you an AI engineer.
 
 ## Sources
 

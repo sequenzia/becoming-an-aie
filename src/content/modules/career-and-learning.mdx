@@ -3,38 +3,839 @@ title: "Building your career and continuing to learn"
 kind: elective
 area: none
 order: 5
-summary: "Competence shown through systems built, failures diagnosed, and decisions defended. Reading papers critically and choosing deeper paths."
-readingMinutes: 45
+summary: "Keep learning as models change: read outputs, keep a personal eval set, follow primary sources, tell a durable skill from an expiring tool fact, and show competence with evidence. No promise of a job or a title."
+readingMinutes: 48
 prerequisites: []
 talkBeats: []
 bookChapters: [30]
-draft: true
-updatedOn: 2026-09-16
-checkedOn: 2026-09-16
+draft: false
+updatedOn: 2026-10-09
+checkedOn: 2026-10-09
 staleAfterDays: 90
-artifacts: []
-outcomes: []
-selfCheck: []
-sources: []
+artifacts: [career-and-learning-personal-eval-set, career-and-learning-case-study-a, career-and-learning-case-study-b, career-and-learning-learning-plan]
+outcomes:
+  - id: competence-evidence
+    text: Describe competence as systems built, failures diagnosed, and decisions defended, and say why this program certifies nothing.
+  - id: durable-or-expiring
+    text: Tell a durable skill from a tool fact with an expiry date, and record every tool fact you keep with its name, version, and checked date.
+  - id: reading-outputs
+    text: Keep reading outputs as a standing practice, and turn what you read into categories and checks.
+  - id: personal-eval-set
+    text: Build and maintain a personal eval set that lets you judge a new model or tool release on your own cases.
+  - id: primary-sources
+    text: Follow primary sources, and read a paper or a vendor post for its task, baseline, method, result, limitations, and applicability.
+  - id: portfolio-evidence
+    text: Present a project as reproducible experiments, diagnosed failures, and stated limitations instead of a headline.
+  - id: describe-without-overclaiming
+    text: Describe your AI engineering work in a role, a resume, and an interview without overclaiming.
+  - id: learning-plan
+    text: Write a learning plan linked to observed gaps, and choose a deeper path on evidence.
+selfCheck:
+  - id: q1-hiring
+    outcome: competence-evidence
+    question: "In the talk's answer to \"How do I get hired as an AI engineer?\", what demonstrates competence?"
+    options:
+      - "A list of the frameworks and models you have used"
+      - "A small system, its failure cases, its evals, and improvements justified by evidence"
+      - "Hiring figures that show demand for the role"
+      - "A completion record from a course or a program"
+    correct: [1]
+    feedback:
+      - "Not yet. A list of tools says what you touched, not what you can do with a system that fails. Reread A case study, section by section."
+      - "Correct. The talk adds: show that you can investigate failures and operate within clear limits."
+      - "Not yet. The talk keeps hiring figures as optional backup context, \"not the evidence of your competence.\" Reread What this module can and cannot promise."
+      - "Not yet. A completion record says you finished material. This program certifies nothing. Reread What this module can and cannot promise."
+  - id: q2-certify
+    outcome: competence-evidence
+    question: "What does completing the modules of this program establish?"
+    options:
+      - "A credential that qualifies you for an AI engineer title"
+      - "Progress through the material, recorded in your account, and nothing more"
+      - "Evidence an employer can rely on that you can build and operate a model-dependent system"
+    correct: [1]
+    feedback:
+      - "Not yet. The program issues no credential. The book's standard is \"not a universal credential or a promise of employment.\" Reread What this module can and cannot promise."
+      - "Correct. Competence is shown in work someone else can inspect, not in a completion record."
+      - "Not yet. An employer can rely on work they can inspect. A completion record shows that you read the material, not what you can do with a system that fails. Reread What this module can and cannot promise."
+  - id: q3-expiring
+    outcome: durable-or-expiring
+    question: "Which of these are tool facts with an expiry date?"
+    options:
+      - "In Codex CLI, model_reasoning_effort accepts minimal."
+      - "Reasoning effort is a cost and latency dial."
+      - "In Devin CLI, /fast switches to SWE-1.6 Fast."
+      - "Cost per completed task counts the retries and the failures."
+      - "Anthropic's API returns a 400 error for a non-default temperature on Claude 4.7 and later models."
+    correct: [0, 2, 4]
+    feedback:
+      - "Correct. The talk research recorded minimal in OpenAI's configuration reference on 2026-09-14. On 2026-10-09 the same reference gave low, medium, high, xhigh, max, and ultra as examples and no longer named minimal. The documented list changed in under four weeks."
+      - "Not yet. That is a mechanism. It holds in every tool with an effort setting. Reread Durable skills and tool facts."
+      - "Correct. A command name, a model name, and a version, in one vendor's tool. Codex's /fast does something else."
+      - "Not yet. That is a method of measurement. It does not depend on any vendor. Reread Durable skills and tool facts."
+      - "Correct. A parameter behavior on a range of models, true on the day checked. It did not hold for earlier models."
+  - id: q4-record
+    outcome: durable-or-expiring
+    question: "You want to keep a tool fact in your notes. How should you record it?"
+    options:
+      - "As a rule to follow, such as \"use --draft for cheap runs\""
+      - "With the tool's name, the version, the date you checked it, and the source"
+      - "With the tool's name and the fact. The version is in the changelog anyway."
+    correct: [1]
+    feedback:
+      - "Not yet. A rule with no version and no date looks true forever. Reread How to keep a tool fact."
+      - "Correct. A dated fact tells you when to check it again. An undated one tells you nothing about whether it still holds."
+      - "Not yet. Without the version and the date you checked, you cannot tell which changelog entry your note predates. Reread How to keep a tool fact."
+  - id: q5-reading
+    outcome: reading-outputs
+    question: "Husain and Shankar's evals guide, read on 2026-10-09, says to spend 30 minutes reviewing 20 to 50 outputs. When?"
+    options:
+      - "Once, at the start of a project"
+      - "Whenever you make significant changes"
+      - "Before each release to production, and only then"
+    correct: [1]
+    feedback:
+      - "Not yet. The first review is the start, not the end. Reread Reading outputs as a standing practice."
+      - "Correct. A model release, a new prompt, and a new tool are all significant changes. Reading is a recurring practice."
+      - "Not yet. A release is one significant change, not the only one. A new model, a new prompt, or a new tool can arrive between releases. Reread Reading outputs as a standing practice."
+  - id: q6-note-to-check
+    outcome: reading-outputs
+    question: "You read 30 outputs from a summarizer and write a note on each. What turns those notes into something that outlasts the next model release?"
+    options:
+      - "Group them into failure categories with counts, and turn the category you choose to fix into cases with a check"
+      - "Keep the best and worst examples in a slide deck"
+      - "Switch to a newer model so the failures go away"
+    correct: [0]
+    feedback:
+      - "Correct. Categories with counts tell you what to fix. Cases with checks tell you, on the next release, whether the fix still holds."
+      - "Not yet. Examples persuade. They do not measure. Reread From a reading note to a check."
+      - "Not yet. A new model changes which failures you see. Without cases you cannot tell whether yours are gone. Reread From a reading note to a check."
+  - id: q7-eval-set
+    outcome: personal-eval-set
+    question: "On your personal eval set, a new release raises the total from a mean of 19.0 to 20.7 out of 24. Runs vary by 1 to 2 cases. The unsupported category falls from about 4 of 4 to about 2 of 4 on every run. What do you conclude?"
+    options:
+      - "The new release is better. Switch."
+      - "The total change is within run variation. The unsupported drop repeats across runs, so add cases there before deciding."
+      - "Ignore the unsupported category. Four cases are too few to matter."
+    correct: [1]
+    feedback:
+      - "Not yet. A 1.7-case gain against 1 to 2 cases of noise is not established, and a category fell. Reread Reading a run of your own set."
+      - "Correct. Too few cases to settle the question, enough to tell you where to look. Read the failures and grow that category."
+      - "Not yet. Four cases are too few to settle it and enough to tell you where to look. Reread Reading a run of your own set."
+  - id: q8-primary
+    outcome: primary-sources
+    question: "A newsletter says a model you depend on retires next month. Which source settles the date?"
+    options:
+      - "The newsletter, if it has a good reputation"
+      - "The vendor's deprecation page, read on the day you check, with that date written down"
+      - "A post on social media from someone who works at the vendor"
+    correct: [1]
+    feedback:
+      - "Not yet. A newsletter is a pointer to the primary source. Reread Follow primary sources."
+      - "Correct. The vendor's page is the primary source. Your checked date says when it was true."
+      - "Not yet. A post can be early, informal, or wrong. The documented page is what the vendor commits to. Reread Follow primary sources."
+  - id: q9-paper
+    outcome: primary-sources
+    question: "Chen, Zaharia, and Zou reported GPT-4 (March 2023) at 84% and GPT-4 (June 2023) at 51% on identifying prime and composite numbers. Which reading keeps the result's limits?"
+    options:
+      - "GPT-4 got worse overall between March and June 2023."
+      - "On that task, with step-by-step prompting, two versions of the same service behaved very differently, which argues for continuous monitoring."
+      - "Pinned model snapshots change their weights over time."
+    correct: [1]
+    feedback:
+      - "Not yet. One task is not overall quality, and other results in the same paper moved the other way. Reread Reading a paper: one worked example."
+      - "Correct. Task, prompting, and versions travel with the number. The applicability is the monitoring lesson, not a verdict on the model."
+      - "Not yet. The paper compared two versions of a service, not one snapshot changing. Reread Reading a paper: one worked example."
+  - id: q10-case-study
+    outcome: portfolio-evidence
+    question: "Which of these belong in a portfolio case study?"
+    options:
+      - "A baseline without a model, measured on the same test set"
+      - "A failure analysis with categories and counts"
+      - "What you did not measure"
+      - "The phrase \"hallucination-free\""
+      - "The list of frameworks, as the main evidence"
+    correct: [0, 1, 2]
+    feedback:
+      - "Correct. Without a baseline, a score has nothing to beat."
+      - "Correct. It shows you can diagnose, which is the skill a reader is trying to judge."
+      - "Correct. Stated limits are what make the rest believable."
+      - "Not yet. No finite test supports it, and a reader who knows the field stops trusting the page. Reread A case study, section by section."
+      - "Not yet. A stack list says what you used, not what you found out. Reread A case study, section by section."
+  - id: q11-interview
+    outcome: describe-without-overclaiming
+    question: "You built an invoice field extractor as a side project. No real team ever used it. Which description is honest and still useful in an interview?"
+    options:
+      - "I built an AI invoice extractor that achieved 78% accuracy."
+      - "I built an invoice field extractor on my own. On 120 invented invoices held out from prompt tuning, it got 78% of fields right against a 64% regex baseline. No real team used it, so I cannot say what it saves."
+      - "I built a production-grade invoice extractor that outperforms rule-based approaches."
+    correct: [1]
+    feedback:
+      - "Not yet. True, and it says nothing a reader can check: no scope, no denominator, no baseline, no limit. Reread Describing the work without overclaiming."
+      - "Correct. Scope, a test set kept out of tuning, a baseline, the result, and the limit, in three sentences. An interviewer can ask about any of them."
+      - "Not yet. Nobody depended on it in operation, so it was not production, and the comparison has no numbers or conditions. Reread Describing the work without overclaiming."
+  - id: q12-plan
+    outcome: learning-plan
+    question: "Your error analysis at work shows that most failures come from the wrong document reaching the model. Which learning plan item fits?"
+    options:
+      - "Earn a framework certification"
+      - "Study retrieval and context construction, then rerun one retrieval comparison on your own cases and record the result"
+      - "Memorize every current model's context window"
+      - "Switch to the model with the largest window"
+    correct: [1]
+    feedback:
+      - "Not yet. A badge does not touch the observed gap. Reread A learning plan that survives the next release."
+      - "Correct. The gap was observed, the skill is durable, and the evidence is a result you can show."
+      - "Not yet. A window is a capacity, and the numbers expire. Reread Durable skills and tool facts."
+      - "Not yet. The wrong document in a bigger window is still the wrong document. Reread Choosing a deeper path."
+sources:
+  - title: Beyond the Coding Agent, the talk repository
+    author: Stephen Sequenzia
+    date: "2026-09"
+    url: https://github.com/sequenzia/beyond-the-coding-agent
+    checkedOn: 2026-10-09
+    note: "Beats 3.1 to 3.5 and the Section 4 questions, as compiled in the program's talk knowledge base on 2026-09-15: the thesis, the roadmap, the seven competencies, the resources slide, and the answers on hiring and on whether better models make this obsolete. A later revision (commit d90f230, read 2026-10-09) rewords the roadmap and regroups the resources into four pages; this module quotes the compiled version and says where the later one differs."
+  - title: Becoming an AI Engineer, the book blueprint
+    date: "2026-09"
+    checkedOn: 2026-10-09
+    note: "Chapter 30, the project and assessment design, and the research foundation's statement of the book's standard. The public link is pending."
+  - title: AI Engineering book and other resources
+    author: Chip Huyen
+    date: "2025"
+    url: https://github.com/chiphuyen/aie-book
+    checkedOn: 2026-10-09
+    note: "The author's repository for the 2025 O'Reilly book, on the talk's resources slide."
+  - title: "AI Evals: Everything You Need to Know"
+    author: Hamel Husain and Shreya Shankar
+    date: "2026-09-21"
+    url: https://hamel.dev/blog/posts/evals-faq/
+    checkedOn: 2026-10-09
+    note: "On the talk's resources slide. On the day checked the page showed a publication date of 2026-09-18 and a modified date of 2026-09-21. The talk research of 2026-09-14 recorded first publication on 2025-05-28."
+  - title: "Evals for AI Engineers: Systematically Measuring and Improving AI Applications"
+    author: Shreya Shankar and Hamel Husain
+    org: O'Reilly
+    date: "2026-10"
+    url: https://www.oreilly.com/library/view/evals-for-ai/9798341660717/
+    checkedOn: 2026-09-14
+    note: "On the talk's resources slide. The publisher's page returned 403 to a fetch on 2026-10-09. The listed publication date, October 31, 2026, is from the talk research of 2026-09-14."
+  - title: A Field Guide to Rapidly Improving AI Products
+    author: Hamel Husain
+    date: "2025-03-24"
+    url: https://hamel.dev/blog/posts/field-guide/
+    checkedOn: 2026-10-09
+  - title: Demystifying evals for AI agents
+    org: Anthropic
+    author: Mikaela Grace, Jeremy Hadfield, Rodrigo Olivares, Jiri De Jonghe
+    date: "2026-01-09"
+    url: https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents
+    checkedOn: 2026-10-09
+    note: "On the talk's resources slide. Experience-based guidance from one vendor's engineering team."
+  - title: Building effective agents
+    org: Anthropic
+    author: Erik Schluntz and Barry Zhang
+    date: "2024-12-19"
+    url: https://www.anthropic.com/engineering/building-effective-agents
+    checkedOn: 2026-10-09
+    note: "On the talk's resources slide. On the day checked the page carried a notice that much of the tooling landscape it describes has changed since December 2024."
+  - title: Effective context engineering for AI agents
+    org: Anthropic
+    date: "2025-09-29"
+    url: https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents
+    checkedOn: 2026-10-09
+    note: "On the talk's resources slide."
+  - title: "Engineering at Anthropic: Inside the team building reliable AI systems"
+    org: Anthropic
+    date: "2026"
+    url: https://www.anthropic.com/engineering
+    checkedOn: 2026-10-09
+    note: "The engineering archive, as an example of a primary source to follow. Undated index page."
+  - title: A postmortem of three recent issues
+    org: Anthropic
+    date: "2025-09-17"
+    url: https://www.anthropic.com/engineering/a-postmortem-of-three-recent-issues
+    checkedOn: 2026-10-09
+    note: "A first-party incident account, not independently audited."
+  - title: Model deprecations
+    org: Anthropic
+    date: "2026"
+    url: https://platform.claude.com/docs/en/about-claude/model-deprecations
+    checkedOn: 2026-10-09
+    note: "The 60-day notice, the deprecation history, and the parameter deprecations. Undated page; its latest entry is 2026-09-30."
+  - title: A practical guide to building agents
+    org: OpenAI
+    date: "2025"
+    url: https://cdn.openai.com/business-guides-and-resources/a-practical-guide-to-building-agents.pdf
+    checkedOn: 2026-09-14
+    note: "On the talk's resources slide, listed here and not quoted. The PDF downloaded on 2026-10-09 but its text could not be extracted, so the date checked is the talk research's."
+  - title: OWASP Top 10 for LLM Applications, 2025 edition
+    org: OWASP Gen AI Security Project
+    date: "2025"
+    url: https://genai.owasp.org/llm-top-10/
+    checkedOn: 2026-10-09
+    note: "The edition named on the talk's resources slide. On the day checked this archive page still presented the 2025 edition."
+  - title: OWASP GenAI LLM Top 10 2026
+    org: OWASP Gen AI Security Project
+    date: "2026-08-03"
+    url: https://genai.owasp.org/resource/owasp-genai-llm-top-10-2026/
+    checkedOn: 2026-10-09
+    note: "The newer edition the book blueprint's sources name. Released after the talk research compiled its resources list."
+  - title: OWASP Top 10 for Agentic Applications for 2026
+    org: OWASP Gen AI Security Project
+    date: "2025-12-09"
+    url: https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/
+    checkedOn: 2026-10-09
+    note: "On the talk's resources slide."
+  - title: Semantic conventions for generative AI client spans
+    org: OpenTelemetry
+    date: "2026"
+    url: https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-spans.md
+    checkedOn: 2026-10-09
+    note: "On the talk's resources slide as the OpenTelemetry GenAI semantic conventions. Status Development on the day checked."
+  - title: Codex configuration reference
+    org: OpenAI
+    date: "2026"
+    url: https://learn.chatgpt.com/docs/config-file/config-reference
+    checkedOn: 2026-10-09
+    note: "model_reasoning_effort as documented on the day checked. The talk research read the same page on 2026-09-14 with a different list of effort levels. Undated page."
+  - title: Codex CLI slash commands
+    org: OpenAI
+    date: "2026"
+    url: https://learn.chatgpt.com/docs/cli/slash-commands
+    checkedOn: 2026-10-09
+    note: "The /model and /fast commands as documented on the day checked. Undated page."
+  - title: Devin CLI commands and flags
+    org: Cognition
+    date: "2026"
+    url: https://docs.devin.ai/cli/reference/commands
+    checkedOn: 2026-10-09
+  - title: Devin Desktop changelog
+    org: Cognition
+    date: "2026-06-02"
+    url: https://docs.devin.ai/desktop/changelog
+    checkedOn: 2026-10-09
+    note: "Version 3.0.12, the rename from Windsurf."
+  - title: My AI Adoption Journey
+    author: Mitchell Hashimoto
+    date: "2026-02-05"
+    url: https://mitchellh.com/writing/my-ai-adoption-journey
+    checkedOn: 2026-10-09
+    note: "One engineer's first-hand account of adopting AI tools, not evidence about shipping a product."
+  - title: AI Engineering in the real world
+    author: Gergely Orosz
+    org: The Pragmatic Engineer
+    date: "2025-03-25"
+    url: https://newsletter.pragmaticengineer.com/p/ai-engineering-in-the-real-world
+    checkedOn: 2026-10-09
+    note: "Profiles of engineers who moved into AI engineering. Part of the article is paywalled; only the visible text was read. One person's experience is not a schedule."
+  - title: "How Is ChatGPT's Behavior Changing over Time?"
+    author: Lingjiao Chen, Matei Zaharia, James Zou
+    date: "2023-07"
+    url: https://arxiv.org/abs/2307.09009
+    checkedOn: 2026-10-09
+    note: "arXiv 2307.09009, revised version 3 of 2023-10-31. Task-specific evidence about versions of a service, not a measure of overall model quality."
+  - title: How many of your agent's calls actually need a frontier model?
+    author: Srimanth Tangedipalli and Karan Singh
+    org: LangChain
+    date: "2026-08-11"
+    url: https://www.langchain.com/blog/switchyard-agent-routing-benchmark
+    checkedOn: 2026-10-09
+    note: "One controlled workload of 145 tasks. The authors describe it as a measurement of one workload, not a forecast."
+  - title: Model Cards for Model Reporting
+    author: Margaret Mitchell and colleagues
+    date: "2018-10-05"
+    url: https://arxiv.org/abs/1810.03993
+    checkedOn: 2026-10-09
+    note: "Documentation accompanies evidence. It does not certify fitness."
+  - title: "CS336: Language Modeling from Scratch"
+    author: Tatsunori Hashimoto and Percy Liang
+    org: Stanford University
+    date: "2026"
+    url: https://cs336.stanford.edu/
+    checkedOn: 2026-10-09
+    note: "Spring 2026 offering. A model-building specialization with heavier prerequisites than this program."
+  - title: AI Engineering
+    org: Carnegie Mellon University Software Engineering Institute
+    date: "2026"
+    url: https://www.sei.cmu.edu/artificial-intelligence-engineering/
+    checkedOn: 2026-10-09
+    note: "An institutional definition of the discipline, not an occupational credential. Undated page."
 ---
 
 ## Transfer connection
 
-This module is planned. It is not yet written. This page holds its place in the catalog until it is.
+You already keep up with a stack. Nobody hands you a syllabus for it. You read release notes before an upgrade. You skim a changelog for the line that breaks you. You follow a few maintainers whose judgment you trust, and you have learned which blog posts are marketing. When a new framework arrives with a big claim, you build something small with it before you believe the claim. You have watched tools you knew well get renamed, deprecated, and replaced, and you noticed that most of what you knew survived the replacement. You keep notes, a scratch repository, a list of things to try. And when someone asks what you can do, you point at systems you built, incidents you handled, and decisions you can explain.
 
-Electives are optional. They never appear as prerequisites of a core module. The module will say what stays the same and what changes.
+That is the habit this module builds on. It transfers almost whole.
+
+What stays the same: you learn by building small things and reading what they do. You trust primary sources over summaries. You read a vendor's claim as a claim and check it on your own work. You keep a record of what you learned and when. You judge a colleague by the systems they shipped and the failures they diagnosed, not by the list of tools on their profile, and you expect to be judged the same way. You describe your own role honestly, because the person interviewing you will ask a follow-up question. The book's transfer statement for its chapter on careers puts it in one line: "Professional judgment is demonstrated through explainable decisions and reproducible work." That was true before models. It is still true.
+
+What changes is the rate, and the kind of thing that changes. A library changes when someone publishes a new version. A hosted model can change behavior under a name you did not touch, and it retires on a date someone else picks. A configuration key you learned last month can lose a value this month. The release note cannot list the behavior changes that matter to you, because the vendor does not know your cases. So the instrument you keep up with changes too. For a library, you read the changelog and run your tests. For a model, you read outputs and run your own eval set, because nothing else tells you what changed for your work.
+
+The evidence of competence changes as well. In ordinary software, "I built X" carries a lot of information, because a working X mostly means a correct X. With a model in the loop, a working demo means that one useful path exists. A demo is works.any(), as orientation explains. A claim about AI work is easy to inflate with a benchmark headline, and hard to check. So the honest description of your work has to carry its own evidence: the baseline, the cases, the failures, and the limits.
+
+One more thing changes, and it is the subject of this whole program. The talk's two thesis sentences, verbatim:
+
+> Using AI makes you an AI-enabled software engineer.
+>
+> Engineering systems that depend on AI makes you an AI engineer.
+
+Learning to use the next tool keeps you current as an AI-enabled software engineer. It does not, by itself, make you the second thing. This module is about how to keep learning the second thing as the first thing churns underneath it.
 
 ## Topics and learning outcomes
 
 <Outcomes />
 
-The module draws on book chapter 30. It will introduce each concept with its outcome and a worked example, with every tool fact carrying its checked-on date.
+This module draws on one chapter of the book blueprint, Chapter 30, "Building Your Career and Continuing to Learn", and on the last part of the talk: the competencies, the roadmap, the resources slide, and two of the answers the talk prepared for questions. The chapter's four topics, as the blueprint lists them:
+
+- Assess competence through systems built, failures diagnosed, and decisions defended.
+- Present a portfolio with reproducible experiments and operational evidence.
+- Read papers critically: task, baseline, method, result, limitations, and applicability.
+- Choose deeper paths in retrieval, evaluation, agent systems, model adaptation, inference infrastructure, multimodal systems, or security.
+
+The page is in four parts. The first part is about time: what in your knowledge will expire, and what will not. The second part is about practice: reading outputs, keeping a personal eval set, and following primary sources, which together are how you keep learning after this program ends. The third part is about evidence: what to build, how to write it up, and how to talk about it without saying more than it shows. The fourth part is a plan. If you read in two sittings, stop after Reading a run of your own set. Each half takes about 25 minutes.
+
+### What this module can and cannot promise
+
+Start with the limit, because everything else depends on it.
+
+This program certifies nothing. Completing a module records your progress in your account. It does not issue a credential, a badge, or a title, and it does not make you employable by itself. Nobody can promise you a job or a title, and this module does not try.
+
+That is the book's standard too. Its research foundation states the professional outcome it aims at: "given a real problem, the reader can choose an appropriate approach, define success, build and improve the system, constrain its authority, and operate it with evidence of acceptable behavior." Then it draws the line: "This is an educational standard chosen for the book. It is not a universal credential or a promise of employment."
+
+The talk holds to the same standard. It prepared ten answers for questions from the room. The eighth is the one this module is built around, quoted in full:
+
+> How do I get hired as an AI engineer? Demonstrate a small system, its failure cases, its evals, and improvements justified by evidence. Show that you can investigate failures and operate within clear limits. Hiring figures are optional backup context, not the evidence of your competence.
+
+Read the last sentence twice. The talk's research collected job-market figures, and its own rules keep them off the slides and out of the main answer. Some figures it would not use at all, including "Any AI-engineer salary band or unsupported growth figure". This module follows the same rule and cites no market numbers. Market figures describe demand across thousands of employers. They say nothing about whether you can diagnose a retrieval failure on Tuesday. The only evidence of your competence that you control is work someone else can inspect.
+
+So the question this module answers is not "how do I get the title". It is narrower and more useful. How do you keep becoming more capable at engineering systems that depend on models, while the models and the tools change under you every month? And how do you show that capability honestly to someone who needs to decide whether to trust you with a system?
+
+### When you are the user: tool facts you already learned
+
+Every area module starts with what you touched as a user of a coding agent. The Models module walked the picker, the effort setting, and `/fast` in [When you are the user: the model picker](/modules/models#when-you-are-the-user-the-model-picker), as part of choosing a model. Look at the same facts again here for one thing only: how long they lasted.
+
+The effort levels moved. When the talk's research read OpenAI's Codex configuration reference on 2026-09-14, the levels recorded for `model_reasoning_effort` were minimal, low, medium, high, and xhigh. On 2026-10-09 the same page said "Reasoning effort advertised by the selected model, such as `low`, `medium`, `high`, `xhigh`, `max`, or `ultra`. Available levels depend on the model and client." In under four weeks the documented examples changed: minimal was no longer named, and max and ultra appeared. Whether a given model still accepts minimal is now a question for that model and client. A note that said "use minimal for cheap runs" could no longer be checked against the page that once supported it.
+
+The same command means different things. In Codex CLI, `/fast` will "Toggle a Fast service tier when the model catalog exposes one." In Devin CLI, `/fast` means "Switch to SWE-1.6 Fast". Both are from the vendors' own documentation, checked on 2026-10-09. "/fast makes it faster" is true of neither tool in particular.
+
+Product names expire. Devin Desktop's changelog entry for version 3.0.12, dated June 2, 2026, reads: "Windsurf is now Devin Desktop." A profile that said "proficient in Windsurf" in May named a product that, a month later, went by another name.
+
+API behavior expires. Anthropic's deprecations page, checked on 2026-10-09, says that setting `temperature`, `top_p`, or `top_k` to a non-default value "Returns a 400 error when set to a non-default value on Claude 4.7 and later models". The same parameters worked on earlier models. A habit formed on one generation became an error on the next.
+
+Those facts were worth learning. You needed them to use the tools. They came with an expiry date that nobody printed on them.
+
+### What someone engineered behind the facts
+
+Behind each fact is something that did not expire on the same schedule. Effort is a cost and latency dial: more effort, more tokens before the answer, more cost and time. A model in a picker is a dependency with a lifecycle, and Anthropic's page states the notice it gives: "at least 60 days' notice before model retirement for publicly released models." The sixty days is a vendor fact. The need for an eval suite before the notice arrives is not. The temperature error teaches that parameters expire with models, so a migration check has to run your real request code. The rename teaches nothing. Some tool facts are just the current label.
+
+And behind every change, at the vendor, is the practice that let them make it safely. Anthropic's evals guide of January 2026 describes what evals buy a team when a new model arrives: "competitors with evals can quickly determine the model's strengths, tune their prompts, and upgrade in days." The vendor changes the tool under you on the strength of an eval suite you never see. You keep up with the change on the strength of one you keep yourself. That is the personal eval set, later on this page.
+
+| What you learned as a user | What you keep when it expires |
+|---|---|
+| The list of effort levels in one tool's configuration | Effort is a cost and latency dial, measured per task |
+| `/fast` in one CLI | Read the documentation of the tool in front of you, not your memory of another one |
+| A model name in the picker | A model is a versioned, expiring dependency |
+| A product name | Nothing. Update the label. |
+| `temperature` on every call | Parameters expire with models. Run real request code in a migration check. |
+
+### Durable skills and tool facts
+
+The pattern in that table organizes the rest of this module. Some of what you know is a durable skill. Some is a tool fact with an expiry date. The two need different handling, and a lot of wasted learning comes from treating one as the other.
+
+A **durable skill** is a method, a mechanism, or a judgment that works across tools and across model generations. Reading outputs and grouping failures into categories. Building a case set weighted like real traffic. Reading a result against its noise. Separating the shape of an output from its correctness. Putting authorization outside the model. Asking which failure a change will catch. These are what the six area modules teach. None of them depends on a vendor.
+
+A **tool fact** is true of one product, at one version, on one date. A command name. A configuration key and its allowed values. A model id, a context window size, a price, a rate limit. A framework's node types. A default. A deprecation date. Tool facts are necessary. You cannot ship anything without them. But each one has an expiry date, and the date is set by someone else.
+
+Chip Huyen states the distinction as the design principle of her book, which is on the talk's resources slide: "this book focuses on the fundamentals of AI engineering instead of any specific tool or API." Her reason: "Tools become outdated quickly, but fundamentals should last longer."
+
+Vendors say the same about their own guidance. Anthropic's "Building effective agents", from December 2024, is one of the most cited posts in this field. When checked on 2026-10-09, it carried a notice: "Much of the tooling landscape described in this post has changed since December 2024." The architecture advice in it, to find "the simplest solution possible" and to start "by using LLM APIs directly", is still quoted by the talk. The tooling it named is what aged. Anthropic's context engineering post of September 2025 is explicit about its own shelf life: "The techniques we've outlined will continue evolving as models improve." It adds an observation worth keeping in view: "We're already seeing that smarter models require less prescriptive engineering."
+
+That observation raises the obvious worry. If models keep getting better, does the durable part expire too? The talk prepared an answer to exactly that question, and it is careful to label it as judgment:
+
+> Will better models absorb the harness and make this obsolete? My judgment is that some mechanisms will simplify, but the future architecture is uncertain. The product still needs explicit permissions, integration, measurement, and accountable operation.
+
+Take both halves seriously. Some of what you learn about prompting a particular generation, or compensating for a particular weakness, will simplify away. That is a technique, closer to a tool fact than it looks. What the answer predicts will remain are the owner's responsibilities: deciding what the system may do, connecting it to real systems, measuring it, and answering for it. Those are durable because they come from the product, not from the model.
+
+Here is a test you can run on anything you are about to spend time learning. Ask four questions.
+
+1. **Does it name a product, a version, a model id, a flag, a price, or a limit?** Then it is a tool fact, or it contains one. Learn it when you need it. Date it.
+2. **Would it still be true on a different vendor's product?** If yes, it is probably a skill. If you cannot imagine it on another product, it is a fact.
+3. **Is it a method for finding something out, or a finding?** A method for measuring cost per completed task is durable. A measured cost on one workload on one date is a finding, and findings expire with their conditions.
+4. **Did someone publish a date beside it?** Vendor documentation is often undated. If the source has no date, the fact still has one: the day you read it. Write that down.
+
+Two cautions on the test. First, the line is not always clean. "Constrained decoding guarantees schema shape, not correct values" is a durable idea, but which providers offer constrained decoding, and which schema keywords they support, are tool facts. Most useful knowledge is a skill wrapped around a few facts. Learn the skill. Keep the facts in a dated note. Second, durable does not mean permanent. A durable skill is one that has survived several generations of tools and is likely to survive the next. You still revisit it. You revisit it less often, and when you do, you expect to refine it rather than replace it.
+
+### How to keep a tool fact
+
+You need tool facts, so keep them in a form that tells you when to check them again. This program does it in public: every vendor fact on every page carries the name of the tool, the version where there is one, and the day it was checked, and every artifact card shows "May be stale" after ninety days. Do the same in your own notes.
+
+A tool fact worth keeping has five parts:
+
+- **The tool**, by its current name.
+- **The version**, if the tool has one, or the model id.
+- **The fact**, quoted where you can.
+- **The source**, as a link to the vendor's own page.
+- **The date you checked it.**
+
+Compare two notes about the same thing. "Use --draft for cheap runs." And, for a fictional CLI called Quillshell: "Quillshell CLI 2.3: the --draft flag routes to the smallest model (docs, flags page, checked 2026-09-20)." The first note is a rule that looks true forever. The second tells you that it may not be true now, and where to look. The second note takes ten more seconds to write. It saves you the afternoon you would spend debugging a flag that no longer exists.
+
+Keep a separate, short list of the facts your work depends on in production: model ids and their retirement dates, prices, limits, the parameters your code sends. That list is not learning. It is an inventory, and it belongs in your team's runbook as much as in your notes. The Models module explains why: a model id scattered through a codebase, with no eval suite behind it, is that area's pitfall.
+
+### Reading outputs as a standing practice
+
+The talk lists seven competencies that are new for an AI engineer, unranked. The first one on the slide is "Model behavior intuition. Informed by reading outputs." The second sentence is the method. Intuition about model behavior does not come from release notes, leaderboards, or other people's threads. It comes from reading what a model produced on your inputs, a lot of times, with attention.
+
+The roadmap's first step makes it a Monday task. The roadmap, verbatim from the talk:
+
+1. **Look before you build.** Monday: review 20 to 50 outputs by hand.
+2. **Start constrained.** One call. Then a workflow. Then a loop, only when it earns it.
+3. **Own the harness.** Prompts, context window, control flow. Learn the loop before a framework.
+4. **Add autonomy as your evals earn it.**
+
+The talk's line for step 1: "That is your first eval. Do it before any infrastructure." The Verification and evals module teaches the full method in [Error analysis before infrastructure](/modules/verification-and-evals#error-analysis-before-infrastructure). This module adds one word to it: again.
+
+Husain and Shankar's evals guide, on the talk's resources slide and checked on 2026-10-09, says it plainly: "Start with error analysis, not infrastructure." The next sentence carries the part that matters here: "Spend 30 minutes manually reviewing 20-50 LLM outputs whenever you make significant changes." Not once. Whenever you make significant changes. A model release is a significant change. So is a new prompt, a new tool, a new retrieval index, or a vendor's quiet update to the serving infrastructure. Reading is not a phase of a project. It is how you keep your intuition current when the thing it is about keeps changing.
+
+Anthropic's evals guide makes the same demand from the other side. Automated checks need reading too: "You won't know if your graders are working well unless you read the transcripts and grades from many trials." A dashboard that stays green while nobody reads the transcripts is a dashboard nobody has checked.
+
+Here is what a reading practice looks like for one engineer, outside any project deadline.
+
+- **A fixed slot.** Thirty minutes, once a week, on the AI feature you are closest to at work. If you have none, on a small system of your own. The point of a fixed slot is that you read when nothing is on fire, which is when you notice the slow changes.
+- **A sample, not a highlight reel.** Pull outputs at random, plus a few on purpose from the places you suspect: long inputs, unusual requests, anything a user complained about. Reading only the outputs that someone flagged teaches you about complaints, not about behavior.
+- **A note per output.** One line: what went wrong, if anything. The first failure, not every failure, because an early mistake explains the later ones.
+- **A date and a configuration on the page.** Which model, which prompt version, which day. Your notes from March are evidence about March's model. Without the configuration they are evidence about nothing in particular.
+
+This practice has a cost and a payoff. The cost is half an hour a week. The payoff is that when a new model comes out, or a vendor post claims an improvement, you already know what your work looks like, so you can tell whether anything changed. Engineers who skip it end up learning about model behavior from other people's anecdotes, which are about other people's inputs.
+
+Mitchell Hashimoto's account of his own year with AI tools, published February 5, 2026, is a first-hand version of the same practice. He did not start by reading about agents. He made himself use them on his real work: "I forced myself to reproduce all my manual commits with agentic ones." Doing the work twice, by hand and by agent, showed him where the agent's output differed from his. His summary of what that bought him: "I also found the edges of what agents" were good at and not good at. He marked those edges as true at the time he found them. He knew they would move, and wrote that down. And he says why he did it himself rather than reading someone else's conclusions: "discovering it myself resulted in a stronger fundamental understanding." His story is about adopting tools as a developer, not shipping a product, so take it as the shape of a learning practice, not as evidence about production systems. The shape transfers: read your own outputs, on your own work, and date what you conclude.
+
+### From a reading note to a check
+
+A pile of notes is not yet knowledge. It becomes knowledge in two steps, and both are durable skills you already met in the Verification and evals module.
+
+First, group the notes into categories and count them. Husain and Shankar call this axial coding, and their guide calls error analysis "the most important activity in evals." The counts tell you which failure matters most this month. The categories give you a vocabulary for your own system that no generic metric supplies. "Gives a confident answer when the source is silent" is a category. "Hallucination score 0.12" is not.
+
+Second, turn the category you care about into cases with a check. Take three or four of the outputs that failed in that way, remove anything confidential, and save each one as an input with an expected behavior and a way to check it: code where you can, a short written rubric where you cannot. The guide's rule for which checks to write: "Write evaluators for errors you discover, not errors you imagine."
+
+That second step is what makes reading outlast the next release. A note says "on 2026-07-14, the summarizer invented an annual-plan refund window." A case says "given this excerpt, which covers monthly plans only, the right answer is that the excerpt does not say." The note is a memory. The case is a test you can run on the next model, and the one after that, and see whether the failure came back.
+
+You will collect those cases somewhere. Make the somewhere deliberate. That is the next practice.
+
+### Keep a personal eval set
+
+You probably keep a scratch file of nasty inputs for a parser, or a smoke test you run before upgrading a dependency. This is that, for models.
+
+A personal eval set is a small, private collection of cases that you own, built from failures you have seen, which you run every time a model, a tool, or a technique you care about changes. It is the instrument that lets you answer "is the new release better?" for your kind of work, in an hour, instead of relying on someone else's benchmark or someone else's enthusiasm.
+
+It is not your employer's eval suite. That suite belongs to the product, lives in the product's repository, and is weighted like the product's traffic. A personal set belongs to you. It travels with you between jobs. It is weighted by what you have learned to worry about. It is small enough to read every output.
+
+Why keep one at all? Because every public claim about a new model is measured on someone else's cases. The Models module puts it in two of the talk's sentences: "Benchmarks use their task population and harness. Measure your product on representative cases." The same is true of your own learning. A vendor post says the new model is better at long context. A thread says a new framework fixes agent reliability. Your set turns each of those claims into a question you can answer on your own cases this afternoon.
+
+Anthropic's evals guide gives the size to start with. Writing about product teams, it says "20-50 simple tasks drawn from real failures is a great start." A personal set can start smaller and grow. Twenty-four cases in six categories is a reasonable first version: enough to see a category move, small enough to read every failure in a sitting.
+
+Build it from four kinds of case.
+
+- **Failures you have seen.** The core of the set. Each case carries its origin: where and when you saw the failure, rewritten so that nothing confidential survives.
+- **Failures the field has documented.** A few cases for failure modes the earlier modules teach: an unsupported claim where the honest answer is "the source does not say", a decisive fact in the middle of a long input, a relative date, a tool choice with an ambiguous description. You will meet these in every system, so keep a probe for each.
+- **Tasks you do often.** Extraction from messy text, a short summary with citations, a classification with a policy behind it. These tell you whether everyday work got better or worse.
+- **A few that are hard on purpose.** Cases the current model fails. They are your capability probes, the ones that tell you when something new became possible. Anthropic's guide describes capability evals the same way: they "should start at a low pass rate, targeting tasks the agent struggles with and giving teams a hill to climb."
+
+Give every case a check, and prefer checks you can run in code: an expected value, a regular expression, a schema plus a value comparison. For the cases that need judgment, write a one-sentence pass rule and read the output yourself. A personal set is small enough that a human grader, you, is affordable and better than any generic judge.
+
+Keep a few rules with the set.
+
+- **No confidential data, ever.** No employer code, no customer text, no internal documents. Rewrite every case with invented names before it enters the set. A personal set leaves the building with you, so nothing in it may belong to the building.
+- **Version it.** A cases file with a version number, a prompt file with a version number, and a run log that names both. A result is only comparable to another result with the same cases, the same prompt, and the same checks.
+- **Run more than once.** Model output varies from run to run. Three runs per configuration is a cheap minimum. Write down the range, not only the mean.
+- **Read the failures.** The number tells you where to look. The outputs tell you what happened.
+- **Retire cases deliberately.** When a case has passed on every model for a year, it is still a regression check. Keep it, but do not let the easy cases outnumber the ones that still teach you something.
+
+### Reading a run of your own set
+
+Here is one engineer's set and one run against a new release, written for this module. Read the notes file as carefully as the numbers.
+
+<Artifact id="career-and-learning-personal-eval-set" level={4} />
+
+Four things in that artifact are worth copying.
+
+First, the owner did not trust the total. The new release scored about 1.7 cases higher out of 24, and runs varied by 1 to 2 cases on both models. That difference is within the noise. The notes say so before saying anything else. Foundations' [Comparing two systems](/modules/foundations#comparing-two-systems) explains why a difference smaller than the run-to-run range is not established.
+
+Second, the categories told a different story from the total. Long-input and tool-choice improved cleanly, on every run. The unsupported category fell from about 4 of 4 to about 2 of 4, on every run. A drop that repeats is a signal even when the category is small. A total hides it, because two categories went up while one went down.
+
+Third, the owner read the failures. "In six, the model gives a confident annual-plan window or a made-up clause number. Same failure shape every time." That sentence is the evidence. A pass rate says how often. The outputs say what kind of failure, which is what tells you whether it matters for your work.
+
+Fourth, the vendor's release note was checked against the set, not believed or dismissed. "Improved long-context reasoning and tool use" was true on these cases. The note was silent on declining to answer, and that was where the regression sat. A release note describes what the vendor measured and intended. Your set measures what you care about. The two overlap. They are not the same.
+
+And the next step is the right one: grow the category before deciding. Four cases are too few to tell 2 of 4 from 3 of 4 with any confidence. They are enough to say where to look.
+
+Why does this matter for a career and not only for a product? Because the same instrument answers the questions you face as a learner. Is the new model worth switching my side project to? Did the technique in that post work on my cases? Is the new framework's claim true for the failures I care about? An engineer with a personal set answers with evidence. An engineer without one answers with whatever they read last.
+
+There is one more reason, and it is the one the research behind the talk keeps returning to. A model's name is not a guarantee of its behavior. Lingjiao Chen, Matei Zaharia, and James Zou showed in 2023 that two versions of the same service, three months apart, behaved very differently on some tasks. Anthropic's postmortem of September 2025 describes infrastructure bugs that changed what users received under unchanged model names. If behavior can change under a name, your knowledge of a model's behavior has an expiry date too. Your set is how you renew it.
+
+### Follow primary sources
+
+You will learn a lot about this field from secondary sources: newsletters, podcasts, threads, conference recaps, summaries by people you trust. They are good for discovery. They are not where you should learn a fact you will act on.
+
+A **primary source** is the place a fact originates. For a tool fact, it is the vendor's own documentation, changelog, deprecation page, or pricing page. For a claim about how a vendor built something, it is the vendor's engineering post. For an incident, it is the operator's postmortem. For a research result, it is the paper, and the abstract alone is not the paper. A secondary source reports on a primary one: a newsletter that says a model retires next month, a thread that summarizes a paper, a recap that quotes a keynote.
+
+The talk's research shows a working discipline for this, and it is worth copying for your own notes. Most claims in its research files carry one of two markers. "`[primary]` means the source was fetched and quoted directly. `UNVERIFIED` means the claim came from a snippet or secondary coverage." Entries with neither marker are recorded as having none. A claim moves from the second marker to the first only when someone reads the primary source. The research also keeps a list of figures it will not use, with the reason: untraceable statistics, misattributed quotes, numbers that appear only in aggregator content. For a learner, that list is worth reading on its own. It shows how many widely repeated claims did not survive a look at their origin.
+
+You can run the same discipline with almost no tooling. When you write a note, mark where it came from. If it came from a summary, follow the link to the origin before you rely on it, or mark it as unverified until you do.
+
+Which primary sources should you follow? Fewer than you think, read more carefully.
+
+- **The documentation and changelogs of the tools and models you depend on.** Especially the deprecation pages. Anthropic's page, checked on 2026-10-09, lists every model with its state and its retirement date, and its newest entry was the 2026-09-30 notice that `claude-sonnet-4-5-20250929` retires on November 30, 2026. That page is the source. A newsletter is a pointer to it.
+- **Vendor engineering posts.** Anthropic's engineering archive calls itself "Engineering at Anthropic: Inside the team building reliable AI systems." Several of its posts are on the talk's resources slide. OpenAI, Cognition, and others publish similar material. These posts are first-party accounts of how a vendor built something. Read them for the method and the reported conditions, not for the conclusion alone.
+- **Incident postmortems.** They are the closest thing this field has to a public record of what fails in production. The Operating it module reads Anthropic's September 2025 postmortem closely.
+- **Research papers, selectively.** Not the firehose of new preprints. The papers that a primary source you trust cites, and the papers behind a claim you are about to act on.
+- **A few practitioners who publish their evidence.** People who show their cases, their numbers, and their limits. You can tell them apart from the rest by whether they tell you what would change their mind.
+
+Two habits make the reading pay. Write down the date you read a page, because vendor documentation is often undated and changes without notice. And when a primary source and a secondary source disagree, the primary source wins, and the disagreement is itself worth a note.
+
+### The talk's resources, and how a list ages
+
+Near its close, the talk shows a resources slide. The program's talk knowledge base, compiled on 2026-09-15, records it verbatim:
+
+- Chip Huyen, AI Engineering: Building Applications with Foundation Models. O'Reilly, 2025.
+- Anthropic engineering: "Building effective agents" (December 2024). "Effective context engineering for AI agents" (September 2025). "Demystifying evals for AI agents" (January 2026).
+- OpenAI, "A practical guide to building agents" (2025).
+- Hamel Husain, "AI Evals: Everything You Need to Know," hamel.dev. Shreya Shankar and Hamel Husain, Evals for AI Engineers, O'Reilly, October 2026.
+- OWASP Top 10 for LLM Applications (2025) and for Agentic Applications (2026).
+- OpenTelemetry GenAI semantic conventions.
+
+The slide's layout note gives its rule: "Vendor-neutral by design: no courses, no products, no tools. The two CLIs named in Section 2 are not resources, they are the subject." Notice what kind of list that is. A book that is explicitly about fundamentals. Engineering posts about methods. A guide and a book about evals. Security and observability standards. Nothing on it teaches you a tool. Every item teaches something the area modules call durable.
+
+Now notice how the list itself ages. The OWASP entry names the 2025 edition of the Top 10 for LLM Applications. OWASP's archive page for that list still presented the 2025 edition when checked on 2026-10-09. But OWASP has since published the "OWASP GenAI LLM Top 10 2026", released August 3, 2026, which the book blueprint's sources name. The slide was accurate to the talk's research and one edition behind by the time this module checked it.
+
+The same thing happens elsewhere on the list. Husain and Shankar's guide is a living page: the URL stayed the same while its publication date moved from May 2025 to September 2026. And a later revision of the talk's repository, read on 2026-10-09, regrouped the single slide into four pages and added courses the earlier slide excluded.
+
+The lesson is not that resource lists are unreliable. It is that a resource list is a set of tool facts about publications. Each entry has an edition, a date, and a URL, and each can move. Keep your own list with checked dates, and when an entry is a living page, record the date of the version you read.
+
+### Reading a paper: one worked example
+
+You already read a database vendor's benchmark post and ask what hardware and workload it used. Do the same with a paper. The book's chapter gives a reading method in one line: "Read papers critically: task, baseline, method, result, limitations, and applicability." Six questions. They work on a paper, a vendor post, and a benchmark announcement alike. Here they are on one paper the talk relies on.
+
+The paper is "How Is ChatGPT's Behavior Changing over Time?" by Lingjiao Chen, Matei Zaharia, and James Zou, first posted to arXiv in July 2023 and revised on October 31, 2023. The Models module uses it as evidence that a service can change behavior under the same name. Read it the way the book asks.
+
+**Task.** What did they measure? The March 2023 and June 2023 versions of two services, GPT-3.5 and GPT-4, on several tasks: math problems including identifying prime and composite numbers, sensitive questions, opinion surveys, multi-hop knowledge questions, code generation, a medical licensing exam, and visual reasoning. The headline number in the abstract is about one of those tasks: "GPT-4 (March 2023) was reasonable at identifying prime vs. composite numbers (84% accuracy) but GPT-4 (June 2023) was poor on these same questions (51% accuracy)."
+
+**Baseline.** Compared against what? Against the same service three months earlier, on the same questions. That is a clean comparison for its purpose. It is not a comparison against other models, and not against a human.
+
+**Method.** How? Fixed question sets, the services' public interfaces, and specific prompting, including step-by-step prompting for the math tasks. The abstract attributes part of the change to prompting: "This is partly explained by a drop in GPT-4's amenity to follow chain-of-thought prompting."
+
+**Result.** What did they find, in their words? That "the performance and behavior of both GPT-3.5 and GPT-4 can vary greatly over time." Some tasks got worse. Others got better. The abstract notes that GPT-3.5 "was much better in June than in March in this task."
+
+**Limitations.** What does it not show? It is one task family per number, with one prompting style. It compares two versions of a service, which is what a user of a [moving alias](/modules/models#pinned-version-or-moving-alias) gets. It does not show a pinned snapshot changing its weights. It is not a measure of overall model quality. And it is about models from 2023, which nobody uses today. The talk keeps all of those qualifications attached to the 84 and the 51 every time it uses them.
+
+**Applicability.** What does it mean for your work? Not that any model got worse. The applicable lesson is the authors' own: the "same" service "can change substantially in a relatively short amount of time, highlighting the need for continuous monitoring of LLMs." For your product, that means regression monitoring when you use a moving alias. For your learning, it means your knowledge of a model's behavior is a dated observation.
+
+Notice what the six questions did. Without them, the paper becomes a headline: "GPT-4 got dumber." With them, it becomes a precise, durable lesson about monitoring, attached to a dated, limited finding. The finding expired with the 2023 models. The lesson did not.
+
+### Reading a vendor post
+
+Vendor posts are the primary source for how vendors build and measure things, and they are written by people with an interest in the result. That is not a reason to distrust them. It is a reason to read the conditions before the conclusion. The six questions work here too. Two posts from this program's sources show what a good reading finds.
+
+**A post that states its own limits.** LangChain's routing experiment, "How many of your agent's calls actually need a frontier model?" by Srimanth Tangedipalli and Karan Singh, August 11, 2026. The Models module reads its numbers in [Reading the LangChain comparison](/modules/models#reading-the-langchain-comparison). Run the questions quickly.
+
+- Task: 145 multi-step agentic tasks.
+- Baseline: the frontier model alone and the small model alone.
+- Result: routing cut cost per completed task from $0.092 to $0.026, and accuracy from 86.0% to 80.0%.
+- Limitations, in the authors' words, checked on 2026-10-09: "Individual runs vary by about 2.7 points". Of routing against the small model alone: "we cannot say routing beat the cheap model here."
+- Applicability, in a line worth copying into your own write-ups: "Treat what follows as a measurement of one workload rather than a forecast for yours."
+
+A vendor post that tells you where its result stops is worth more than one that does not. It also shows you how to write your own.
+
+**A first-party incident account.** Anthropic's "A postmortem of three recent issues", September 17, 2025. Task: explain degraded responses over several weeks. Result: three bugs, which the post says were "infrastructure bugs alone". The part to read most carefully is about measurement: "The evaluations we ran simply didn't capture the degradation users were reporting", in part "because Claude often recovers well from isolated mistakes." Limitations: it is the operator's own account, not independently audited, and it says nothing about how often such incidents happen. Applicability: a vendor's evaluations measure the vendor's idea of quality, so your own checks have to run against what you actually receive. That is a durable lesson from a dated incident.
+
+Three warning signs in any vendor post or announcement:
+
+- **A number without its conditions.** A score with no task population, no harness, no run count, and no date.
+- **A comparison without its baseline.** "Up 30%" from what, measured how, on whose cases.
+- **A conclusion broader than the experiment.** One workload presented as a law, or one benchmark presented as general capability.
+
+None of these makes a post wrong. Each one tells you what you would need to measure yourself before acting on it. And that is where your personal eval set comes back in. You read the post for the method and the conditions. You run its claim on your own cases for the result.
+
+### What competence looks like
+
+In a hiring loop, you ask a candidate to walk through an incident they handled. You are not checking which tools they know. You are checking whether they can find a fault and explain a decision. The book's first topic for this chapter is the standard: "Assess competence through systems built, failures diagnosed, and decisions defended." Three nouns, and each one is something another person can inspect.
+
+- **Systems built.** Not demos. A system has a defined task, a baseline, cases, checks, and limits. It runs again when someone else runs it.
+- **Failures diagnosed.** Not failures avoided. Every system with a model in it fails on some inputs. Competence shows in finding where, explaining why, and choosing the right repair: instructions, retrieval, tools, task design, or a different model, in the order the Models module's [Diagnose before you swap](/modules/models#diagnose-before-you-swap) teaches.
+- **Decisions defended.** Not decisions announced. Why this configuration and not the cheaper one. Why no agent. Why the release was restricted. A defended decision names its evidence and its gaps.
+
+The Software Engineering Institute's definition of the discipline, checked on 2026-10-09, describes AI engineering as "a field of research and practice that combines the principles of systems engineering" with other disciplines, "to create AI systems in accordance with human needs for mission outcomes." It is an institutional definition, not a credential. Read it for the emphasis: systems, and outcomes for the people who depend on them. A competence claim that does not reach the outcome has not reached the discipline.
+
+The book's assessment design turns the standard into a scale that is worth borrowing for your own work. It rates evidence, not effort, from 0 to 3: "A score of 0 means absent evidence; 1 means an unsupported assertion or demonstration alone; 2 means reproducible evidence with stated limitations; 3 means reproducible evidence plus independent challenge, failure analysis, and a defended decision." Look at where a demonstration sits. A demo, however polished, is a 1. It is the same score as an unsupported assertion, because a demo shows that one path works and nothing about the rest. The jump from 1 to 2 is reproducibility and stated limits. The jump from 2 to 3 is challenge: someone else tried to break it, you analyzed what failed, and you defended a decision anyway.
+
+The same design asks for independent explanation. Its four tasks double as interview preparation: "trace one request, reproduce one comparison, diagnose an unfamiliar failure, and explain one rejected alternative." Then a sentence that matters more each year: "AI assistance may be used during development, but generated prose alone cannot establish the reader's understanding." You will build your projects with a coding agent. You should. But a case study the agent wrote about a system the agent built shows that the agent can write. Your understanding shows when you walk through one request and rerun one comparison. It shows when you find a failure you have not seen before. And it shows when you say why you did not take the other path.
+
+The book's failure exercise for the chapter describes the opposite, and it is worth memorizing as a description of what not to publish: "A portfolio presents a polished interface and benchmark headline but cannot explain the data, experiments, or deployment limitations."
+
+What about people who made the move? Gergely Orosz's March 2025 profiles in The Pragmatic Engineer, checked on 2026-10-09, describe engineers at several companies who moved into AI engineering. One, Ryan Cogswell at DSI, was facing an agency quote of months for a small feature, and "got to work reading and prototyping, making himself the company's resident GenAI expert." He and colleagues built the feature in about two months. Notice what made him the expert: a real feature, built and running, at his own company. Ross McNairn of Wordsmith names the part that takes longest: "It takes time to ramp up to the point where you can confidently assess output quality." That is reading outputs again, under another name. Treat these as individual experiences, not as a schedule. The talk does the same with its own field evidence.
+
+### What to build
+
+If you have no model-dependent system at work to point to, build one. Build it small. The talk's roadmap applies to a portfolio project exactly as it applies to a product: look before you build, start constrained, own the harness, add autonomy only as your evals earn it. The later revision of the talk makes the first step concrete: "Choose one narrow task", with summarizing a document with citations as the example. A narrow task you can measure beats a broad system you cannot.
+
+A project that demonstrates competence has these parts. None requires a framework, a cluster, or an agent.
+
+1. **A problem brief.** Who would use it, what the task is, what a wrong answer costs, and what the baseline is without a model. Orientation's [Look before you build](/modules/orientation#look-before-you-build) has the four questions.
+2. **A baseline.** Rules, keyword search, a template, whatever you would do without a model. Measured on the same cases. If the model does not beat it by enough to pay for itself, that is a finding, and a good one to show.
+3. **Cases with provenance.** Where each case came from, who labeled it, how disagreements were resolved, and which cases were held out. If you invented the data, say so. The book's project design is strict about this: "If an experiment has not been run, label it as an exercise specification instead of providing invented measurements."
+4. **A system you can describe completely.** Model id and whether it is pinned, prompt version, output contract, tools, and any routing. One model call is a perfectly good system.
+5. **Checks.** Code checks where the answer is determinate. A written rubric where it is not, applied by you, with a sample of your grades checked by a second person if you can find one.
+6. **An error analysis.** Categories, counts, and example case ids.
+7. **One change, measured.** A fix you made because of the error analysis, and the before and after on the same cases, with the run-to-run range.
+8. **One rejected alternative.** Something you tried and removed, with the reason: the agent that cost twice as much and scored the same, the bigger model that did not help.
+9. **Operating limits and operational evidence.** A spending cap set before the first paid call. Cost per completed task. p95 latency with the conditions it was measured under. What happens when the provider fails. A trace of one request.
+10. **A way to reproduce it.** The cases, the prompts, the recorded outputs, and one command. If the command replays recorded outputs, label it as replay. The book's design says so in one line: "A recorded fixture is identified as replay, not live inference."
+
+That list is the book's second topic in practice: "Present a portfolio with reproducible experiments and operational evidence." Operational evidence is the part side projects usually skip, and it is the part that tells a reader you think like an owner. A spending cap, a failure path, and a trace say more about your judgment than a dashboard.
+
+If you do have model-dependent work at your job, the strongest evidence is there, and most of it cannot leave the building. That is fine. You can describe the shape without the content: "I built the eval set for our support summarizer, 180 cases in 7 categories, and ran it on two model migrations." You can describe a decision and its evidence in general terms. You cannot share the cases, the prompts, the data, or the numbers your employer has not published. When in doubt, describe what you did and what you learned, not what the system contains.
+
+### A case study, section by section
+
+A case study is the written form of a project. It is where most portfolio entries go wrong, because the writer reaches for the adjectives that describe ordinary software projects. With a model in the loop, those adjectives make claims the writer cannot support.
+
+The structure that works mirrors the decision record the Models module teaches. It also mirrors the Model Cards proposal from 2018. That proposal asked that models be documented with the context in which they are intended to be used, and with "benchmarked evaluation in a variety of conditions." A case study is the project's version of the same idea. The book's sources add the caution that belongs with it: documentation accompanies the evidence. It does not substitute for it.
+
+- **Context.** What kind of project: side project, course work, internal tool, product with users. When, and with whom.
+- **Task and stakes.** What the system does, and what each kind of error costs.
+- **Baseline.** What you compared against, measured on the same cases.
+- **Data.** Where the cases came from, how many, how they were labeled, which were held out, and what you did to keep the held-out cases out of your tuning.
+- **System.** The complete configuration, briefly.
+- **Method.** How you iterated, on which cases, and how many runs.
+- **Results.** Per category, with the run-to-run range and the sample size beside every number.
+- **Failure analysis.** Categories, counts, and what you did about each.
+- **Rejected alternatives.** What you tried and why you removed it.
+- **What you did not measure.** The honest list.
+- **Reproduce.** The repository, the command, and whether it replays or calls live.
+- **Next.** What you would do with another month.
+
+Leave out four things, because each one costs you trust with a reader who knows the field.
+
+- **Absolute claims.** "Hallucination-free", "secure", "accurate", "production-ready". No finite test supports an absolute. The book's own acceptance targets say it about security: "A finite suite provides bounded evidence and does not prove security immunity."
+- **Borrowed benchmarks.** A comparison to a leaderboard number on a different task. Your cases are the evidence. Someone else's benchmark is a different measurement.
+- **The stack as evidence.** A list of frameworks says what you used. Put it at the end, if at all.
+- **Scale you did not test.** "Scales to millions" with no load test is a sentence about hopes.
+
+The workshop below puts two case studies of the same project side by side. Read them with this list in hand.
+
+### Describing the work without overclaiming
+
+Overclaiming is the career version of the pitfalls the area modules teach. Every pitfall in the talk is, in its words, "a demo mistaken for a product." An overclaim is a demo described as a product. It works on a reader for about one follow-up question.
+
+Three places you will describe this work: inside your current role, on a resume or profile, and in an interview. The rules are the same in all three.
+
+**Say what kind of system it was.** Side project, prototype, pilot with ten internal users, production with customers. "Production" means people depend on it during operation. If nobody did, do not use the word. The talk's definition of owner, "the engineer or team accountable for the delivered product's behavior and operating limits", is a useful test: if there was no delivered product and no operating limits to answer for, you were building, not owning, and that is still worth describing.
+
+**Say what you did.** "We" in a team project is honest only if you also say which part was yours. An interviewer will ask, and "I wrote the eval set and the error analysis; a teammate built the retrieval" is a stronger answer than "we built a RAG system".
+
+**Give every number its denominator and its conditions.** "78%" means nothing. "78% of fields on 120 invented invoices, against a 64% regex baseline, three runs, on a test set the prompt was never tuned on" means something, and it invites the right questions. If you saved money or time, say how you measured it. If you did not measure it, do not claim it.
+
+**Never claim an absence.** You can say a check found no unauthorized actions in a 60-case boundary suite. You cannot say the system is secure.
+
+**Use verbs that describe evidence.** Measured, compared, diagnosed, rejected, reduced on these cases, caught before release. Avoid verbs that describe hopes: revolutionized, leveraged, mastered.
+
+**Separate using AI from engineering it.** This one is specific to the moment. Most engineers now use a coding agent daily. That is real, valuable skill, and it is worth saying. But by the talk's thesis, it makes you an AI-enabled software engineer. Describing it as AI engineering overclaims, and an interviewer for an AI engineering role will notice. Say both, accurately: "I use coding agents every day, and I have built and measured one model-dependent feature end to end."
+
+Here is the translation in one table. The left column is the kind of line that appears on many profiles. The right column is what it would have to become to be evidence.
+
+| A claim | What evidence would say instead |
+|---|---|
+| "Built a production-ready AI agent" | What it does, who used it, for how long, and the limits it ran under |
+| "94% accuracy" | On how many cases, from where, against which baseline, over how many runs |
+| "Reduced workload by 60%" | How it was measured, over what period, or "not measured" |
+| "Hallucination-free" | The rate of unsupported claims on a named case set, and how it was checked |
+| "Expert in RAG and multi-agent systems" | One retrieval comparison you ran, and one multi-agent design you rejected and why |
+| "Proficient in Loomflow, Vectorbin, and lark-4-mini" | The tool list, dated, at the end, after the evidence |
+
+The last row uses names from this module's fictional artifacts. Real profiles do the same with real names, and the names expire on the schedule the first part of this module described.
+
+**In your current role,** the honest path into this work is usually ownership of one piece of an existing system. Offer to build the eval set for a feature someone else shipped. Run the error analysis nobody has time for. Write the decision record for the next model migration. Each is a real responsibility with an artifact someone can inspect, and each is the kind of work the talk's owner definition describes. The [Working on an AI engineering team](/modules/ai-engineering-team) elective covers how those responsibilities are shared on a team.
+
+**In an interview,** expect the follow-up. Prepare the four independent explanation tasks for one project: trace one request through it, reproduce one comparison, diagnose a failure you have not seen before, and explain one alternative you rejected. Prepare one failure story: what broke, how you found it, what the trace showed, what you changed, and how you checked the change. And prepare to say "I don't know" followed by how you would find out. In this field that is often the most credible sentence in the interview.
+
+Titles vary. Some employers call this work AI engineering, others call it applied AI, platform, or simply software engineering. The talk itself is careful with the boundary: "ML engineers typically focus on models and the pipelines that produce them. AI engineers typically focus on products around models. The roles overlap, including adaptation and fine-tuning." Describe the responsibilities you have carried. Let the reader map them to their title.
+
+### Choosing a deeper path
+
+You have chosen what to go deep on before: a database, a language, a platform. You chose well when the choice came from a problem you kept hitting. The book's last topic for the chapter is a choice: "Choose deeper paths in retrieval, evaluation, agent systems, model adaptation, inference infrastructure, multimodal systems, or security." Seven paths. Each has a home in this program.
+
+| Path | Where this program covers it |
+|---|---|
+| Retrieval | [Context and knowledge](/modules/context-and-knowledge) |
+| Evaluation | [Verification and evals](/modules/verification-and-evals), with [Foundations](/modules/foundations) for the statistics |
+| Agent systems | [Orchestration](/modules/orchestration) and [Tools and extensibility](/modules/tools-and-extensibility) |
+| Model adaptation | The [Fine-tuning, distillation, and model adaptation](/modules/fine-tuning-and-adaptation) elective |
+| Inference infrastructure | The [Inference and hosting fundamentals](/modules/inference-and-hosting) elective |
+| Multimodal systems | The [Multimodal systems](/modules/multimodal-systems) elective |
+| Security | [Operating it](/modules/operating-it), with [Tools and extensibility](/modules/tools-and-extensibility) for authorization |
+
+How do you choose? The same way you choose what to fix in a system: from evidence of where the failures are, not from what is fashionable this quarter.
+
+Three sources of evidence are available to you. Your error analysis at work, if you have one: if most of your failures are the wrong document reaching the model, retrieval is the path, and a larger model is not. The program's closing [self-assessment](/modules/self-assessment), which rates you area by area and ranks the gaps. And the work in front of you: if your team is about to add document uploads, multimodal is about to matter whether or not it interests you.
+
+The talk's first prepared answer covers the question most engineers ask before choosing anything:
+
+> Do I need to learn machine learning first? You can begin without training a model. Learn enough about model behavior, retrieval, evaluation, and uncertainty to investigate failures.
+
+That answer sets the floor, not the ceiling. Some paths go deep into models. The book's research names Stanford's CS336 as the route into model construction. It is explicit that the course's prerequisites are a different scope from this program's. The course page, checked on 2026-10-09, describes the Spring 2026 offering as "a very implementation-heavy class." It warns: "The amount of code you will write will be at least an order of magnitude greater than for other classes." That is a path for someone whose observed gap is in the model itself: adaptation, inference performance, or research. It is not a prerequisite for owning a product built on models, and the program does not treat it as one.
+
+One more caution on paths. A deeper path is a skill, not a tool. "Learn retrieval" is a path. "Learn one vector database's API" is a tool fact inside it. Choose the path. Pick up the tool facts as the path needs them, and date them.
+
+### A learning plan that survives the next release
+
+You have written a plan to pay down tech debt: the incidents that keep recurring, the fix for each, and how you will know it worked. A learning plan works the same way. The book's completion evidence for this chapter ends with a plan: "produce a learning plan linked to observed skill gaps, without claiming a guaranteed job outcome." Every word of that sentence is a design rule.
+
+**Linked to observed skill gaps.** Each item starts from something you saw: a failure you could not diagnose, a comparison you could not read, a rating of Not yet or Aware in the [self-assessment](/modules/self-assessment). Not from a list of what is popular. If you cannot say where you observed the gap, you do not know yet whether it is one.
+
+**A plan, not a list.** Each item says what you will practice, how often, and what evidence will show progress.
+
+**Without claiming a guaranteed job outcome.** The plan's goal is capability you can show. Not a title by a date.
+
+Here is a template for one item. Five lines.
+
+- **Gap observed.** Where and when, with the evidence: "On 2026-09-22 I could not tell whether our summarizer's new prompt was better; I had no cases."
+- **Durable skill.** The skill that closes it, in vendor-free words: "Build a case set from real failures and compare two configurations on it."
+- **Practice.** What you will do, on a schedule: "Thirty minutes of output reading every Monday. Add four cases a week to my personal set until it has 40."
+- **Evidence of progress.** An artifact someone else can inspect: "A run log comparing two prompt versions, with categories and run-to-run ranges, and a one-page note on what changed."
+- **Tool facts needed, dated.** Only the ones this item requires, with versions and checked dates. And a review date.
+
+Notice what is missing from the template: hours watched, tutorials completed, badges. Those measure input. A plan built on them can be completed perfectly while the gap stays open. Measure the evidence instead.
+
+Review the plan on a schedule. Quarterly is a good default, and it matches the ninety-day window after which this program flags its own facts as possibly stale. At each review, three questions: Which gaps closed, and what is the evidence? Which tool facts in the plan expired? Which new gaps did your reading and your eval set show? The plan changes. The method of making it does not.
+
+The failure exercise below gives you a plan that breaks most of these rules. Find what breaks.
+
+### When you are the owner of your own learning
+
+Every area module ends with the owner. This one ends with you.
+
+When you were a user of a coding agent, someone else decided what was worth knowing. The tool's documentation told you the commands. The picker told you the models. When those changed, the tool changed them for you, and you learned the new names. That is how a user keeps up.
+
+An owner keeps up differently: on a schedule, with a set of cases, from primary sources, with dates, and by evidence.
+
+The talk closes on the thesis and one more line, verbatim: "The difference is not the tools. It is what you are responsible for." The tools in this module will be renamed, re-versioned, and retired. What you are responsible for will not get smaller. Learn for that.
 
 ## Workshop
 
 <Workshop>
 
-The workshop will be an analysis exercise on provided artifacts. No code. It will state the task in one paragraph and give a rubric.
+<Artifact id="career-and-learning-case-study-a" />
+
+<Artifact id="career-and-learning-case-study-b" />
+
+A friend wants to apply for AI engineering roles with this ticket triage project and has asked you to review both write-ups before they publish one. Both describe the same project. Read A, then B, including B's method section. Then write 300 to 500 words in five parts. First, take three of A's headline claims, including the 94%, and say for each whether B supports it, contradicts it, or shows it was never measured. Second, name what B gives a reader that A cannot, and say what B's security row can and cannot show. Third, find the problem in B's method that makes its headline number optimistic, and say what would fix it. Fourth, write the three or four sentences your friend could say about this project in an interview: scope, baseline, result, and the main limit, and nothing more. Fifth, apply the six questions from Reading a paper (task, baseline, method, result, limitations, applicability) to the LangChain routing post in Reading a vendor post, and say whether it bears on any failure category in B. No code. Your response is saved to your account and never graded. Apply the rubric below to it yourself.
+
+- Traces at least three of A's claims (the 94%, the 60% workload reduction, "hallucination-free", "multi-agent", "production-ready", "scales to millions") to what B says about each.
+- Notices that A's 94% came from the first 50 tickets, a set B describes as too easy and stopped reporting.
+- Notices that B's method chose the prompt by its score on the 150 test tickets, so the 86% is optimistic, and proposes a fresh test set the prompt has never seen.
+- Reads the security row with its sample size: 9 cases and 2 misses, too few to support a strong claim either way.
+- Credits what B does well: a baseline on the same cases, labeling with a measured agreement, a failure analysis with counts, a rejected alternative with its reason, a list of what was not measured, and replay labeled as replay.
+- Keeps the interview version to evidence: what kind of project, the baseline, the result with its denominator, and the main limit, which includes the tuning on the test set.
+- Names the routing post's conditions and limits (one workload of 145 tasks, runs that vary by about 2.7 points) before judging relevance, and ties the judgment to a specific failure category in B with its count. For example: the 9 billing-versus-account errors match a split the two human labelers also disagreed on, so a cheaper or a larger model would not obviously fix them.
+- Uses no absolute claims and invents no numbers that are not in the artifacts.
 
 </Workshop>
 
@@ -42,11 +843,23 @@ The workshop will be an analysis exercise on provided artifacts. No code. It wil
 
 <FailureExercise>
 
-The failure exercise will plant a failure in an artifact and ask you to find it and explain it.
+<Artifact id="career-and-learning-learning-plan" />
+
+Dana wrote this plan to move into AI engineering and asked you for feedback a week into October. Find what makes this plan fail the standard in this module, and explain it. Then write one item of your own learning plan with the five-line template from A learning plan that survives the next release: a gap you have observed, the durable skill that closes it, the practice, the evidence of progress, and the tool facts it needs, dated.
 
 <Fragment slot="explanation">
 
-The explanation appears here after a response is saved.
+The plan is built on tool facts with an expiry date, and its goal claims an outcome no plan can guarantee.
+
+Start with the changelog, because it settles the question from the artifact alone. Most of its entries are routine fixes. One is not. The plan was written on 2026-09-29. Driftcode CLI 4.2.0 was released on 2026-10-07. It deprecated `/swarm` in favor of `/team`, removed the "eco" reasoning level, and changed the default model. Item 3 scheduled those commands for October. A week into October, two of the three things item 3 named had changed: `/swarm` is deprecated in favor of `/team`, and eco is gone. Only `/turbo` is untouched. And lark-4-mini, a model item 1 memorizes and item 5 tunes a phrase for, was no longer the tool's default. That is what an expiry date looks like when nobody printed it.
+
+Now sort the items. Item 1, memorizing every model's window and price, is a list of tool facts with the shortest shelf life in the field. The durable version is a method: measure cost per completed task and test how a model uses a long input, on your own cases. Item 2 learns one framework's node types before understanding the loop, which is the roadmap's warning in reverse: "Learn the loop before a framework." Item 3 is already partly expired. Item 4 is a badge, which measures completion of a vendor's material, not competence on a system. Item 5 looks for a phrase that stops one model from hallucinating. No phrase does, and a prompt tuned to one model is tuned to that model. Item 5 also learns from a newsletter's prompt list, which is a secondary source. Follow each prompt to its origin and test it on your own cases before you keep it. The durable skill is a check for unsupported claims, the "unsupported" category in this module's personal eval set. Item 6 learns one product's defaults instead of how to compare retrieval approaches on real questions. Item 7 counts hours.
+
+The progress measures repeat the problem. Tutorials, badges, hours, and models memorized all measure input. Dana could complete every one and still be unable to diagnose a retrieval failure. And the "Not doing" list removes the two most durable practices in the plan's reach: reading papers, the primary sources for research claims, and evals.
+
+The goal is an overclaim. "Certified AI engineer" names a credential that the plan does not lead to, "guarantees I am job-ready" promises an outcome nobody can promise, and a title by a date is not a learning goal. The plan is also linked to no observed gap. Dana is a payments engineer and the plan never says what Dana has seen fail or could not do.
+
+A better item, using the template from A learning plan that survives the next release: Gap observed: "Our payments team added a model that summarizes dispute evidence, and on 2026-09-24 I could not say whether its summaries were right." Durable skill: "Read outputs and build a case set from real failures." Practice: "Thirty minutes of reading every Monday, with a note per output; four new cases a week, rewritten with invented names." Evidence: "By December, a 40-case set with categories, and a run comparing two prompt versions with run-to-run ranges." Tool facts needed: "The summarizer's model id and its retirement date, from the vendor's deprecation page, checked monthly." The goal becomes capability someone can inspect, not a title by March. Your own item should read the same way: a gap you can point to, and evidence someone else can check.
 
 </Fragment>
 

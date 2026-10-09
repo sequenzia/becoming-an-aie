@@ -3,38 +3,709 @@ title: "Working on an AI engineering team"
 kind: elective
 area: none
 order: 4
-summary: "Who owns the data, the graders, and the incidents. Reviewing changes to prompts, tools, and models as maintained assets."
-readingMinutes: 45
+summary: "Who owns the eval set, the graders, the labels, and the incidents. Reviewing prompts, datasets, graders, and models as code review, one change at a time, with an experiment record a reviewer can decide from."
+readingMinutes: 55
 prerequisites: []
 talkBeats: []
 bookChapters: [29]
-draft: true
-updatedOn: 2026-09-16
-checkedOn: 2026-09-16
+draft: false
+updatedOn: 2026-10-09
+checkedOn: 2026-10-09
 staleAfterDays: 90
-artifacts: []
-outcomes: []
-selfCheck: []
-sources: []
+artifacts: [ai-engineering-team-review-checklist, ai-engineering-team-upgrade-record, ai-engineering-team-grader-pr]
+outcomes:
+  - id: own-the-assets
+    text: Name the assets an AI team maintains beyond code, and give each one an accountable owner, from the product outcome and the eval set to the graders, labels, prompts, infrastructure, and incidents.
+  - id: review-as-code-review
+    text: Review a change to a prompt, tool description, dataset, grader, or model the way you review code, with an attached eval run as the evidence.
+  - id: one-change-at-a-time
+    text: Separate changes so that each comparison has one cause, and recognize a result that a combined change has made uninterpretable.
+  - id: experiment-record
+    text: Write an experiment record that another engineer could reproduce and a reviewer could decide from.
+  - id: work-with-experts
+    text: Divide the work between product, domain experts, data, and engineering, and resolve ambiguous requirements and labels with one quality decision-maker and a written adjudication.
+  - id: run-behavior-review
+    text: Run a review of model behavior that separates changes, resolves or records disagreements, and ends with accountable next actions.
+  - id: durable-documentation
+    text: Write documentation and handoffs that survive a model change, with every behavioral claim tied to the configuration and cases it was measured on.
+  - id: prioritize-from-failures
+    text: Prioritize the team's work from observed failures and experiments rather than from a list of features.
+selfCheck:
+  - id: q1-eval-ownership
+    outcome: own-the-assets
+    question: "Your company is setting up evals for three product teams, and a platform group offers to help. Who should own the harness, the runners, and the result storage, and who should write the eval tasks and run the evaluations?"
+    options:
+      - "The platform group owns the infrastructure and writes every task, so the tasks stay consistent across teams"
+      - "The platform group owns the infrastructure; domain experts and product teams contribute most tasks and run the evaluations themselves"
+      - "Each product team builds its own harness and keeps its own private cases"
+      - "The product teams own the infrastructure, and the platform group writes the tasks because it is independent of the products"
+    correct: [1]
+    feedback:
+      - "Not yet. The people closest to the requirements are best placed to define success, so the tasks should come from them. Reread What someone engineered: the team behind the agent."
+      - "Correct. One owner for the instrument, many contributors to its cases, and the people closest to the requirements writing them."
+      - "Not yet. Private suites cannot be compared, reviewed, or handed over. Reread Who owns the eval set."
+      - "Not yet. That puts the instrument with the teams being measured and the cases with people far from the requirements. Reread Who owns the eval set."
+  - id: q2-assets
+    outcome: own-the-assets
+    question: "Which of these are maintained assets that need a named owner on a team that ships a model-dependent product?"
+    options:
+      - "The judge prompt and rubric for a faithfulness grader"
+      - "The adjudicated labels on the eval cases"
+      - "The configuration file that names the model id and effort"
+      - "The vendor's model weights"
+      - "The team's shared instructions file for its coding agent"
+    correct: [0, 1, 2, 4]
+    feedback:
+      - "Correct. A grader is an instrument. Changing it changes every number it produces."
+      - "Correct. Labels are the reference the graders are calibrated against, and they can be wrong."
+      - "Correct. The model id is a behavioral dependency with a retirement date."
+      - "Not yet. You cannot maintain the vendor's weights. You maintain the evidence about them and the configuration that selects them. Reread The assets a team now maintains."
+      - "Correct. It is a prompt that every teammate's agent reads."
+  - id: q3-prompt-review
+    outcome: review-as-code-review
+    question: "A pull request changes one sentence in a system prompt. Unit tests and lint pass. What evidence does the reviewer need before approving?"
+    options:
+      - "None beyond CI, because the diff is one sentence"
+      - "An eval run on the changed configuration, reported per category, with the cases that changed verdict read and not only counted"
+      - "The author's description of what the sentence is meant to do"
+    correct: [1]
+    feedback:
+      - "Not yet. The size of the diff says nothing about the size of the behavior change. Reread Review prompts and datasets as code."
+      - "Correct. The eval run is the CI for behavior, and the changed cases are the diff you can actually read."
+      - "Not yet. Intent is useful context, not evidence. Reread Review prompts and datasets as code."
+  - id: q4-dataset-review
+    outcome: review-as-code-review
+    question: "A pull request to the eval set removes six cases that the system fails, calling them noisy, and changes two labels from FAIL to PASS. The description says only \"cleanup\". What should the reviewer ask for before approving?"
+    options:
+      - "For each removed case, whether two domain experts disagree on it, or whether the system simply fails it every time"
+      - "An adjudication note for each changed label, with who decided"
+      - "Approval from the eval set owner, and from the quality decision-maker for the label changes"
+      - "Nothing more, because removing noisy cases always makes a suite more accurate"
+      - "The new pass rate on the cleaned set, as proof that the cleanup worked"
+    correct: [0, 1, 2]
+    feedback:
+      - "Correct. A case experts disagree on is noise. A case the system fails every time is the reason the suite exists."
+      - "Correct. A label changed without a reason is a test whose expected value someone edited to make it pass."
+      - "Correct. Changes to cases go through the eval set owner, and changes to labels go through the person who owns the definition of correct."
+      - "Not yet. Hard cases are exactly the ones a team is tempted to call noisy. Reread Review prompts and datasets as code."
+      - "Not yet. Removing failing cases raises the pass rate whether or not they were noise. Reread Review prompts and datasets as code."
+  - id: q5-confounded
+    outcome: one-change-at-a-time
+    question: "A pull request changes the model and the correctness grader for a support-triage assistant. Correctness rises 6 points against last month's baseline, which used the old grader. What does that comparison establish about the new model?"
+    options:
+      - "The new model is 6 points more correct"
+      - "Nothing yet, because the model and the instrument changed together"
+      - "The old grader was too strict"
+    correct: [1]
+    feedback:
+      - "Not yet. Part or all of the rise could be the grader. Reread One change at a time."
+      - "Correct. Run the old and the new grader on the same stored outputs to measure the grader's effect, then compare the models with one grader held fixed."
+      - "Not yet. That is a claim about the grader, and it needs its own evidence: agreement with expert labels. Reread Review graders and models as code."
+  - id: q6-record-fields
+    outcome: experiment-record
+    question: "Which of these must an experiment record contain for another engineer to reproduce the comparison?"
+    options:
+      - "The case set version and the grader versions"
+      - "The model id and the effort setting actually in effect, not only the word default"
+      - "The number of trials and the run ids"
+      - "The vendor's published benchmark scores for both models"
+      - "The stored outputs, or where they are kept"
+    correct: [0, 1, 2, 4]
+    feedback:
+      - "Correct. Change either one and the numbers mean something else."
+      - "Correct. A vendor default can differ between two models, so default is not a setting you can reproduce."
+      - "Correct. The trials give the run-to-run range. The run ids find the evidence."
+      - "Not yet. Vendor benchmarks are context. They do not let anyone reproduce your comparison on your cases. Reread The experiment record."
+      - "Correct. Stored outputs let you regrade with a new grader without rerunning the model."
+  - id: q7-benevolent-dictator
+    outcome: work-with-experts
+    question: "Three experts label the same 100 outputs independently and disagree on 30 of them. What do you do next?"
+    options:
+      - "Take the majority label on each disputed case and move on"
+      - "Collect the 30 cases, add a definition, rule, or example to the rubric that covers them, relabel, and have one named domain expert make and record the final call where disagreement remains"
+      - "Drop the 30 disputed cases from the eval set as noise"
+      - "Add two more experts so the vote on each case is decisive"
+    correct: [1]
+    feedback:
+      - "Not yet. A majority hides the disagreement and leaves the rubric as vague as it was. Reread Ambiguous requirements and labels."
+      - "Correct. The disagreements show where the rubric is underspecified. One decision-maker settles what the rubric cannot, and the reason is written down."
+      - "Not yet. Disputed cases are where the definition of quality is unclear. Dropping them hides the problem from the suite. Reread Ambiguous requirements and labels."
+      - "Not yet. Husain and Shankar read the need for five experts on one interaction as a sign the scope may be too broad. Reread Ambiguous requirements and labels."
+  - id: q8-criteria-drift
+    outcome: work-with-experts
+    question: "Two weeks into labeling, your domain expert says she now judges replies that skip the customer's order number differently than she did on the first day. What is the best reading, and the response?"
+    options:
+      - "She is being inconsistent, so discard her labels and hire outside annotators"
+      - "Grading outputs is helping her define the criteria. Write the new rule into the rubric as a versioned change, relabel the cases the old rule decided, and recalibrate the judge"
+      - "Freeze the rubric as it was on the first day, so the labels stay comparable"
+    correct: [1]
+    feedback:
+      - "Not yet. Shankar and colleagues call this criteria drift, and it is a property of the work, not a flaw in the person. Reread Ambiguous requirements and labels."
+      - "Correct. That is criteria drift, handled on purpose: three changes, in order, with a record."
+      - "Not yet. A frozen rubric keeps grading by a definition the expert no longer holds. Reread Ambiguous requirements and labels."
+  - id: q9-disagreement
+    outcome: run-behavior-review
+    question: "In a model review, the domain reviewer says a regression makes the candidate unsafe to ship, and the application owner says it is within noise. The evidence in the room cannot settle it. What should the review produce?"
+    options:
+      - "A vote, with the majority deciding"
+      - "A decision by whoever owns the product outcome, both positions written down, and a next action with one owner and a date that would produce the missing evidence"
+      - "No decision until everyone agrees"
+    correct: [1]
+    feedback:
+      - "Not yet. A vote hides the disagreement instead of recording it. Reread Running a review of model behavior."
+      - "Correct. The book's completion evidence asks for exactly this: resolve or record disagreements, and assign accountable next actions."
+      - "Not yet. Unanimity is not required. A recorded decision with a revisit date is. Reread Running a review of model behavior."
+  - id: q10-vibe-check
+    outcome: run-behavior-review
+    question: "In a model review, every offline eval and the A/B test favor the candidate. Two expert testers say its answers feel slightly off, and cannot yet say why. What should the review do?"
+    options:
+      - "Ship, because the measured evidence outweighs an impression"
+      - "Hold the change, turn the concern into named cases, and measure them before deciding"
+      - "Run a larger A/B test before acting on the concern"
+      - "Set the evals aside and let the experts decide this release"
+    correct: [1]
+    feedback:
+      - "Not yet. That is what OpenAI did with its April 2025 GPT-4o update, and the update was rolled back. Reread Running a review of model behavior."
+      - "Correct. A credible expert concern is a finding, and a finding needs a check. OpenAI's own commitment afterward was to treat model behavior issues as launch-blocking."
+      - "Not yet. In OpenAI's account the A/B tests seemed to show users liked the model. A bigger test of the same thing does not look for the behavior the experts noticed. Reread Running a review of model behavior."
+      - "Not yet. The lesson is to weigh both, and to turn the concern into a named eval. Reread Running a review of model behavior."
+  - id: q11-agents-md-lines
+    outcome: durable-documentation
+    question: "Your team's shared instructions file has grown a line for each bad agent behavior anyone hit. The team moves to a newer model. What keeps that file useful?"
+    options:
+      - "Keep every line forever, because each one fixed something once"
+      - "Delete the file and start over on the new model"
+      - "Record with each line the failure it fixed, then rerun those cases on the new model and remove the lines it no longer needs"
+    correct: [2]
+    feedback:
+      - "Not yet. A workaround for one model can be dead weight, or harmful, on the next. Reread Documentation that survives a model change."
+      - "Not yet. That throws away the record of what went wrong. Reread Documentation that survives a model change."
+      - "Correct. A line tied to a failure case can be retested. A line without one can only be guessed about."
+  - id: q12-roadmap
+    outcome: prioritize-from-failures
+    question: "Error analysis on 100 traces from a support assistant finds 40 replies with the wrong date format, 3 replies that quote the wrong refund amount, and 9 complaints about tone. Which experiment goes first?"
+    options:
+      - "Tone, because customers notice it first"
+      - "The date format, because it is the largest category, unless each wrong refund amount costs enough to outweigh many formatting errors, in which case the refund cases come first"
+      - "The refund amounts, always, because money is involved"
+      - "Whatever feature is next on the roadmap, since error analysis is for debugging, not planning"
+    correct: [1]
+    feedback:
+      - "Not yet. Nine complaints is a count, and forty is a larger one. Reread Prioritize from observed failures."
+      - "Correct. The counts are a backlog, weighted by what each error costs. That weighing is a product decision, made on purpose."
+      - "Not yet. Cost can move them first, but that is a judgment from the cost of each error, not a rule. Reread Prioritize from observed failures."
+      - "Not yet. The counts are the roadmap's best source of priorities. Reread Prioritize from observed failures."
+sources:
+  - title: Beyond the Coding Agent, the talk repository
+    author: Stephen Sequenzia
+    date: "2026-09"
+    url: https://github.com/sequenzia/beyond-the-coding-agent
+    checkedOn: 2026-10-09
+    note: "The thesis, the owner definition, and the roadmap as this program's talk knowledge base records them, and research/section-3.md and research/external/ai-engineering-research-report.md read from a local clone at commit d90f230 (2026-09-18). The quotations \"six separate departments\" and \"Unowned escalations\" are from that report. The talk has no beat on team practice; this elective draws on the research it cites."
+  - title: Becoming an AI Engineer, the book blueprint
+    date: "2026-09"
+    checkedOn: 2026-10-09
+    note: "Chapter 29 of the blueprint, with its source list, read from a local copy. The public link is pending."
+  - title: AI Engineering in the real world
+    author: Gergely Orosz
+    org: The Pragmatic Engineer
+    date: "2025-03-25"
+    url: https://newsletter.pragmaticengineer.com/p/ai-engineering-in-the-real-world
+    checkedOn: 2026-10-09
+    note: "Paid post; the quotations used here are in the free portion as read on the checked date. Profiles of seven companies, not a survey."
+  - title: "The impact of AI on software engineers in 2026: key trends, Part 1"
+    author: Gergely Orosz and Elin Nilsson
+    org: The Pragmatic Engineer
+    date: "2026-04-14"
+    url: https://newsletter.pragmaticengineer.com/p/the-impact-of-ai-on-software-engineers-2026
+    checkedOn: 2026-10-09
+    note: "A reader survey of 900-plus responses about AI coding tools. It describes the readers who answered, not the industry."
+  - title: My AI Adoption Journey
+    author: Mitchell Hashimoto
+    date: "2026-02-05"
+    url: https://mitchellh.com/writing/my-ai-adoption-journey
+    checkedOn: 2026-10-09
+    note: "One engineer's account of adopting coding agents, not of shipping an AI product. He uses the phrase harness engineering and says he does not know of an industry-accepted term; do not credit him with coining it."
+  - title: "Who Validates the Validators? Aligning LLM-Assisted Evaluation of LLM Outputs with Human Preferences"
+    author: Shreya Shankar, J.D. Zamfirescu-Pereira, Björn Hartmann, Aditya G. Parameswaran, Ian Arawjo
+    date: "2024-04-18"
+    url: https://arxiv.org/abs/2404.12272
+    checkedOn: 2026-10-09
+    note: "UIST 2024, as the talk's research records it. Quoted from the arXiv abstract."
+  - title: "Operationalizing Machine Learning: An Interview Study"
+    author: Shreya Shankar, Rolando Garcia, Joseph M. Hellerstein, Aditya G. Parameswaran
+    date: "2022-09-16"
+    url: https://arxiv.org/abs/2209.09125
+    checkedOn: 2026-10-09
+    note: "Interviews with 18 machine learning engineers about trained-model pipelines, before foundation-model products were common. Read for the team practices, not as evidence about any current product."
+  - title: "AI Evals: Everything You Need to Know"
+    author: Hamel Husain and Shreya Shankar
+    date: "2026-09-18"
+    url: https://hamel.dev/blog/posts/evals-faq/
+    checkedOn: 2026-10-09
+    note: "The page shows September 18, 2026, modified September 21, 2026. The authors call these sharp opinions about what works in most cases, not universal truths."
+  - title: A Field Guide to Rapidly Improving AI Products
+    author: Hamel Husain
+    date: "2025-03-24"
+    url: https://hamel.dev/blog/posts/field-guide/
+    checkedOn: 2026-10-09
+    note: "Client accounts from the author's consulting work, not independent measurements."
+  - title: Demystifying evals for AI agents
+    org: Anthropic
+    author: Mikaela Grace, Jeremy Hadfield, Rodrigo Olivares, Jiri De Jonghe
+    date: "2026-01-09"
+    url: https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents
+    checkedOn: 2026-10-09
+    note: "Experience-based guidance from one vendor's teams and customers. The CORE-Bench, Descript, and Bolt accounts are as the article reports them."
+  - title: A postmortem of three recent issues
+    org: Anthropic
+    author: Sam McAllister
+    date: "2025-09-17"
+    url: https://www.anthropic.com/engineering/a-postmortem-of-three-recent-issues
+    checkedOn: 2026-10-09
+    note: "A first-party account, not independently audited."
+  - title: Expanding on what we missed with sycophancy
+    author: Simon Willison
+    date: "2025-05-02"
+    url: https://simonwillison.net/2025/May/2/what-we-missed-with-sycophancy/
+    checkedOn: 2026-10-09
+    note: "Commentary on OpenAI's post of the same day, with extended quotations. The quotations of OpenAI here were read through this post, as the Models module explains."
+  - title: AI Engineering
+    org: Carnegie Mellon University Software Engineering Institute
+    date: "2026"
+    url: https://www.sei.cmu.edu/artificial-intelligence-engineering/
+    checkedOn: 2026-10-09
+    note: "Undated overview page. An institutional definition, not an occupational credential."
+  - title: Model Cards for Model Reporting
+    author: Margaret Mitchell and colleagues
+    date: "2018-10-05"
+    url: https://arxiv.org/abs/1810.03993
+    checkedOn: 2026-10-09
+    note: "Documentation accompanies evidence. It does not certify fitness."
+  - title: Custom instructions with AGENTS.md, Codex documentation
+    org: OpenAI
+    date: "2026"
+    url: https://learn.chatgpt.com/docs/agent-configuration/agents-md
+    checkedOn: 2026-10-09
+    note: "Discovery order, nested overrides for teams, AGENTS.override.md, and Code Review Rules, as documented on the checked date. Undated page."
+  - title: Devin CLI config file
+    org: Cognition
+    date: "2026"
+    url: https://docs.devin.ai/cli/reference/configuration/config-file
+    checkedOn: 2026-10-09
+    note: "Committed and gitignored project files, team-allowed models, organization policy precedence, and attribution, as documented on the checked date. Undated page."
+  - title: Models overview
+    org: Anthropic
+    date: "2026"
+    url: https://platform.claude.com/docs/en/about-claude/models/overview
+    checkedOn: 2026-10-09
+    note: "The default effort listed for each current model on the checked date. Undated page."
+  - title: Deprecations
+    org: OpenAI
+    date: "2026"
+    url: https://developers.openai.com/api/docs/deprecations
+    checkedOn: 2026-10-09
+    note: "The notice period for preview models, as stated on the checked date. Undated page."
 ---
 
 ## Transfer connection
 
-This module is planned. It is not yet written. This page holds its place in the catalog until it is.
+You already work on a team. You review other people's code and they review yours. You carry a pager for a rotation, and you know what a good handoff note looks like at the end of a shift. You sit in design reviews where someone proposes a change, someone else asks what happens when the queue backs up, and the meeting ends with a decision and a list of follow-ups with names on them. You know that a pull request without tests is a conversation, not a merge. You know that CODEOWNERS exists because some files need a particular person's eyes.
 
-Electives are optional. They never appear as prerequisites of a core module. The module will say what stays the same and what changes.
+The book's chapter on this subject states the transfer in one sentence: "Collaboration and review incorporate data, graders, and model behavior as maintained assets." Read it slowly. The practices are the ones you know. The things they apply to are new.
+
+What stays the same: review before merge. A named owner for every asset that can break production. A written decision with its evidence. A runbook, an on-call rotation, and a postmortem that ends in a change that would have caught the failure. Design review before a large change, and a record of what was decided and why. Least privilege on who can change what. All of that transfers whole, and a team that already does it well has most of what it needs.
+
+What changes is what a diff can tell you. In ordinary code review, you read the change and reason about its effect. The code is the behavior, or close enough. In a model-dependent product, the diff to a prompt is one sentence, and its effect is a shift in a distribution of outputs across thousands of inputs you cannot read by eye. The diff to a grader changes no product behavior at all, and it can change every number the team uses to decide anything. The diff to a model id is one string, and it replaces the component that authors most of the behavior. So the evidence a reviewer needs changes. The eval run becomes the test result attached to the pull request, and the cases that changed verdict become the part of the diff a reviewer can actually read.
+
+Three more things change. The people change: a domain expert who has never opened a terminal may be the only person on the team who can say whether an output is right, so they become a reviewer. The instrument changes: the eval set, its labels, and its graders are code with a special status, because they decide whether everything else passes. And the record changes: an experiment is a decision input, so it needs a record another engineer can reproduce, in the way a design doc needs enough detail for someone else to build from it.
+
+The talk's thesis is about one engineer: "Using AI makes you an AI-enabled software engineer. Engineering systems that depend on AI makes you an AI engineer." Its definition of owner is already about a team: "Owner means the engineer or team accountable for the delivered product's behavior and operating limits." This module is about the second half of that sentence. When the owner is a team, accountability has to be divided without falling through the cracks between people.
 
 ## Topics and learning outcomes
 
 <Outcomes />
 
-The module draws on book chapter 29. It will introduce each concept with its outcome and a worked example, with every tool fact carrying its checked-on date.
+The book places this chapter after its capstone project. This module still stands alone. Where it borrows a term from another module it says what the term means at first use, and links to the module that teaches it. You will get more from it if you read [Models](/modules/models) and [Verification and evals](/modules/verification-and-evals) first, because the workshop turns on two things they teach: the effort setting and how far a model grader can be trusted.
+
+The page follows the book's four outcomes for the chapter, with two parts added because those outcomes depend on them: the rule that a comparison changes one thing at a time, and the experiment record that makes a comparison something a team can review. The public accounts are first-hand reports, each with its author and date. None is a survey of the industry. If you read in two sittings, stop after Who owns the eval set.
+
+### When you are the user: a shared instructions file
+
+Start with something you already maintain with other people, possibly without thinking of it as a team asset. If your repository has an AGENTS.md file, every engineer who runs a coding agent in that repository is running a prompt that the team wrote together. Somebody added the build commands. Somebody added the line about the deprecated date helper after the agent used it for the third time. Somebody added a line that contradicts it two screens down.
+
+Codex's documentation, checked on 2026-10-09, describes how the file is found. Codex reads a global file from your Codex home directory, then walks from the project root down to your working directory. "In each directory along the path, it checks for `AGENTS.override.md`, then `AGENTS.md`, then any fallback names in `project_doc_fallback_filenames`." Then it concatenates them. "Files closer to your current directory override earlier guidance because they appear later in the combined prompt." The [Context and knowledge](/modules/context-and-knowledge#what-you-touched-what-someone-engineered) module takes that mechanism apart as a context-engineering decision. Here, read it as an organizational one.
+
+The documentation is explicit that the layers map onto teams. Its example: "Add overrides in nested directories when specific teams need different rules." A payments directory gets its own `AGENTS.override.md` with "Payments service rules". The repository root holds the rules everyone shares. Your home directory holds your own working agreements, and there is a personal override as well: "Use `~/.codex/AGENTS.override.md` when you need a temporary global override without deleting the base file." The troubleshooting section has a line any team lead will recognize: "Wrong guidance appears: Look for an `AGENTS.override.md` higher in the directory tree or under your Codex home." That is a works-on-my-machine bug for a prompt. Two engineers run the same agent on the same commit and get different behavior, because one of them has a personal override the other does not.
+
+The same page adds a section on code review. For Codex's code review in GitHub, you "add a `## Code Review Rules` section to the `AGENTS.md` closest to the code the rules govern." The documentation's advice for writing those rules is advice for writing any team guidance: "Keep rules concise, explain the behavior to flag and any safe path or exception, and reserve formatting and lint checks for CI." A review rule is now a prompt, and a prompt is a team asset.
+
+Devin CLI's configuration documentation, checked on 2026-10-09, makes the team boundary visible in its file layout. It lists `.devin/config.json` as "Project settings (committed)" and `.devin/config.local.json` as "Project local overrides (gitignored)". Its `read_config_from` setting has an `agents_standard` option that will "Import standard project rules from `AGENTS.md`, `AGENTS.local.md`, `AGENT.md`, and `.windsurfrules`". So there is a shared file and a local one, by name. The configuration also has a team layer above the project. The `subagent_model` setting is the "Model for subagents, used instead of your team's default subagent model", and it "Must be a model your team allows". And on subagents: "Organization policy takes precedence: if an admin has disabled subagents for your org (via the Default subagent model setting), subagents stay off regardless of this setting." One more default carries a team decision: the `attribution` setting adds a `Generated with [Devin]` line and a `Co-Authored-By: Devin` trailer to the commits and pull requests the agent creates, unless someone turns it off.
+
+Put those facts in one list and you have a small governance model. There is an organization layer that sets which models are allowed and which features are on. There is a project layer that is committed, reviewed, and shared. There is a local layer that is ignored by version control and belongs to one person. And there is an attribution convention that tells a reviewer which commits an agent authored. Someone designed every layer. Each answers a question your team will face with its own product: who may change the behavior for everyone, who may change it only for themselves, and how a reviewer knows which is which.
+
+Now look at how the shared file grows. Mitchell Hashimoto's account of his own adoption, published on February 5, 2026, describes a practice he calls engineering the harness: "anytime you find an agent makes a mistake, you take the time to engineer a solution such that the agent never makes that mistake again." He says he does not know of a broad industry-accepted term for it and has "grown to calling this 'harness engineering.'" One of its two forms is the instructions file: "For simple things, like the agent repeatedly running the wrong commands or finding the wrong APIs, update the AGENTS.md (or equivalent)." And then the sentence that matters for a team: "Each line in that file is based on a bad agent behavior, and it almost completely resolved them all."
+
+Read that as a team practice. The file is a log of observed failures, each turned into an instruction. That is error analysis in miniature, done by the people who hit the failures, and it worked for him. It also raises every question this module is about. Who reviews a new line before it changes every teammate's agent? What evidence says the line fixed the failure, and did not cause a new one? When the team moves to a newer model, which lines are still needed? Who owns the file? Hashimoto's account is one engineer's experience adopting coding tools, not a report on shipping a product, and the talk keeps it that way. The questions transfer anyway.
+
+### What someone engineered: the team behind the agent
+
+Behind the agent you use is a team you never meet, and it does the work this module describes. You see its output as a model picker that keeps working, a release note, and an occasional postmortem. You do not see who decided what counts as a good answer, who owns the suites that gate a release, or who reads the transcripts when a score moves.
+
+Anthropic's article on agent evals, published January 9, 2026, describes the ownership arrangement its teams settled on. "An eval suite is a living artifact that needs ongoing attention and clear ownership to remain useful." Then the arrangement: "At Anthropic, we experimented with various approaches to eval maintenance. What proved most effective was establishing dedicated evals teams to own the core infrastructure, while domain experts and product teams contribute most eval tasks and run the evaluations themselves." Two kinds of ownership, deliberately split. One team owns the instrument: the harness, the runners, the storage, the grading machinery. Many people own the content: the tasks, which come from the people closest to the requirements.
+
+The article goes further on who should write tasks. "The people closest to product requirements and users are best positioned to define success." Its example is pointed: "product managers, customer success managers, or salespeople can use Claude Code to contribute an eval task as a PR". The next words are "let them!" An eval task arrives as a pull request, from someone who is not an engineer, and is reviewed like any other change. The article also frames ownership of evals as ordinary engineering hygiene: "For AI product teams, owning and iterating on evaluations should be as routine as maintaining unit tests."
+
+It reports two customer accounts that show the split in practice. Descript's agent helps users edit videos. Its team built evals around "don't break things, do what I asked, and do it well", and "evolved from manual grading to LLM graders with criteria defined by the product team and periodic human calibration". The product team defines the criteria. Engineers build the graders. Humans calibrate them on a schedule. Bolt's team started later, "after they already had a widely used agent", and built an eval system in three months. Both are accounts from a vendor about its customers, so read them as descriptions, not as measured outcomes.
+
+The vendor's release process also shows what that team catches and misses. On September 17, 2025, Anthropic published a postmortem of three infrastructure bugs that degraded its models' responses for several weeks. The Operating it module reads it as an incident. Read it here as a team account. One sentence explains why the team was slow to see the problem: "More fundamentally, we relied too heavily on noisy evaluations." One of the fixes is a change in where evaluation runs: "Although we run regular evaluations on our systems, we will run them continuously on true production systems to catch issues such as the context window load balancing error." The team that owned the evals had them. The evals were in the wrong place and too noisy to settle the question.
+
+Here is the worked example in one table. The left column is what you touched as a user. The right column is what someone engineered, and who on a team owns it.
+
+| What you touched | What someone engineered, and who owns it |
+|---|---|
+| A shared AGENTS.md and your own override | A layered instruction system with a shared layer, a team layer, and a personal layer; someone owns the shared file |
+| A model picker limited to models your team allows | An organization policy, set by an admin, with a reason recorded somewhere |
+| Code review rules the agent applies to your pull request | Review guidance written as a prompt, maintained beside the code it governs |
+| A "Generated with" trailer on an agent's commit | An attribution convention, so a reviewer knows what an agent wrote |
+| A model upgrade that just appeared | A release gated by suites someone owns, with criteria someone defined |
+| A postmortem after a bad few weeks | An incident process, and an eval team that changed where its evals run |
+
+Every row of the right column becomes yours when your team ships a product that depends on a model. The rest of this module is about doing each row on purpose.
+
+### The assets a team now maintains
+
+A team that ships ordinary software maintains code, configuration, schemas, infrastructure definitions, and documentation. All of those still exist. A team that ships a model-dependent product maintains more, and the extra items share one property: each of them changes what the product does, or what the team believes about what it does, without any change to the application code.
+
+List them. The Operating it module calls the first group the [behavioral bill of materials](/modules/operating-it#releasing-behavior-not-just-code): everything that produced a given answer. The system prompt and every template. The tool descriptions and schemas, which the model reads as instructions. The model id, the effort setting (the vendor parameter for how much the model reasons on each call), and any sampling settings. The retrieval index and the ingestion code that built it. Router thresholds. Guardrail and policy configuration. Memory conventions. Each is an input to behavior with its own release cadence.
+
+The second group is the evidence: everything the team uses to decide whether the first group is good. The eval cases, grouped into suites with a purpose. The labels and reference answers on those cases. The adjudication log that says why a disputed label is what it is. The graders: code checks, judge prompts (the instructions for a model that grades another model's output, usually called a judge), rubrics, and the few-shot examples inside them, which are sample outputs with the verdict the judge should give. The calibration results that say how far each judge can be trusted. The stored outputs from past runs. The experiment records. The failure taxonomy from error analysis, with its counts.
+
+The third group is the operating record: the release manifests, the dashboards and alert rules, the incident postmortems and the regression cases they produced, the decision records for model selection and migration, and the approvals for which data may reach which model.
+
+The book's chapter names five things to assign: "product outcomes, datasets, evaluations, infrastructure, and incidents." The lists above expand them. The point of writing them out is that a team will maintain the first group because the product breaks without it, and it will maintain the third group because operations demands it. The second group is the one that rots. Nobody is paged when a label is wrong or a judge drifts. The product does not crash. The team simply starts deciding things on bad evidence, and nobody can say when it started.
+
+Two of the second group deserve their own status, for different reasons.
+
+Labels are the reference everything else is calibrated against. A judge is trusted because it agrees with expert labels. A suite is trusted because its cases carry correct labels. If a label is wrong, every instrument tuned against it inherits the error. The Verification and evals module's section on [reference judgments](/modules/verification-and-evals#designing-eval-data) explains why "golden" data still has errors; the team consequence is that labels need an owner with the authority to change them and the duty to record why.
+
+Graders are instruments. A change to a grader changes no product behavior and can change every number the team uses. That makes a grader change the most dangerous kind of change to review casually, because it looks like housekeeping and acts like a change to the definition of success. This module's failure exercise is built on it.
+
+### Who owns what
+
+You already know the rule for production systems: every component has an owner, and the owner is a person or a team with a name, not a role description. The research report in the talk's repository puts the team version of the rule in two sentences: "In a small team, one person may own several artifacts. Clear accountability matters more than creating six separate departments." Among its common pitfalls for operating agents it lists one that is purely organizational: "Unowned escalations: humans are nominally 'in the loop,' but no team is responsible for response time and resolution."
+
+Here is a starting map. It names the owner as a role. On your team, each row gets a name.
+
+| Asset | Accountable owner | Contributors | What the owner decides |
+|---|---|---|---|
+| Product outcome and the quality requirement | Product owner, with the application owner | Domain experts, support, legal | What counts as success, and what quality is required to ship |
+| Prompts, tool descriptions, model configuration | Application owner | Engineers, domain experts who write prompt text | What ships, on what evidence |
+| Eval set: cases, suites, splits | Eval set owner, usually on the application team | Anyone, by pull request | Which cases enter which suite, and what never moves out of held-out |
+| Labels and adjudications | The quality decision-maker, a domain expert | Other experts, reviewers | The reference answer, with a written reason for hard calls |
+| Graders and their calibration | Eval set owner, with the quality decision-maker | Engineers who build graders | Whether a grader is fit for use, on agreement with expert labels |
+| Eval and serving infrastructure | Platform or evals team | Application teams | How runs execute, where results live, what is retained |
+| Data sources, indexes, and their eligibility | Data owner for each source | Application team | What may be ingested, who may see it, which models it may reach |
+| Incidents and on-call for behavior | Operations owner | Application owner, support | Who is paged, what is contained, which regression case results |
+
+Three things about that map matter more than its rows.
+
+First, accountable means one. Contributors can be many. The owner is the person who answers when the asset is wrong, and who can say no. A row with two accountable owners is a row with none, the first time they disagree.
+
+Second, the owner of a grader is not the author of the system change it grades. That is the same principle that keeps a developer from approving their own pull request, applied to measurement. If the person who wants the model upgrade can also rewrite the rubric that judges it, the team has no independent instrument. It has a number that moves when someone wants it to. CODEOWNERS can enforce this if you let it: put the graders and labels under the quality decision-maker's path, and require their review.
+
+Third, the domain expert appears as an owner, not only as a consultant. Ross McNairn of Wordsmith told Gergely Orosz, in a profile published March 25, 2025, what makes this necessary: "A lot of solutions are more subjective: engineers need to really understand the domain in order to assess if output is high-quality. It takes time to ramp up to the point where you can confidently assess output quality." Until engineers have that understanding, and often after, someone else holds the definition of quality. That person needs a row with their name on it.
+
+Larger teams split these rows. Small teams merge them. A team of three may have one person who owns the eval set, the graders, and the on-call rotation. That is fine. What is not fine is a row nobody owns because everyone assumed someone else did.
+
+### Who owns the eval set
+
+Start with a question your team has probably argued about already: who owns the integration test suite, QA or the feature team? Most teams settle on a split. The feature team writes the tests for its feature, someone keeps the suite fast and green, and nobody is allowed to delete a failing test to unblock a release. The eval set raises the same question with higher stakes, so take it alone.
+
+The case for engineering ownership is that the eval set is code. It runs in CI, it has a harness, it needs version control and review, and engineers are the people who maintain those things. The case for domain ownership is that the eval set is the definition of quality, and only domain experts can say what quality is. The case for a separate evals team is that the people who build the system should not also build the test it is judged by.
+
+Each argument is right about one part. Anthropic's arrangement, quoted above, splits along those lines: infrastructure owned by an evals team, tasks contributed by domain experts and product teams, runs done by the teams themselves. Husain and Shankar's evals guide, in the version dated September 18, 2026, adds the domain side for smaller teams: "For most small to medium-sized companies, appointing a single domain expert as a 'benevolent dictator' is the most effective approach. This person becomes the definitive voice on quality standards."
+
+Put those together and the eval set has three owners for three things, each accountable for one.
+
+- The eval set as an engineering asset: its structure, its suites, its splits, its version history, its place in CI. One owner, usually on the application team, who accepts or rejects changes to the set and protects the held-out split from leaking into tuning. The held-out split is the part of the set nobody tunes prompts or graders against, so it can still tell you something honest. The Verification and evals module's section on [designing eval data](/modules/verification-and-evals#designing-eval-data) explains why that split matters.
+- The labels and criteria: what the right answer is, and why. One quality decision-maker, a domain expert, who takes input from others and records the reason for each hard call.
+- The infrastructure that runs it: a platform or evals team in a larger organization, the application team in a small one.
+
+Then one rule that ties them together: no single person can change both the system and the instrument that judges it, without review from the other side.
+
+Why does the eval set need one accountable owner when so many people contribute? Because the set has properties no single case has. Its categories need balance, or the overall score means nothing. Its negative cases need to keep pace with its positive ones. Its held-out split has to stay held out. Its cases need retiring when the product changes, or the suite measures a product that no longer exists. Anthropic's article names a related problem, saturation: "An eval at 100% tracks regressions but provides no signal for improvement." Someone has to notice that a capability suite has saturated, and move its cases into regression while building harder ones. None of that is anyone's job unless it is someone's job.
+
+One more argument for clear ownership comes from Anthropic's same article, and it is about speed: "When more powerful models come out, teams without evals face weeks of testing while competitors with evals can quickly determine the model's strengths, tune their prompts, and upgrade in days." An owned eval set is what turns a vendor's release into a decision the team can make in days. An unowned one is a pile of cases nobody trusts enough to decide from.
+
+### Review prompts and datasets as code
+
+Start with where prompts live. Husain and Shankar's guide answers the question directly: "My preferred approach is storing prompts in Git. This treats them as software artifacts that are versioned, reviewed, and deployed atomically with the application code." They name the tension honestly, "an unavoidable tension between keeping prompts close to the code vs. an environment that non-technical stakeholders can access", and they note that the Git web interfaces are approachable: when Husain worked at GitHub, "I worked with many non-technical professionals, including lawyers and accountants, who used these tools effectively." Vendor prompt-management tools are the alternative. Their caution about those tools is the one an engineer would raise: they "risk creating additional layers of indirection", and they often cannot run your application's tools and retrieval, so a prompt that works in the tool may not work in the product.
+
+Once the prompt is in the repository, a change to it is a pull request. What should review look like?
+
+Begin with what stays the same. A description that says what should change and why. A reviewer who is not the author. CI that must pass. An approval that means someone read it. All of that applies unchanged.
+
+Now what changes. In code review, the reviewer reasons from the diff to the behavior. With a prompt, that reasoning fails quietly. A sentence that reads as a harmless clarification can shift tone across every answer, change which tool the model reaches for, or make it more willing to answer questions it used to decline. Reviewers are good at judging whether the new wording is better English. They are not good at predicting what a model will do with it across a thousand inputs. Nobody is.
+
+So the review needs evidence the diff cannot supply, and the evidence has a standard shape.
+
+- An eval run on the changed configuration, attached to the pull request. It is the CI result for behavior. It names everything it ran: model id, effort, prompt version, tool schema version, index snapshot, case set version, grader versions, and number of trials.
+- A baseline run with the same case set version and the same grader versions, recent enough that nothing on the vendor side has moved.
+- Results per category, with the run-to-run range, not only an overall score. The Models module showed what an overall score hides: a category that falls while the total holds.
+- The cases that changed verdict, in both directions, listed by id. These are the diff a reviewer can read. Ten cases that flipped from pass to fail, read one by one, tell a reviewer more than a two-point change in a percentage.
+- Cost per completed task and p95 latency beside the quality numbers, because a prompt change can double the output length.
+
+Then a second reviewer for some changes. A prompt line that encodes a domain rule, such as a refund condition or a clinical caution, needs the domain reviewer's approval as well as an engineer's. The engineer reviews the mechanics. The domain reviewer reviews the meaning.
+
+Datasets get the same treatment, with different evidence. A pull request that adds, removes, or relabels eval cases changes what the team measures. Review asks four questions. Why was each case added or removed? Which suite and which split did it go into? Did any case move from held-out into tuning, where it stops being evidence? And for a label change, what is the adjudication note, and who decided? The last question is the one teams skip. A label that changes without a reason is a test whose expected value someone edited to make it pass.
+
+Removing cases deserves special suspicion. Cases that are hard, ambiguous, or embarrassing are exactly the ones a team is tempted to call noisy and drop. Sometimes they are noisy: two experts cannot agree on them, and Anthropic's article gives the test, "A good task is one where two domain experts would independently reach the same pass/fail verdict." A case that fails that test should be fixed or retired with a note. But a case that the system fails consistently is not noise. It is the reason the suite exists. Review should be able to tell which kind a removal is.
+
+### Review graders and models as code
+
+You have seen the code version of this. A pull request changes a function and, in the same commit, changes the expected value in the test that checks it. Or it raises an alert threshold in the same deploy that makes the metric worse. A careful reviewer stops there, because the change moved the thing that was supposed to judge it. A grader change is that move, made deliberately, so graders are reviewed as instruments.
+
+The question for a grader change is not whether the new rubric reads better. It is whether the new grader agrees with expert judgment at least as well as the old one, on labels the grader was not tuned on. The Verification and evals module's section on [trusting a judge](/modules/verification-and-evals#trusting-a-judge) gives the procedure: measure two rates against expert labels on a held-out split. The true positive rate (TPR) is the share of the failures the expert found that the judge also catches. The true negative rate (TNR) is the share of the good outputs that the judge also passes. A grader pull request attaches those two numbers, before and after. Without them, the reviewer is being asked to approve a new definition of success on the author's word.
+
+The same two rates tell a reviewer how small a difference the judge can see. A judge's reported failure rate is its TPR times the true failure rate, plus its false-alarm rate (1 minus TNR) times the true pass rate. Work that through and a real change in the failure rate shows up in the judge's numbers shrunk by a factor of TPR plus TNR minus 1. For a judge at TPR 0.90 and TNR 0.90, the factor is 0.8: a real 5-point rise in failures reads as 4. That arithmetic holds only on outputs like the ones the rates were measured on. A new model makes new kinds of mistakes, in places the judge was never checked, and its rates there are unknown. So a claim that a difference is within what the judge can resolve needs the judge calibrated on outputs from both configurations, and the run-to-run range beside it. Without the calibration, nobody knows what the judge can resolve.
+
+There is one more check for a grader change, and it is cheap. Run the old grader and the new grader on the same stored outputs. The difference between the two scores is the grader's effect, isolated, because the outputs did not change. If the new grader passes 6 points more of the same outputs, the team now knows that any comparison straddling the change carries a 6-point shift that has nothing to do with the system. That is why the next section exists.
+
+Models are reviewed with the migration procedure the Models module lays out in [The migration, step by step](/modules/models#the-migration-step-by-step): eligibility for the data, compatibility with the parameters and schema features your code sends, the suite run on both models with repeated trials, per-category comparison, shadow traffic, and a rollback target with its own expiry date. The team addition is about who approves. A model change needs the application owner, who answers for quality, and the operations owner, who answers for latency, cost, lifecycle, and fallback. A model the vendor labels as a preview may be retired on short notice. OpenAI's deprecations page, checked on 2026-10-09, says that preview models "may be retired with much shorter notice, such as 2 weeks." That is an operations decision as much as a quality one.
+
+Tool descriptions are prompts and are reviewed as prompts, with one addition: the cases where the tool should not be called. The [Tools and extensibility](/modules/tools-and-extensibility#descriptions-are-prompts-and-prompts-need-evals) module explains why a description needs its own eval.
+
+Here is a checklist that puts those rules in one place. It is written for this module, as a starting point for your team's own.
+
+<Artifact id="ai-engineering-team-review-checklist" level={4} />
+
+Notice what the checklist does not ask for: a perfect score, or a rule that every number must go up. Behavior changes are trade-offs. A prompt change that fixes eight out-of-scope cases and breaks two coverage cases may be the right change. The checklist asks for the evidence that lets a reviewer see the trade and decide it on purpose.
+
+One survey shows the same load on reviewers. Orosz and Elin Nilsson's survey of Pragmatic Engineer readers, published April 14, 2026, with 900-plus responses, found that the engineers they call builders "seem to be the most overwhelmed and derailed by reviewing a lot more AI-generated code." It describes the readers who answered, not the industry. That is code review under load, of code no teammate wrote. Reviewing behavior changes adds a second load of the same kind: changes whose effect the reviewer cannot read off the diff. The answer in both cases is the same. Make the evidence part of the pull request, so the reviewer's job is to read evidence, not to imagine behavior.
+
+### One change at a time
+
+You know the principle from debugging. Change one thing, observe, then change the next. If you change three things and the bug disappears, you do not know which change fixed it, and you may have introduced a second bug that the first fix hides. In ordinary code, teams break the rule all the time and get away with it, because the code is readable and the cause can be found later.
+
+In a model-dependent product, you cannot find it later. The cause of a score change lives in a distribution of outputs, and once two changes ship together, the outputs that would separate their effects were never produced. The book's failure exercise for this chapter is exactly this: "A team improves an evaluation score by changing the grader at the same time as the model, leaving the result uninterpretable." Uninterpretable is the precise word. The number went up. Nobody can say what it means.
+
+Take the arithmetic once. Suppose a support-triage team changes the model and the correctness grader in one pull request, and the correctness score rises from 71% to 77%. The rise could be the new model being more correct. It could be the new grader passing outputs the old one failed. It could be the model getting worse while the grader got much more lenient. All three stories produce the same number. The experiment that would separate them is small: a two-by-two.
+
+| | Old grader | New grader |
+|---|---|---|
+| Old model | the baseline you already have | grading only, on the stored outputs |
+| New model | one set of model calls | grading only, on the same new outputs |
+
+The new model needs one set of model calls. Its outputs are stored, and both graders score them. The old model's outputs are already stored, so the new grader can score them too. Three of the four cells cost only grading. The grader's effect is the difference between the two cells in the old-model row. The model's effect is the difference between the two cells that share a grader, read down either column. If the two columns tell different stories, the graders disagree about what correct means, and that disagreement is the next thing to settle.
+
+Anthropic's evals article has a public example of a score that moved because the instrument changed. CORE-Bench is a public benchmark whose tasks ask an agent to reproduce the results of published research code. The scaffold is the harness around the model: its tools, its prompts, and its limits. The article reports that "Opus 4.5 initially scored 42% on CORE-Bench, until an Anthropic researcher found multiple issues: rigid grading that penalized '96.12' when expecting '96.124991…', ambiguous task specs, and stochastic tasks that were impossible to reproduce exactly." Then: "After fixing bugs and using a less constrained scaffold, Opus 4.5's score jumped to 95%." Read that as a team lesson, not as a criticism of the benchmark's authors. The same model scored 42% and 95%. The difference was the grader, the task specifications, and the scaffold, changed together. The first number mostly measured the eval. The second number cannot say how much of the jump each fix contributed. The article draws the right conclusion for any team: "As a rule, we do not take eval scores at face value until someone digs into the details of the eval and reads some transcripts."
+
+OpenAI's account of its April 2025 GPT-4o update shows the same problem on the system side. In OpenAI's words, as quoted by Simon Willison on May 2, 2025: "In the April 25th model update, we had candidate improvements to better incorporate user feedback, memory, and fresher data, among others." And: "Our early assessment is that each of these changes, which had looked beneficial individually, may have played a part in tipping the scales on sycophancy when combined." Several changes, each measured on its own, shipped together, and the combination produced a behavior none of them showed alone. One change at a time is not only about attribution. Changes interact, so the combination is a configuration that needs its own measurement too.
+
+Four rules follow, and they are the separation rules in the checklist above.
+
+- Never change the instrument and the thing it measures in one comparison. A grader change and a model change are two experiments, run in order.
+- When a grader must change, measure the grader first: old and new on the same stored outputs, and both against expert labels. Then compare systems with one grader held fixed.
+- When two system changes must ship together, measure each alone as well, or write down that their separate effects are unknown. Then measure the combination, because that is what ships.
+- Hold the case set version fixed across a comparison. Adding or removing cases changes the denominator, and a score on a different set of cases is a different measurement.
+
+There is a cost argument too. Teams combine changes to save eval runs. The saving is real and small. An eval run costs model calls and minutes. A comparison nobody can interpret costs the run anyway, plus the decision it was supposed to inform, plus whatever the team ships on a misreading. Store outputs from every run, and most of the extra cells in a separated experiment cost grading only.
+
+### The experiment record
+
+A design doc lets someone who was not in the room understand a decision and build from it. An experiment record does the same for a measurement. The book's chapter asks the team to "Maintain decision records", and its completion evidence asks for a review that "separates changes, resolves or records disagreements, and assigns accountable next actions." Both depend on a record that holds still while people argue about it.
+
+Shankar and colleagues' interview study of 18 machine learning engineers, submitted on September 16, 2022, named three variables that governed success in the production deployments they studied: "Velocity, Validation, and Versioning." The study predates foundation-model products and concerns trained-model pipelines. The three words transfer. Velocity is how many experiments a team can run. Validation is whether each one is trustworthy. Versioning is whether anyone can say, afterward, what was run. An experiment record is where validation and versioning are written down, so that velocity does not turn into a pile of results nobody can reproduce.
+
+An experiment record has these parts.
+
+- The question, written before the results. "Does the candidate meet the requirement at least as well as the current configuration, at equal or lower cost?" is a question. "Try the new model" is not.
+- The requirement, with numbers where they exist, and the costly error named. A requirement written after the results tends to fit them.
+- The change under test, in one line, and a statement that nothing else changed. If something else changed, the record says so.
+- Both configurations, side by side and complete: model id and whether it is pinned, effort setting as a value, prompt version, tool schema version, index snapshot, case set version, grader versions, number of trials, and run ids.
+- Results per category, with the run-to-run range, beside cost per completed task and p95 latency, and the cost basis said in words.
+- The cases that changed verdict, by id and category.
+- The state of the instrument: when each judge was last calibrated, on whose outputs, with what agreement.
+- Evidence gaps: what was not measured.
+- Where the stored outputs are, so a later grader can regrade them without rerunning the models.
+- After review: the decision, the reviewers, any disagreement that was not resolved, and the next actions with owners and dates.
+
+One field deserves a warning because it hides so well: the effort setting. A record that says "vendor default" for both configurations says nothing reproducible, because a vendor's default can differ between models and can change over time. Anthropic's models overview, checked on 2026-10-09, lists a default effort for each current model: high for two of them and medium for the other two. If the default differs between the baseline and the candidate, the comparison changed two things, and the record does not say so. Write the value in effect, and if it differs, either set both explicitly or record the comparison as model plus effort.
+
+Reproducibility has a limit worth stating. A model call is not deterministic in general, and a hosted model's serving stack can change under a fixed id, as the Models module explains. You cannot rerun last month's experiment and get last month's outputs. That is why the stored outputs matter more than the ability to rerun. With them, a reviewer can regrade, read the changed cases, and check the arithmetic. Without them, the record is a set of numbers to take on trust.
+
+The workshop below gives you a complete record for a proposed model upgrade, with the notes of three people who disagree about it. Read it with this list beside you.
+
+### Product, domain experts, data, and engineering
+
+In ordinary product work, the split is familiar. Product decides what to build and why. Design decides how it should feel. Engineering decides how to build it and owns whether it works. Data, if there is a data team, owns pipelines and analytics. The specification sits between product and engineering, and once it is agreed, engineering can test against it without asking product what each test result means.
+
+The Carnegie Mellon Software Engineering Institute defines the field this program teaches as one that "combines the principles of systems engineering, software engineering, computer science, and human-centered design to create AI systems in accordance with human needs for mission outcomes." Four disciplines in one sentence. On a team, that sentence becomes a division of work, and the division is not the one you are used to.
+
+In a model-dependent product, that last step breaks. The specification cannot fully say what a good answer is, so the tests cannot be written from it alone. Someone has to look at outputs and say good or bad, and that someone needs to know the domain. Ross McNairn's line from the Orosz profile, quoted above, is the engineer's side of it: engineers "need to really understand the domain in order to assess if output is high-quality." Until they do, the team needs the domain expert in the loop on every judgment of quality.
+
+So who does what? Husain and Shankar's guide gives a useful answer to the question of whether product managers and engineers should collaborate on error analysis. "At the outset, collaborate to establish shared context. Engineers catch technical issues like retrieval issues and tool errors. PMs identify product failures like unmet user expectations, confusing responses, or missing features users expect." Then the direction of travel: "As time goes on you should lean towards a benevolent dictator for error analysis: a domain expert or PM who understands user needs." And the practical instruction for engineers: "Empower domain experts to evaluate actual outcomes rather than technical implementation. Ask 'Has an appointment been made?' not 'Did the tool call succeed?'"
+
+Here is a division that follows from those sources and the ownership map earlier.
+
+- Product owns the requirement: who the users are, what success means for them, which errors are costly, and what quality is required to ship. Product also owns the decision to ship, informed by the evidence.
+- The domain expert owns the definition of a correct output: the labels, the rubric, and the adjudication of hard cases. The domain expert reads outputs regularly, not only when asked.
+- Data owns the sources: what is ingested, how fresh it is, who may see it, and which models it may reach. Data also often owns the sampling of production traffic into the eval set, under privacy rules.
+- Engineering owns the system and the instrument as software: the harness, the graders as code, the eval infrastructure, the traces, and the tools that make the expert's reading fast.
+
+That last item is easy to undervalue. The highest-leverage thing an engineer can do for a domain expert is often a review tool. Husain and Shankar's guide: "The best way to empower the domain expert is to give them custom annotation tools that display system outcomes alongside traces. Show the confirmation, generated email, or database update that validates goal completion. Keep all context on one screen so non-technical reviewers focus on results." An expert who has to read raw JSON reviews far fewer cases, and notices less, than one with a viewer that shows the outcome beside the trace.
+
+Husain's March 24, 2025 field guide reports two client accounts about this boundary. In the first, an education startup's product manager, "a learning design expert, would create detailed PowerPoint decks explaining pedagogical principles and example dialogues. She'd present these to the engineering team, who would then translate her expertise into prompts." His comment: "prompts are just English. Having a learning expert communicate teaching principles through PowerPoint, only for engineers to translate that back into English prompts, created unnecessary friction. The most successful teams flip this model by giving domain experts tools to write and iterate on prompts directly." In the second, engineers, product managers, and learning specialists at an education startup "were talking past each other in meetings. The engineers kept saying, 'We're going to build an agent that does XYZ,' when really the job to be done was writing a prompt." The specialists "felt like they couldn't contribute because they didn't understand 'agents.'"
+
+His fix for the second is a translation table, and it is a good team habit. Instead of "We're implementing a RAG approach", say "We're making sure the model has the right context to answer questions". Instead of "Our model suffers from hallucination issues", say "Sometimes the AI makes things up, so we need to check its answers". He is careful to say this is not simplification. "This doesn't mean dumbing things down," he writes. It means "being precise about what you're actually doing."
+
+Put the two accounts together and a working rule appears. Let domain experts write and edit prompt text directly, in a place where their edit is versioned and reviewed, and where they can run it against real cases. Keep engineers on the mechanics: the template, the tool wiring, the eval run, and the review evidence. The pull request is the meeting point. A domain expert's prompt edit arrives as a pull request with an eval run attached, an engineer reviews the mechanics, and the eval set owner checks that no held-out case leaked into the examples.
+
+### Ambiguous requirements and labels
+
+Every team that builds a model-dependent product discovers that its requirements were less precise than it thought. This is not a planning failure. It is a property of the work, and it has a name.
+
+Shreya Shankar and colleagues studied how people use a tool to build evaluators for model outputs. Their paper, submitted to arXiv on April 18, 2024 and presented at UIST 2024, reports a finding about the people, not the tool: "we identify a phenomenon we dub criteria drift: users need criteria to grade outputs, but grading outputs helps users define criteria." They go further: "some criteria appears dependent on the specific LLM outputs observed (rather than independent criteria that can be defined a priori), raising serious questions for approaches that assume the independence of evaluation from observation of model outputs." In plain terms: you cannot write the full specification before you see outputs. Some of the specification is discovered by reading them.
+
+Husain's field guide gives a first-hand version from Honeycomb's Query Assistant. Phillip Carter, who was judging the outputs, said: "Seeing how the LLM breaks down its reasoning made me realize I wasn't being consistent about how I judged certain edge cases." Husain's comment: "This isn't a sign of poor planning". He calls it "an inherent characteristic of working with AI systems that produce diverse and sometimes unexpected outputs." The guide reports that Honeycomb's team tracked agreement between the judge and Carter's evaluations, and that it took three iterations to reach more than 90 percent agreement. That is one client's account, not a benchmark. The process is the part to copy.
+
+A team needs a process for criteria that change, because they will. Here is one, assembled from the sources.
+
+1. Name one quality decision-maker. Husain and Shankar's guide calls this person the benevolent dictator: "A single expert eliminates annotation conflicts and prevents the paralysis that comes from 'too many cooks in the kitchen'. The benevolent dictator can incorporate input and feedback from others, but they drive the process." They add a warning that doubles as a scoping test: "If you feel like you need five subject matter experts to judge a single interaction, it's a sign your product scope might be too broad."
+2. When you need more than one annotator, measure agreement before you trust the labels. Their procedure for disagreements: "Have annotators label the same examples independently before they discuss them. Measure agreement and collect the cases where their labels differ." Then: "Update the rubric with a definition, rule, or example that covers the disputed case. Then relabel affected examples. If the annotators still disagree, assign a domain expert to make the final decision and record the reason."
+3. Keep an adjudication log. Each disputed case, the positions, the decision, who made it, and the rule it produced. The book's Chapter 8 workshop asks for "an adjudication log for ambiguous labels", and the Verification and evals module's section on [designing eval data](/modules/verification-and-evals#designing-eval-data) explains why labels called golden still contain errors.
+4. Treat a rubric change as a versioned change to the instrument. When criteria drift, the rubric changes, the labels that depended on the old rubric are relabeled, and the grader is recalibrated. That is three changes, made on purpose, in order, with a record. It is not a quiet edit to a judge prompt.
+5. Route requirement questions to product. Some disagreements are not about labels. They are about what the product should do. Should the assistant answer a question about a competitor's product? Should a support reply quote the policy text or paraphrase it? Those are product decisions with domain input, and the adjudication log is where the team notices them.
+
+Do not outsource the reading. Husain and Shankar's guide is blunt about the cost: "When you outsource annotation, you often break the feedback loop between observing a failure and understanding how to improve the product." They name the exceptions: purely mechanical tasks with an unambiguous rubric, tasks that need no product context, such as translation, and hiring outside experts who act as your internal experts. Their example of the last is AnkiHub, which "hired 4th-year medical students to evaluate their RAG systems for medical content rather than outsourcing to generic annotators."
+
+Engineers can help even when they are not experts. The same guide answers the question directly: "Can I help with evals if I'm not a domain expert? Yes, especially when you're beginning with evals." Its examples are failures an outsider can spot, such as "Lack of query disambiguation or follow-up when users' requests are obviously vague" or "Not having proper instrumentation, logging or traces to begin with." And it suggests a technique worth stealing: ask a domain expert to walk through an example and explain why it is good or bad, then "Watch what they check and which evidence they need. Use what you learn to build a better annotation interface that makes reviewing easier."
+
+### Prioritize from observed failures
+
+A team that ships ordinary software usually plans from a roadmap of features. A model-dependent product resists that shape, because the team often does not know whether a feature can reach its quality bar until it has tried. Husain's field guide describes the result he has seen: teams that commit to roadmaps like "Launch sentiment analysis by Q2", "only to discover that the technology simply isn't ready to meet their quality bar. They either ship something subpar to hit the deadline or miss the deadline entirely. Either way, trust erodes."
+
+His alternative: "The most successful teams I've worked with structure their roadmaps around experiments rather than features. Instead of committing to specific outcomes, they commit to a cadence of experimentation, learning, and iteration." He reports how Eugene Yan, an applied scientist at Amazon, plans with leadership: "First, I take two weeks to do a data feasibility analysis", then "an additional month to do a technical feasibility analysis", then "if it still works I'll spend six weeks building a prototype we can A/B test." And how Yan reassures leadership: "At the end of three months, if it works out, then we move it to production. At any step of the way, if it doesn't work out, we pivot." The guide also reports Bryan Bischof's "capability funnel" from his time at Hex, which breaks a feature into levels of usefulness, from "Can generate syntactically valid queries" to "Can generate optimal queries that solve the user's problem", so a team can show progress before the top level works.
+
+Experiments need a source of priorities, and the best source is the team's own failures. The Verification and evals module's section on [error analysis](/modules/verification-and-evals#error-analysis-before-infrastructure) gives the procedure: read a sample of traces, write open notes, group them into a failure taxonomy, and count. The counts are a backlog. A category with forty failures out of a hundred comes before one with three, unless the three are costly. The talk's [roadmap](/modules/orientation#the-roadmap) starts the same way, with its first step and its Monday instruction: "Look before you build." "Monday: review 20 to 50 outputs by hand."
+
+On a team, that becomes a cadence, and it needs an owner. Husain and Shankar's guide recommends rerunning error analysis "when making significant changes: new features, prompt updates, model switches, or major bug fixes", reviewing "at least 100+ fresh traces each review cycle", and reports typical cycles of "2-4 weeks". So the team's planning loop looks like this. Every few weeks, the quality decision-maker and an engineer read fresh traces together. The taxonomy is updated and counted. The top categories become experiments, each with a question and a record. The experiments that work become pull requests with their evidence. The failures that recur become regression cases. Hashimoto's instructions file, where each line came from a bad behavior, is the same loop for one engineer and one agent.
+
+There is a cultural piece. Husain reports that Yan writes a weekly update he calls a "fifteen-five", fifteen minutes to write and five to read: "In my fifteen-fives, I document my failures and my successes." His team holds "no-prep sharing sessions", and he says, "When I do this, I go out of my way to share failures." That habit is worth copying on any team that plans from experiments, because a team that only reports successes will rerun the failures.
+
+### Running a review of model behavior
+
+A design review evaluates a proposal before it is built. A review of model behavior evaluates a proposed change in behavior before it ships: a model upgrade, a new prompt, a new retrieval source, a change to what the assistant will refuse. The book's workshop for this chapter names the people in the room: "Review a proposed model upgrade with a domain reviewer, application owner, and operations owner; make the evidence and disagreement explicit." Its completion evidence names the outputs: "Lead a review that separates changes, resolves or records disagreements, and assigns accountable next actions."
+
+Each of the three reviewers brings a question the others cannot answer.
+
+- The domain reviewer asks whether the outputs are right. They have read the cases that changed verdict, and they know which errors a user acts on.
+- The application owner asks whether the change meets the requirement as a whole, at an acceptable cost. They own the product outcome and the experiment record.
+- The operations owner asks whether the change can be run: latency against the service objective, cost at expected volume, the lifecycle status of every model in the configuration, the fallback, and the rollback.
+
+Here is an agenda that works, in order.
+
+1. State the requirement before showing results. Read it aloud from the record. If the room disagrees about the requirement, stop and settle that first, because every later argument depends on it.
+2. Confirm what changed. One change, or several? Check the configuration table line by line, including the values behind words like "default". If more than one thing changed, say so, and decide whether the review can proceed or the experiment must be separated first.
+3. Check the instrument. When was each judge last calibrated, on whose outputs? Is the case set version the same on both sides? Is any category too small to read? In a category of 20 cases, each case that flips moves the score 5 points.
+4. Read the results per category, with the ranges. Name every category where the candidate is worse, even slightly.
+5. Read the changed cases. Not all of them, if there are many, but every one in a category that matters most, and a sample of the rest. The domain reviewer leads this part.
+6. Hear the operations check: latency, cost, lifecycle, fallback, rollback.
+7. Decide, and write it down: ship, ship to a restricted scope, hold, or reject. Name who decided.
+8. Record every disagreement that the evidence did not resolve, with both positions.
+9. Assign next actions, each with one owner and a date.
+
+The book's phrase is "resolves or records disagreements". Both halves matter. Take a support-triage assistant whose candidate model scores a little lower on handoff notes, the summary a human agent reads when a ticket is escalated. Some disagreements dissolve when the evidence is read together. The application owner calls the drop small; the support lead reads the five notes that flipped and finds that each one leaves out the customer's order number, which the human agent then has to ask for again. Once the room has read those five, the argument is about how to fix it, not whether it matters. Other disagreements survive the evidence. The support lead thinks one flipped case out of 20 in the billing-dispute category is a signal, the application owner thinks it is noise, and the record cannot settle it. A surviving disagreement does not block a decision. It gets written down with both positions and the next action that would resolve it, such as labeling thirty more billing-dispute cases and rerunning both configurations. That action gets an owner and a date.
+
+Who decides? The person accountable for the product outcome, in most teams the application or product owner, with one exception that teams should agree in advance: some reviewers hold a veto in their own domain. An operations owner can block a change that breaks a service objective, or that puts a model with a short retirement notice on a critical path without a fallback. A domain reviewer can block a change that makes a costly error more likely. A veto is not a vote. It says the change cannot ship as proposed, and it names what would change the answer.
+
+Do not let the numbers outvote a credible concern. OpenAI's account of its April 2025 GPT-4o update, quoted by Simon Willison on May 2, 2025, describes the failure precisely. OpenAI wrote that "One of the key problems with this launch was that our offline evaluations", especially "those testing behavior", "generally looked good." It went on: "Similarly, the A/B tests seemed to indicate that the small number of users who tried the model liked it." And: "Nevertheless, some expert testers had indicated that the model behavior 'felt' slightly off." The update shipped and was rolled back for sycophancy. OpenAI's commitment afterward: "We need to treat model behavior issues as launch-blocking like we do other safety risks." Willison's reading, his and not OpenAI's: "The biggest miss here appears to be that they let their automated evals and A/B tests overrule those vibe checks!"
+
+The review lesson is not that intuition beats measurement. It is that an expert's concern about behavior is a finding, and a finding needs a check. If a domain reviewer says the candidate's replies feel less careful, the review does not vote on the feeling. It holds the change, turns the concern into named cases, and measures them. In OpenAI's case, the behavior was sycophancy, and no eval was looking for it. In yours, it might be a detail the model has started to leave out, and no rubric line was looking for it. Either way, the concern becomes an eval before it becomes a decision.
+
+A last rule for the room: the review is of evidence that exists before the meeting. A team that runs the experiment during the review, or edits the rubric because a result looks wrong, is not reviewing. It is still experimenting. Send it back.
+
+### Documentation that survives a model change
+
+Ordinary documentation describes a system that changes when someone changes it. Documentation of a model-dependent system describes behavior that can change when a vendor releases a model, retires one, or adjusts its serving stack, with no commit in your repository. Much of what a team writes down about how its product behaves is true of one configuration on one date. Documentation that survives a model change is written with that in mind.
+
+Four habits make the difference.
+
+The first is to state behavioral requirements as cases, not as prose. "The assistant should not promise refunds it cannot authorize" is a sentence every model will satisfy in someone's opinion. A set of cases where the customer asks for a refund outside the policy window, and the correct reply offers an escalation without promising the money, is a requirement a new model either meets or does not. The prose explains the intent. The cases are the requirement. When the model changes, the cases still run.
+
+The second is to tie every workaround to the failure it fixes. Return to Hashimoto's instructions file: "Each line in that file is based on a bad agent behavior". That is the right origin for a line. The missing piece, on a team, is the link back. A line in a prompt or an AGENTS.md file that says "Never use the legacy date helper" should carry, in a comment or in the commit that added it, the failure case that prompted it and the model it was observed on. When the model changes, the team reruns those cases without the line. If the new model no longer needs it, the line goes, and the prompt gets shorter. If it still needs it, the line stays, now with evidence. Without the link, a prompt accumulates instructions nobody dares to remove, written for models that no longer exist.
+
+The third is to date and scope every behavioral claim. "The model handles long documents well" is a claim about a configuration. Write it as one: which model, which effort, which prompt version, on which cases, measured when. The Model Cards paper by Margaret Mitchell and colleagues, from October 2018, proposed that models be "accompanied by documentation detailing their performance characteristics", including evaluation across conditions. Your product-side version is the decision record the [Models](/modules/models#when-you-are-the-owner) module describes, and the experiment record above. The book's source notes add the caution: documentation accompanies evidence; it does not substitute for it.
+
+The fourth is to record intent and decisions separately from mechanics. A prompt shows what the model is told. It does not show why. A short note beside each prompt section, or a decision record per significant change, keeps the why: what failure the section addresses, what the alternative was, what was measured. When the next model needs the prompt rewritten, and it may, the team rewrites the mechanics and keeps the intent.
+
+There is one document that matters more than the others on a team: the list of review triggers. The Models module's decision record ends with them: a deprecation notice, a price change, an alias update, a new eligible candidate, a drift alert, a change in the requirement. Add the team ones: a change of quality decision-maker, a rubric change, a new data source, a handoff to another team. A trigger list tells the next person when the documentation stops being true.
+
+### Handoffs between teams
+
+You already know what a bad handoff looks like. The service arrives with a README that describes the happy path, a deploy script that works on one laptop, and a Slack channel where the context used to live. The receiving team learns the system by breaking it.
+
+AI systems are handed over more often than most, and more of what matters is easy to leave behind. A prototype built by one team or an outside agency goes to a product team. A product team hands a feature to an operations or platform team. A team hands a model migration to the team that owns a downstream consumer. A vendor hands you a new model.
+
+Orosz's March 25, 2025 profile tells one handoff story from DSI, an HR technology company. DSI contracted an external agency to scope a first AI feature, a summary of employee-engagement comments. In the first month, the agency built and shared outputs. In the second month, "while continuing to iterate on desired outputs, devs at DSI ask the agency for access to how things work. They get access to scripts and notebooks." In the third month, the agency proposed a complex architecture and, in Orosz's words, "quoted 6-9 months to build the relatively small feature". Ryan Cogswell, a veteran engineer at the company, then read and prototyped his way into the subject, and "In 2 months, Ryan and a couple of colleagues built the feature for a fraction of the cost to operate than the agency's quote." Read it for the handoff, not the architecture: the receiving team had to ask for the scripts and notebooks to learn how the outputs were produced. Until they had them, they could see results and not the process behind them.
+
+Here is what a handoff of a model-dependent system must carry, beyond the code.
+
+- The eval set, with its suites, splits, and version history, and the name of its owner on each side of the handoff.
+- The labels and the adjudication log, so the receiving team inherits the decisions and not only their results.
+- The graders, with their calibration results, the date of the last calibration, and the outputs it was measured on.
+- The experiment records for the decisions that shaped the system, including the experiments that failed.
+- The failure taxonomy and its latest counts.
+- The release manifest and the configuration file, with each model's lifecycle status and retirement date.
+- The approvals: which data may reach which model, decided by whom.
+- The open disagreements, with both positions.
+- The stored outputs, or where they live and how long they are retained.
+- Owners, with names, for every row of the ownership map, on the receiving side, agreed before the handoff date.
+
+The last item is the one that fails most. A handoff that transfers code without transferring ownership of the eval set leaves a system whose quality nobody is measuring. The receiving team will notice the first time a vendor sends a deprecation notice and nobody knows which suite to run.
+
+Handoffs also run the other way, from your team to the people who use the system's output. A claims assistant hands summaries to adjusters. A triage model hands tickets to queues. Each of those consumers is a team that depends on behavior you can change. Tell them when it changes, with the same evidence you used to approve it, and ask them what they observed. Some of your best regression cases will come from the team downstream.
+
+### On-call for behavior
+
+The Operating it module covers [the incident process](/modules/operating-it#incidents-when-the-api-is-healthy) for quality incidents in detail. The team questions are short, and they are the ones teams leave unanswered.
+
+Who is paged when answers get worse but every health check is green? Name the person. The Operating it module recommends alerting on quality signals as well as availability, and giving support staff a fast path to declare a suspected quality incident. Both need an owner on the rotation who knows how to read a trace and has the authority to contain.
+
+Who can contain? Containment in an agent system often means pausing a rollout, routing a segment to a known good configuration, disabling one tool, or reducing autonomy for a while. Decide in advance who may do each, without a meeting.
+
+Who turns the incident into a regression case? The postmortem's durable output is a case built from the failing pattern, with sensitive details removed or synthesized, added to the suite that gates the next release. That case goes into the eval set through its owner, by pull request, like any other case. Anthropic's postmortem shows why the eval owner must be in the loop: its team "relied too heavily on noisy evaluations", and the fix it describes is a change to where and how evaluation runs. An incident that changes the eval set without its owner produces a suite nobody fully understands.
+
+Who tells the people who were affected? The Operating it module's incident process includes remediating completed effects: finding who received a wrong answer and deciding who contacts them. That is a product decision, with legal and support involved. It needs an owner before the incident, not during it.
+
+### When you are the owner
+
+Pull the module together. The talk's definition again: "Owner means the engineer or team accountable for the delivered product's behavior and operating limits." On a team, that accountability is divided, and this module has been about dividing it without gaps.
+
+If your team does one thing on Monday, put names on the three rows nobody is paged for: the eval set, the labels, and the graders. Then turn on code-owner review for the directories that hold them, so a change to the instrument reaches its owner whether or not the author thinks to ask. The rest of this module builds on those three names; without them, every later practice has nobody to run it.
+
+None of this is a new kind of engineering. It is code review, design review, CODEOWNERS, on-call, runbooks, and postmortems, applied to assets you did not have before. The talk's roadmap ends with a step that applies to a team as much as to a system: "Add autonomy as your evals earn it." A team earns the right to move fast on behavior changes the same way. Every step up is paid for by evidence someone owns.
 
 ## Workshop
 
 <Workshop>
 
-The workshop will be an analysis exercise on provided artifacts. No code. It will state the task in one paragraph and give a rubric.
+<Artifact id="ai-engineering-team-upgrade-record" />
+
+<Artifact id="ai-engineering-team-review-checklist" />
+
+You are leading the review of EXP-0412, the proposed model upgrade for Brightwater Mutual's claims-intake assistant, with the three owners whose notes close the record. Using the record and the checklist, write the review record the meeting should produce, in 400 to 600 words: what changed between the two configurations, including anything the record does not call a change; how each part of the stated requirement is met or not, with the evidence for each; the decision, ship, ship to a restricted scope, hold, or reject, and who makes it; each disagreement, either resolved with the evidence that resolves it or recorded with both positions; the evidence gaps; and at least three next actions, each with one owner named in the record and a date. No code. Your response is saved to your account and never graded. Apply the rubric below to it yourself.
+
+- Notices that "vendor default" effort is medium for the baseline and high for the candidate, so the comparison changed two things, and asks for the candidate to be run with the effort set explicitly.
+- States the requirement before the results, and checks every part of it, including latency on the synchronous path, not only the overall score.
+- Reads the small categories and the ranges before the means. Fraud-indicator escalation has 24 cases, so one case is about 4 points and a one-case change is not established either way. The faithfulness ranges barely touch, so the percentage alone neither proves nor rules out a regression. The six pass-to-fail summaries, four of them read by the domain reviewer as dropped qualifiers, are the stronger evidence: a finding to measure, not an opinion to outvote.
+- Notes that the faithfulness judge was calibrated only on the current model's summaries, so the application owner's claim that 2.6 points is inside what the judge can resolve is unsupported until the judge is calibrated on the candidate's summaries.
+- Reaches a decision that follows from the requirement. Shipping as proposed to the synchronous path is ruled out, because p95 of 4.9 s fails the stated 4.5 s limit. The decision is a hold, or a restricted scope off that path, and it is made by the application owner.
+- Treats the operations owner's objection as a veto in that owner's domain, not as one vote: a preview model with 14 days' notice and no tested fallback cannot go on the intake path, and the record says what would lift the veto.
+- Notices that the record owner, who decides, is also the person proposing the upgrade, and has the domain reviewer's position written down in full beside the decision, with the next action that would settle it.
+- Gives each next action one owner, one date, and one deliverable.
+- Does not propose changing the faithfulness rubric to make the regression go away.
 
 </Workshop>
 
@@ -42,11 +713,27 @@ The workshop will be an analysis exercise on provided artifacts. No code. It wil
 
 <FailureExercise>
 
-The failure exercise will plant a failure in an artifact and ask you to find it and explain it.
+<Artifact id="ai-engineering-team-grader-pr" />
+
+Two weeks after the EXP-0412 review held the upgrade, this pull request is about to merge. It contains a team process failure, and the people involved believe the attached eval run supports the change. Find it from the artifact alone. In a few sentences, say what the team can and cannot conclude about the new model from this run, point to the lines that show it, and say what process would have stopped this pull request or split it before review.
 
 <Fragment slot="explanation">
 
-The explanation appears here after a response is saved.
+The grader changed at the same time as the model. The 8.1-point rise in faithfulness cannot be attributed to the model, so the result is uninterpretable, and the review approved it as if it were evidence.
+
+The tell is in the description: "No other changes." The title and the description talk only about the rubric. The first hunk of the diff changes the model id in config/models.yaml, from veltra-m-20260612 to veltra-m-20260904, and the eval report's header shows the new model on the branch. A description that says nothing else changed is a claim to check against the diff, not a summary to trust.
+
+Now the eval report. The main column ran grader g7 on 2026-09-16. The branch column ran grader g8 on 2026-10-06. Two things changed between the columns: the model and the instrument. Faithfulness went from 86.7% to 94.8%. That number is consistent with a more faithful model, with a more lenient grader, or with a less faithful model graded much more leniently. Nothing in this report separates them. The report even says why it cannot be trusted on its own terms: "g8 not calibrated (no labeled set run)." And the baseline is three weeks older than the branch run, which the checklist's rule about a baseline close enough in time would flag on its own.
+
+EXP-0412 already holds one more cell of the two-by-two: the candidate model under g7 scored 84.1%. Against 94.8% under g8, on different runs of the same model, nearly all of the rise looks like the grader. That is what the rubric diff predicts.
+
+Read the rubric diff, because it says why. The removed rule failed a summary that "drops a qualifier the claimant used". The added rule says "Minor omissions of hedging language are acceptable". The few-shot examples flipped from FAIL to PASS on exactly the cases the domain reviewer flagged in EXP-0412: "I think it was Tuesday". The pull request calls this tightening. It loosens the rubric on the failure the review held the upgrade for. The candidate's faithfulness regression has not been fixed. It has been redefined as a pass.
+
+Then the people. The author wants the model upgrade and rewrote the grader that judges it. The only reviewer is on the same team. CODEOWNERS assigns /graders/ to @claims-quality, the domain team, but "Require review from code owners: off", so the people who own the definition of a correct summary never saw the change. Whether adjusters can live without the claimant's qualifiers is a product and domain decision. It was made inside a judge prompt, by an engineer, in a pull request about something else.
+
+Other findings from EXP-0412 ride along unaddressed. The fraud-indicator category is still one case down. The effort setting is still "default", so the model comparison still mixes model and effort. The latency and preview-status concerns from operations are not mentioned, and the reviewer's "before the vendor's preview window closes" is a deadline argument, not evidence.
+
+What would have stopped it: separate pull requests, one for the grader and one for the model, with the grader first. The grader change goes through @claims-quality with code-owner review enforced. It attaches g7 and g8 run on the same stored outputs, which already exist from the EXP-0412 runs, so the grader's own effect is measured, and it attaches g8's agreement with expert labels on the held-out split. If the domain and product owners decide that some qualifiers may be dropped, that decision goes into the adjudication log with its reason, the affected labels are relabeled, and the judge is recalibrated. Only then does the model comparison run, with one grader held fixed on both sides and the effort set explicitly, and only then does it go to review.
 
 </Fragment>
 
@@ -61,3 +748,4 @@ Passing the self-check and saving a workshop response completes this module.
 ## Sources
 
 <Sources />
+

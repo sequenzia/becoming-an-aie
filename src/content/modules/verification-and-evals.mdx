@@ -16,6 +16,7 @@ takeaway: "Check the action before accepting it. Measure behavior across represe
 pitfall: "A generic judge instead of error analysis; grading the transcript instead of the outcome"
 transferRows: [testing]
 artifacts: [verification-and-evals-output-set, verification-and-evals-judge-report, verification-and-evals-refund-trial]
+lab: { path: "labs/evals-first-grader", title: "Review outputs and write a first grader" }
 outcomes:
   - id: verify-and-evaluate
     text: Distinguish verification of one action from evaluation across cases, and say where each one runs.
@@ -902,6 +903,18 @@ Which face is which. The area's pitfall is "A generic judge instead of error ana
 </Fragment>
 
 </FailureExercise>
+
+## Optional lab
+
+<OptionalLab>
+
+A small Python project that turns this module's error analysis into code. You label 30 synthetic support replies by hand, pass or fail with a note. The lab groups your notes into a taxonomy you edit, then measures a first code grader against your labels, with every disagreement. That needs no key and costs nothing. The review alone takes 10 to 15 minutes, so the whole lab takes 20 to 30 minutes. An optional last part generates 20 fresh replies for cents, with the estimate printed first. Step 1 for it is `first_call.py`, one raw SDK call. The adapter comes after it. The lab is optional and never counts toward completion. Get it with `git clone https://github.com/sequenzia/becoming-an-aie.git`. It needs uv, checked with 0.11.7 on 2026-10-09. To start:
+
+```sh
+cd labs/evals-first-grader && uv sync && uv run python run.py --dry-run
+```
+
+</OptionalLab>
 
 ## Completion evidence
 

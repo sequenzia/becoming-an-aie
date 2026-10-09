@@ -16,6 +16,7 @@ takeaway: "The model is a versioned, expiring dependency. Treat it like one."
 pitfall: "A hardcoded model ID with no eval suite behind it"
 transferRows: [testing]
 artifacts: [models-triage-contract, models-alias-drift-dashboard, models-selection-report, models-migration-pr]
+lab: { path: "labs/models-first-measurable-feature", title: "First measurable feature" }
 outcomes:
   - id: select-axes
     text: Name the six axes the talk gives for selecting a model on your own tasks, and apply data eligibility before the others.
@@ -490,7 +491,7 @@ Eligibility has several parts, and residency is only one of them.
 
 The eligibility rule applies to everything that can serve a request, not only the primary model. A fallback provider is a candidate. A routed small model is a candidate. A replacement recommended in a deprecation notice is a candidate. Each one must be eligible for the data it would see. A fallback that sends restricted records to an unapproved model during an outage is a data incident with a retry loop in front of it.
 
-The book adds a distinction that belongs in the same filter: "Distinguish hosted access, available weights, licensing, and deployment responsibility." A hosted model is operated by the vendor, who sets the price, the region options, and the retirement date. A model with available weights can be run where you choose, which can settle a residency question and removes the vendor's retirement date. It does not remove the work. You take on serving, capacity, upgrades, security patches, and proving that a quantized copy (compressed to lower numeric precision to run cheaper) or any self-hosted copy kept the quality you measured. The license decides what you may do with the weights at all. These are different bundles of responsibility, and the eligibility filter is where you decide which bundles you are willing to carry. The Inference and hosting elective covers the operating side.
+The book adds a distinction that belongs in the same filter: "Distinguish hosted access, available weights, licensing, and deployment responsibility." A hosted model is operated by the vendor, who sets the price, the region options, and the retirement date. A model with available weights can be run where you choose, which can settle a residency question and removes the vendor's retirement date. It does not remove the work. You take on serving, capacity, upgrades, security patches, and proving that a quantized copy (compressed to lower numeric precision to run cheaper) or any self-hosted copy kept the quality you measured. The license decides what you may do with the weights at all. These are different bundles of responsibility, and the eligibility filter is where you decide which bundles you are willing to carry. The [Inference and hosting](/modules/inference-and-hosting) elective covers the operating side.
 
 Put the six axes in the order you apply them:
 
@@ -786,6 +787,18 @@ What would have to exist: the model id in one configuration file, read by every 
 </Fragment>
 
 </FailureExercise>
+
+## Optional lab
+
+<OptionalLab>
+
+A small Python project that measures ticket triage on 24 synthetic support tickets. It runs a keyword rules baseline first, then one explicit model call per ticket through a thin adapter, rejects any answer outside the label set, and prints a confusion matrix with per-label precision and recall for both. It ends with a selection note holding your numbers. The lab is optional and never counts toward completion. A full run costs cents, under one dollar, and the lab prints its estimate before any paid call. With no API key it shows the plan and stops. Step 1 is `first_call.py`, one raw SDK call. The adapter comes after it. Get it with `git clone https://github.com/sequenzia/becoming-an-aie.git`. It needs uv, checked with 0.11.7 on 2026-10-09. To start:
+
+```sh
+cd labs/models-first-measurable-feature && uv sync && uv run python run.py --dry-run
+```
+
+</OptionalLab>
 
 ## Completion evidence
 

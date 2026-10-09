@@ -1,6 +1,6 @@
 // src/components/islands/assessment-page.test.ts
 // Renders src/pages/assessment.astro through the Container API with the Preact renderer loaded, against the
-// real content store (PREVIEW_DRAFTS is true under Vitest, so the draft closing module is published) and
+// real content store (the closing module is published since Phase 3; PREVIEW_DRAFTS is true under Vitest too) and
 // PGlite in memory through getDb(). Checks the section 8 and 9.7 contract: the guard branches, the header, the
 // island mount with its serialized props, and the anonymous feedback form. The island's own behavior is
 // covered by SelfAssessment.test.tsx. The feedback redirect after a POST needs an action payload the

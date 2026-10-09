@@ -3,38 +3,720 @@ title: "Multimodal systems"
 kind: elective
 area: none
 order: 3
-summary: "Documents, images, audio, and video in the pipeline. Direct multimodal processing against OCR, transcription, and specialist components."
-readingMinutes: 45
+summary: "Documents, images, audio, and video as inputs you own. Direct multimodal processing against OCR, transcription, and specialist components, the failures each one adds, how to evaluate them, and what they cost."
+readingMinutes: 51
 prerequisites: []
 talkBeats: []
 bookChapters: [22]
-draft: true
-updatedOn: 2026-09-16
-checkedOn: 2026-09-16
+draft: false
+updatedOn: 2026-10-09
+checkedOn: 2026-10-09
 staleAfterDays: 90
-artifacts: []
-outcomes: []
-selfCheck: []
-sources: []
+artifacts: [multimodal-systems-call-transcript, multimodal-systems-extraction-eval, multimodal-systems-cost-table, multimodal-systems-invoice-extraction]
+outcomes:
+  - id: choose-pipeline
+    text: Compare direct multimodal processing with OCR, transcription, and specialist components, and choose a pipeline for a stated task and its constraints, including how it detects and routes an input with a missing modality.
+  - id: document-failures
+    text: Name the failure modes of document understanding, from layout loss and table structure to OCR confidence and invented fields, and say where each one enters a pipeline.
+  - id: trace-to-source
+    text: Trace each extracted value or claim to its page, region, or time interval, and design outputs whose trace your code can check.
+  - id: audio-failures
+    text: Recognize transcription failures, including speech invented in silence, dropped qualifiers, and timestamp drift, in recorded and streaming audio, and check a transcript against its audio.
+  - id: evaluate-multimodal
+    text: Build an evaluation for multimodal outputs that requires the visual or audio evidence, scores fields rather than prose, and reports by capture condition.
+  - id: cost-multimodal
+    text: Estimate the cost and latency of a multimodal pipeline from tokens per image, page, second of audio, and frame, with review time beside the model bill.
+  - id: provenance-consent
+    text: State the provenance, consent, and retention obligations that media inputs and generated media add to a product.
+selfCheck:
+  - id: q1-pipeline
+    outcome: choose-pipeline
+    question: "Your intake feature receives digital PDF invoices from twelve suppliers. Every file has a text layer and the layouts are stable. What is the defensible first pipeline to measure?"
+    options:
+      - "Page images sent to the largest vision model available, because it reads layout"
+      - "The PDF text layer, parsed with layout kept, a text model filling a schema, and code checks"
+      - "A fine-tuned document model trained on last year's invoices"
+    correct: [1]
+    feedback:
+      - "Not yet. The image costs tokens and latency that this input may not need. Measure the simple pipeline first and escalate on evidence. Reread Three ways to read a document."
+      - "Correct. The text is already there. Start constrained, measure, and add the image path only for the cases the text path fails."
+      - "Not yet. Adaptation is a later, measured step, and the stable templates give it little to fix. Reread Three ways to read a document."
+  - id: q2-checks
+    outcome: document-failures
+    question: "A line-item extraction passes the schema, the line arithmetic (quantity times unit price equals amount), and the sum to the subtotal. Which errors can still be present?"
+    options:
+      - "Quantity and unit price exchanged on one line"
+      - "A description copied from the row below"
+      - "A line amount that is not quantity times unit price"
+      - "A required field missing from the output"
+    correct: [0, 1]
+    feedback:
+      - "Correct. Multiplication commutes. The amount and every sum stay right while both fields are wrong."
+      - "Correct. No arithmetic check reads the description, and the schema only checks it is a string."
+      - "Not yet. That is exactly what the line arithmetic check catches. Reread Extraction is a contract, and checks have blind spots."
+      - "Not yet. The schema check catches a missing required field. Reread Extraction is a contract, and checks have blind spots."
+  - id: q3-ocr-confidence
+    outcome: document-failures
+    question: "An OCR service reports a character confidence of 0.97 for the region a quantity was read from. What does that number tell you?"
+    options:
+      - "The extracted quantity is 97% likely to be the right value for that line"
+      - "The characters in that region were probably read correctly; it says nothing about which column or row they belong to"
+      - "The extracted value has a 3% chance of being in the wrong field"
+    correct: [1]
+    feedback:
+      - "Not yet. A confidence about characters is not a confidence about structure. Reread OCR confidence measures characters, not meaning."
+      - "Correct. A correctly read digit in the wrong column has high confidence and is wrong."
+      - "Not yet. The score is about which characters were read. It carries no probability about which field they belong to. Reread OCR confidence measures characters, not meaning."
+  - id: q4-citations-scan
+    outcome: trace-to-source
+    question: "Half your invoices are phone photos with no text layer. Where does a trace for their extracted fields come from that your code can check?"
+    options:
+      - "The vendor's citation feature, which cites page regions of the image"
+      - "OCR word boxes from your own pipeline, matched to the text the model quotes"
+      - "Boxes the model reports around each value"
+    correct: [1]
+    feedback:
+      - "Not yet. Anthropic's citations page, checked on 2026-10-09, says scans without extractable text are not citable, because image citations are not yet supported. Reread Trace every value to a page, region, or interval."
+      - "Correct. A position from OCR is a measurement. Find the quoted text in the OCR output and the box comes with it."
+      - "Not yet. Model-reported boxes are approximate, by the vendors' own description. They help a reviewer navigate, but they are a claim, not a measurement. Reread Trace every value to a page, region, or interval."
+  - id: q5-deleted-audio
+    outcome: trace-to-source
+    question: "The AP reported in October 2024 that a Whisper-based clinical transcription tool erased the original audio for data safety reasons. What does that design remove?"
+    options:
+      - "Nothing that matters, because the transcript is the record"
+      - "The only evidence a reviewer could check the transcript against"
+      - "The cost of storing audio, with no effect on verification"
+    correct: [1]
+    feedback:
+      - "Not yet. A transcript is a model output. Without the source, an invented sentence cannot be found. Reread A public account: speech that was never said."
+      - "Correct. Retention is a privacy decision and a verification decision at the same time. Make both on purpose."
+      - "Not yet. Storage is the smaller effect. Reread A public account: speech that was never said."
+  - id: q6-silence
+    outcome: audio-failures
+    question: "Which cases does Careless Whisper tell you to add to a transcription eval set?"
+    options:
+      - "Recordings with silence, long pauses, and non-speech sound, and speakers who pause often"
+      - "The noisiest recordings only"
+      - "Non-English speakers only"
+    correct: [0]
+    feedback:
+      - "Correct. The paper found hallucinations concentrated in speakers with longer non-vocal durations. Silence is where a speech model is most likely to write text that was never said, so test it on purpose."
+      - "Not yet. Noise is a capture condition worth testing, but the paper's finding is about silence and pauses, not noise. Reread How transcription fails."
+      - "Not yet. The paper compares speakers with and without aphasia, and links hallucinations to non-vocal durations. Reread How transcription fails."
+  - id: q7-drift
+    outcome: audio-failures
+    question: "A pipeline splits audio into 60-second chunks with 2.4 seconds of overlap, then adds 60 seconds to every timestamp from the second chunk. What happens to the joined transcript?"
+    options:
+      - "Nothing, because the overlap is removed when segments are joined"
+      - "Every segment after the first chunk is 2.4 seconds late"
+      - "Timestamps drift by a growing amount through the second chunk"
+    correct: [1]
+    feedback:
+      - "Not yet. The overlap shifts the second chunk's true start to 57.6 seconds. Adding 60 is wrong by the overlap. Reread Timestamps drift at the seams."
+      - "Correct. A constant offset after each seam, and a citation that points 2.4 seconds past the words."
+      - "Not yet. This error is a constant offset per chunk, not a growing one. Reread Timestamps drift at the seams."
+  - id: q8-blind-control
+    outcome: evaluate-multimodal
+    question: "A vision model scores 96.7% on your digital-PDF cases with the page images removed, given only the text layer. What does that tell you?"
+    options:
+      - "The model reads images very well"
+      - "That category does not test visual understanding, because the text alone answers it"
+      - "The text layer should be removed from production requests"
+    correct: [1]
+    feedback:
+      - "Not yet. The images were not there. Reread Cases that require the evidence."
+      - "Correct. It is the lesson MMMU-Pro built into a benchmark: filter out what a text-only model can answer before you claim to measure vision."
+      - "Not yet. The control tells you about the case set, not the production request. Reread Cases that require the evidence."
+  - id: q9-eval-set
+    outcome: evaluate-multimodal
+    question: "Which of these belong in an evaluation set for an invoice-extraction feature?"
+    options:
+      - "Cases grouped by capture condition, with the mix compared against real traffic"
+      - "Documents where a field is absent, scored on whether the output says null"
+      - "Field-level labels keyed from the original document"
+      - "Only documents that the current pipeline already handles well"
+      - "A single overall accuracy, without per-condition results"
+    correct: [0, 1, 2]
+    feedback:
+      - "Correct. Phone photos and clean PDFs fail differently. A case set that under-samples the hard condition reports the easy one."
+      - "Correct. Absent fields are where invented values come from. Score the null."
+      - "Correct. Labels from the original, not from a previous model's output, are what make the grader trustworthy."
+      - "Not yet. An eval set made of easy cases measures nothing you need to know. Reread Scoring fields, not prose."
+      - "Not yet. An overall number hides the condition where a pipeline fails. Reread Scoring fields, not prose."
+  - id: q10-patches
+    outcome: cost-multimodal
+    question: "Anthropic documents image cost as one visual token per 28 by 28 pixel patch, rounding up on each side. Roughly how many tokens is a 1000 by 1000 pixel image that is not resized?"
+    options:
+      - "1,296"
+      - "1,000"
+      - "28,000"
+    correct: [0]
+    feedback:
+      - "Correct. 1000 divided by 28, rounded up, is 36, and 36 times 36 is 1,296. Anthropic's own table gives the same figure."
+      - "Not yet. Tokens come from patches, not pixels along one edge. Reread Cost in modality units."
+      - "Not yet. That multiplies instead of dividing. Reread Cost in modality units."
+  - id: q11-review-cost
+    outcome: cost-multimodal
+    question: "In the module's cost table, the OCR pipeline has the lowest model bill per invoice. Why is it the most expensive per document?"
+    options:
+      - "Its OCR service charges more per page than the vision model"
+      - "It flags 16% of documents for a person, and review time is far larger than the model cost"
+      - "It sends more tokens than the other pipelines"
+    correct: [1]
+    feedback:
+      - "Not yet. The OCR charge is a fraction of a cent. Reread Cost in modality units."
+      - "Correct. A few cents of model cost decide nothing beside 90 cents of a clerk's time. Price the whole path, including the people."
+      - "Not yet. It sends the fewest tokens of the three. Reread Cost in modality units."
+  - id: q12-provenance
+    outcome: provenance-consent
+    question: "A user uploads a photo of damaged goods as evidence for a refund. What is a sound way to handle whether the image is AI-generated?"
+    options:
+      - "Ask the vision model whether the image is AI-generated and trust its answer"
+      - "Treat the model as unable to tell, record any provenance data such as Content Credentials, and route high-value claims to a person"
+      - "Reject every image without Content Credentials"
+    correct: [1]
+    feedback:
+      - "Not yet. Anthropic's documentation says Claude cannot determine whether an image is AI-generated and might be incorrect if asked. Reread Generated media, provenance, and consent."
+      - "Correct. Provenance data is evidence when present. Its absence proves nothing, so the decision rule has to work without it."
+      - "Not yet. A genuine photo can carry no Content Credentials at all, so this rejects honest users. Reread Generated media, provenance, and consent."
+sources:
+  - title: Beyond the Coding Agent, the talk repository
+    author: Stephen Sequenzia
+    date: "2026-09"
+    url: https://github.com/sequenzia/beyond-the-coding-agent
+    checkedOn: 2026-10-09
+    note: "The talk does not treat multimodal systems. This module draws on its thesis, its definition of owner, its transfer table, and its roadmap, as compiled in the program's talk knowledge base on 2026-09-15 and read in a local clone of the repository on 2026-10-09."
+  - title: Becoming an AI Engineer, the book blueprint
+    date: "2026-09"
+    checkedOn: 2026-10-09
+    note: "Chapter 22, Multimodal Systems: Documents, Images, Audio, and Video, with its source list, and the research report behind the chapters (research/report-source.md), which states the MMMU-Pro lesson quoted in Cases that require the evidence. The public link is pending."
+  - title: Vision
+    org: Anthropic
+    date: "2026"
+    url: https://platform.claude.com/docs/en/build-with-claude/vision
+    checkedOn: 2026-10-09
+    note: "Visual tokens per 28 by 28 pixel patch, resolution tiers, request limits, image quality guidance, and the limitations list. Undated page."
+  - title: PDF support
+    org: Anthropic
+    date: "2026"
+    url: https://platform.claude.com/docs/en/build-with-claude/pdf-support
+    checkedOn: 2026-10-09
+    note: "Each page sent as an image with its extracted text, the per-page token estimate, page limits, and the Amazon Bedrock Converse API's text-only mode. Undated page."
+  - title: Citations
+    org: Anthropic
+    date: "2026"
+    url: https://platform.claude.com/docs/en/build-with-claude/citations
+    checkedOn: 2026-10-09
+    note: "Page-location citations for PDFs, and scanned PDFs without extractable text not being citable. Undated page."
+  - title: Images and vision
+    org: OpenAI
+    date: "2026"
+    url: https://developers.openai.com/api/docs/guides/images-vision
+    checkedOn: 2026-10-09
+    note: "The detail parameter, patch and tile token accounting, request limits, and the limitations list. Undated page."
+  - title: Speech to text
+    org: OpenAI
+    date: "2026"
+    url: https://developers.openai.com/api/docs/guides/speech-to-text
+    checkedOn: 2026-10-09
+    note: "Recommended and specialized transcription models, the 25 MB limit, timestamp granularities, diarization, prompting, and streaming a completed file. Undated page."
+  - title: Realtime transcription
+    org: OpenAI
+    date: "2026"
+    url: https://developers.openai.com/api/docs/guides/realtime-transcription
+    checkedOn: 2026-10-09
+    note: "Live transcription with gpt-live-transcribe: delta and completion events, revising partial text, the latency and quality trade, client-side voice-activity detection, and what the model does not return. Undated page."
+  - title: Deprecations
+    org: OpenAI
+    date: "2026"
+    url: https://developers.openai.com/api/docs/deprecations
+    checkedOn: 2026-10-09
+    note: "The transcription model deprecation announced 2026-08-26, with shutdown on 2027-02-26. Undated page."
+  - title: Image inputs
+    org: OpenAI
+    date: "2026"
+    url: https://learn.chatgpt.com/docs/image-inputs
+    checkedOn: 2026-10-09
+    note: "Codex image inputs: pasting into the composer and the --image flag. Undated page; developers.openai.com/codex/image-inputs redirects here."
+  - title: Audio understanding
+    org: Google
+    date: "2026-09-23"
+    url: https://ai.google.dev/gemini-api/docs/audio
+    checkedOn: 2026-10-09
+    note: "Gemini API: 32 tokens per second of audio, downsampling, and MM:SS references. The date is the page's last update."
+  - title: Document understanding
+    org: Google
+    date: "2026-10-08"
+    url: https://ai.google.dev/gemini-api/docs/document-processing
+    checkedOn: 2026-10-09
+    note: "Gemini API: 258 tokens per page, extracted native text, page limits, and non-PDF files read as plain text. The date is the page's last update."
+  - title: Video understanding
+    org: Google
+    date: "2026-10-06"
+    url: https://ai.google.dev/gemini-api/docs/video-understanding
+    checkedOn: 2026-10-09
+    note: "Gemini API: 1 frame per second by default, tokens per second of video, and the note on fast action. The date is the page's last update."
+  - title: "Amazon Textract: Best practices"
+    org: Amazon Web Services
+    date: "2026"
+    url: https://docs.aws.amazon.com/textract/latest/dg/textract-best-practices.html
+    checkedOn: 2026-10-09
+    note: "Input quality, tables with merged cells, and confidence score thresholds. Undated page."
+  - title: Building agents with the Claude Agent SDK
+    author: Thariq Shihipar
+    org: Anthropic
+    date: "2025-09-29"
+    url: https://claude.com/blog/building-agents-with-the-claude-agent-sdk
+    checkedOn: 2026-10-09
+  - title: "MMMU-Pro: A More Robust Multi-discipline Multimodal Understanding Benchmark"
+    author: Xiang Yue and colleagues
+    date: "2024-09-04"
+    url: https://arxiv.org/abs/2409.02813
+    checkedOn: 2026-10-09
+    note: "arXiv 2409.02813, revised 2025-05-22, ACL 2025 Main. A benchmark-design lesson, not evidence about any current model's accuracy on your application."
+  - title: "Robust Speech Recognition via Large-Scale Weak Supervision"
+    author: Alec Radford and colleagues
+    date: "2022-12-06"
+    url: https://arxiv.org/abs/2212.04356
+    checkedOn: 2026-10-09
+    note: "The Whisper paper, arXiv 2212.04356."
+  - title: "Careless Whisper: Speech-to-Text Hallucination Harms"
+    author: Allison Koenecke, Anna Seo Gyeong Choi, Katelyn X. Mei, Hilke Schellmann, Mona Sloane
+    date: "2024-02-12"
+    url: https://arxiv.org/abs/2402.08021
+    checkedOn: 2026-10-09
+    note: "arXiv 2402.08021, revised 2024-05-03; ACM DOI 10.1145/3630106.3658996. Measured on the Whisper API as of 2023. A failure class and a method, not a rate for current services."
+  - title: "OpenAI's transcription tool hallucinates more than any other, experts say, but hospitals keep using it"
+    author: Garance Burke and Hilke Schellmann
+    org: The Associated Press
+    date: "2024-10-26"
+    url: https://fortune.com/2024/10/26/openai-transcription-tool-whisper-hallucination-rate-ai-tools-hospitals-patients-doctors
+    checkedOn: 2026-10-09
+    note: "An AP investigation, read in Fortune's syndicated copy because apnews.com refused the fetch on 2026-10-09. Reported findings from researchers and developers, not a controlled measurement. The headline punctuation is adapted."
+  - title: "Artificial Intelligence Risk Management Framework: Generative Artificial Intelligence Profile"
+    author: Chloe Autio and colleagues
+    org: NIST
+    date: "2024-07-26"
+    url: https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence
+    checkedOn: 2026-10-09
+    note: "NIST AI 600-1. Voluntary guidance; using it does not establish legal compliance."
+  - title: Coalition for Content Provenance and Authenticity
+    org: C2PA
+    date: "2026-01-08"
+    url: https://c2pa.org/
+    checkedOn: 2026-10-09
+    note: "The standard behind Content Credentials. The page links specification version 2.3. The date is the page's last update."
 ---
 
 ## Transfer connection
 
-This module is planned. It is not yet written. This page holds its place in the catalog until it is.
+You already accept files from the outside world. You have written upload handlers that check a content type, cap a size, and reject a file that claims to be a PNG and is not. You have parsed CSV exports whose columns moved between versions, and invoices from partners who promised a format and sent another. You have learned not to trust input, to validate at the boundary, and to fail loudly when a record does not parse. You have also learned that the parser is part of the product: when it is wrong, the data behind it is wrong, and nothing downstream knows.
 
-Electives are optional. They never appear as prerequisites of a core module. The module will say what stays the same and what changes.
+What stays the same: input is untrusted until it is validated. A parser has a contract, and the contract is tested. A rejected record goes somewhere a person can see it. Size limits, format checks, retention rules, and access control on stored files all stay the same. So does the habit of keeping the original next to the parsed result, so that a bad parse can be found and replayed. The talk's transfer table names the habit in its third row: "Testing discipline" becomes "Eval discipline". The habit of checking before accepting a result transfers whole.
+
+What changes is what a parse failure looks like. A CSV parser that meets a malformed row throws an error. A model that reads a scanned invoice does not throw. It returns a well-formed answer every time, and the answer can be wrong in ways that pass every check you would write for a CSV. A quantity can land in the unit-price field and still multiply to the right total. A transcript can contain a sentence nobody said, in perfect grammar, during a silence. A timestamp can be off by two seconds after every seam in the audio. None of these is a type error. All of them are plausible values.
+
+Two more things change. The first is that the input has a capture condition. The same invoice arrives as a born-digital PDF (generated by software, not scanned), a clean scan, and a phone photo taken at an angle on a warehouse floor, and each one fails differently. Your test fixtures were one file per format. Your evaluation needs cases per condition, weighted like your traffic. The second is cost. A text request is priced in tokens you can count from the string. An image is priced in pixels, a page in pixels plus extracted text, an audio file in seconds, a video in frames. The talk's last transfer row, "Operations: cost, latency, incidents, rollback", becomes "The same, in tokens". For media, the tokens come from units you did not use to count before.
+
+The talk's thesis is the frame for this elective: "Using AI makes you an AI-enabled software engineer. Engineering systems that depend on AI makes you an AI engineer." Pasting a screenshot into a coding agent is the first sentence. Shipping a feature that reads your customers' documents and recordings, and answers for what it read, is the second. The talk's word for the person who answers is owner: "Owner means the engineer or team accountable for the delivered product's behavior and operating limits." The book's Chapter 22 puts what changes into one line: "Media pipelines introduce new input quality, alignment, and evaluation responsibilities." Input quality, alignment, and evaluation are the three responsibilities this module teaches.
 
 ## Topics and learning outcomes
 
 <Outcomes />
 
-The module draws on book chapter 22. It will introduce each concept with its outcome and a worked example, with every tool fact carrying its checked-on date.
+### How to read this module
+
+The book's Chapter 22 covers documents, images, audio, and video. This module gives most of its length to documents and audio, because those are the media most product teams meet first: invoices, contracts, forms, screenshots in support tickets, voicemail, and recorded calls. Video gets one section, which is also the book's choice: it keeps "advanced video work in companion material."
+
+The module runs in four parts. The first part starts where you already are, with an image pasted into a coding agent, and goes one layer down to what a model does with an image. The second part is documents: three ways to read one, where each way fails, and how an extraction becomes a contract your code can check. The third part is audio: what a transcript is, how it fails, live audio and missing inputs, and a public account of what happens when nobody can check a transcript. The fourth part is the owner's work across all media: evaluation, cost, and provenance. If you read in two sittings, stop after Trace every value to a page, region, or interval.
+
+The reading time counts the prose. Two artifacts sit inside the topics, a call transcript and a cost table, and reading them closely adds about five minutes.
+
+Every vendor fact here names its source, and every source was checked on 2026-10-09. Multimodal limits, prices, and model lists change faster than most of what this program covers. Read each figure as true on that day and check it again before you build on it.
+
+### When you are the user: a screenshot in the prompt
+
+Start with what you have touched. Most coding agents accept images, and you have probably pasted one: a stack trace you could not copy, a broken layout, a design you were asked to match.
+
+In Codex, OpenAI's documentation, checked on 2026-10-09, describes two ways to do it: "Paste an image into the interactive composer, or pass one or more files on the command line". The command-line form is a flag. The documentation's own examples are `codex -i screenshot.png "Explain this error and suggest the smallest fix"` and `codex --image before.png,after.png "Compare these states and list the regressions"`. It says "Codex accepts common image formats, including PNG and JPEG." It gives prompting advice that is worth keeping for any image: "Name what the image shows, point to the area that matters, and state the output and constraints." And it gives an example of a loop that uses images on both ends: "Compare this checkout screen with the design. Fix spacing and typography only; do not change behavior. Verify the result with a new screenshot."
+
+That last sentence is a verification pattern, and it is not unique to one tool. Thariq Shihipar's post on the Claude Agent SDK, from September 29, 2025, lists visual feedback among the ways an agent can check its work: "visual feedback (in the form of screenshots or renders) can be helpful." His example is an email: "if sending an email with HTML formatting, you could screenshot the generated email" and "provide it back to the model for visual verification and iterative refinement."
+
+Notice what you did as the user. You chose the image. You cropped it, or did not. You pointed at the part that mattered in your prompt. You read the answer, and when the agent said the layout was fixed, you looked at the page yourself. You were the input validation, the evaluation, and the person who noticed when the model described a button that was not in the screenshot. Every one of those becomes a design decision when the image comes from a customer you will never meet.
+
+### What someone engineered behind the paste
+
+The paste is one keystroke. Behind it, someone made several decisions that you never saw. Each one is work you own when the product is yours.
+
+**Format and size checks.** Someone decided which formats to accept and what to do with the rest. Anthropic's vision documentation and OpenAI's images and vision guide, both checked on 2026-10-09, accept PNG, JPEG, WebP, and GIF, and each caps file size, pixel dimensions, and images per request. Those are not your users' limits. Your users will send HEIC photos from phones, 40 MB multi-page TIFFs from scanners, and PDFs with a password. Somebody has to convert, reject, or split each of them, and tell the user which happened.
+
+**Resizing.** Someone decided what resolution the model sees. Anthropic's documentation says that images larger than a model's limits "are downscaled before processing", and lists two tiers: a high-resolution tier for "Claude 4.7 and later models" with a maximum long edge of 2576 px, and a standard tier for "All other models" at 1568 px. OpenAI's guide says "Images may be resized before analysis, including with `original` detail." Resizing is invisible in the answer and visible in the failures. Anthropic's quality guidance says it plainly: "Take into account that your image might be resized if it is too large", which "might, for example, make text less legible." A screenshot of a dense log, downscaled, is a picture of a log the model cannot read.
+
+**Compression.** Someone decided how many bytes to send. Anthropic's guidance notes that lossy compression "can reduce latency by reducing the size of requests", and that it "can introduce artifacts that are detrimental to model performance, especially when multiple compression passes are applied." A phone photo that was compressed by the phone, by the chat app that forwarded it, and by your upload pipeline has been through three passes before the model sees it.
+
+**Placement and labeling.** Someone decided where the image goes in the request. Anthropic's documentation says "Claude works best when images come before text", and recommends introducing several images with labels such as "Image 1:" so that the prompt and later turns can refer to them by name. Google's document guide, checked on 2026-10-09, gives the opposite placement advice for a single page: "If using a single page, place the text prompt after the page." Both say the same thing: the order of parts in a multimodal request is a prompt decision, and it is measured, not assumed.
+
+**What the model does not receive.** Someone knew what was dropped. Anthropic's FAQ says Claude "does not parse or receive any metadata from images passed to it." OpenAI's guide says "The model doesn't process original file names or metadata." The capture date, the GPS position, the camera, and the file name you thought were part of the image are not part of what the model reads. If your feature needs them, your code reads them and passes them as text, or stores them beside the result.
+
+**Cost accounting.** Someone counted the image's tokens and billed them. The section on cost below does the arithmetic. For now, one fact from Anthropic's documentation is enough to change how you think about a screenshot: "High-resolution images can use up to roughly three times more visual tokens than the same image on a standard-tier model."
+
+Here is the worked example in one table. The left column is what you touched. The right column is what someone engineered so that it worked.
+
+| What you touched | What someone engineered for it |
+|---|---|
+| Pasting a screenshot into the composer | Format conversion, size caps, and a rejection message for what cannot be sent |
+| A clear answer about a small error message | A resolution policy that kept the text legible, and a cost the tool absorbed |
+| `codex --image before.png,after.png` | Several images in one request, labeled so the prompt can refer to each |
+| "Verify the result with a new screenshot" | A loop in which a model checks rendered output against a reference image |
+| The answer you trusted because you could see the picture | Nothing. You were the evaluation. |
+
+The last row is the one that matters. In the coding agent, the person who supplied the image was also the person who checked the answer against it. In a product, the image comes from a customer, the answer goes into a database, and nobody looks at both unless you design a step where somebody does.
+
+### What a model does with an image
+
+You do not need the architecture to own a multimodal feature. You need one mechanism and its consequences.
+
+A model does not see pixels the way your image library does. It sees patches. Anthropic's documentation says: "Claude views images in patches instead of pixels. Each patch is a 28×28-pixel block of the image, referred to as a visual token." OpenAI's guide describes the same idea for its newer models with a 32-pixel patch and a per-model multiplier, and an older tile-based scheme for models such as `gpt-4o`. Google's document guide prices a PDF page at a flat 258 tokens. The schemes differ. The principle is shared: an image becomes a sequence of tokens in the same window as your text, and the number of tokens grows with the area of the image until a resize caps it.
+
+Three consequences follow.
+
+**Small details compete with the whole image.** A 1000 by 1000 pixel screenshot is about 1,300 visual tokens. The error message you care about may be a few dozen of them. Cropping to the region that matters, which the Codex documentation's advice to "point to the area that matters" does in words, does it in pixels. Anthropic's guidance warns against the opposite mistake too: "Avoid cropping out key visual context solely to enlarge the text." A crop is a decision about evidence.
+
+**Resolution is a quality decision and a cost decision at the same time.** A downscaled page is cheaper and blurrier. Which matters more depends on the smallest detail the task needs: a total in 14-point type survives a resize that a footnote in 7-point type does not. You measure it, on your documents, at the resolution you will send.
+
+**Some tasks are weak by design, and the vendors say so.** Anthropic's and OpenAI's limitations lists name the same weak spots: low-quality, rotated, or very small images, precise spatial localization, and exact counts of many small objects. OpenAI adds text in non-Latin alphabets. Anthropic says "Claude's coordinate and localization outputs are approximate", and ends with the instruction that matters: "Always carefully review and verify Claude's image interpretations, especially for high-stakes use cases."
+
+Read those lists as the start of your case set. Every limitation a vendor documents is a category your evaluation should contain, at the rate your traffic contains it. If your users photograph shelves and you need a count, counting is not a corner case. It is the product.
+
+There is a fourth consequence, and it is the one that catches teams. A model that reads an image badly does not say so. It describes what a plausible image of that kind would contain. A blurred total becomes a plausible total. A cropped table gets a plausible last row. The Foundations module's [How foundation models fail](/modules/foundations#how-foundation-models-fail) explains why fluent output is not evidence; images add more ways for the evidence to be missing while the fluency stays.
+
+### Three ways to read a document
+
+This is the second part, documents. A document is not one modality. A born-digital PDF carries text, positions, fonts, and drawing instructions. A scan carries pixels and nothing else. A phone photo carries pixels, a perspective, a shadow, and whatever was on the desk. The first engineering decision is how the document reaches the model. The book's Chapter 22 makes it an outcome: "Compare direct multimodal processing with OCR, transcription, and specialist components." There are three families, and most production systems end up mixing them.
+
+**Text first: extract, then reason over text.** Read the text layer of a digital PDF (the selectable text it carries), or run OCR on an image, and give the model text. OCR (optical character recognition) is a component that turns pixels into characters, usually with a position and a confidence for each word or line. A layout step can add structure: which words form a table, which cells form a row, what is a heading. The model then reasons over text. This path is cheap, fast, and auditable, because every character has a position on the page. It fails where the structure fails: a table flattened into a line, two columns read across, a stamp over a number.
+
+**Direct: send the page to a multimodal model.** Render each page as an image and let the model read it, often with the text layer alongside. This path reads layout, handwriting, stamps, checkboxes, and charts that a text layer does not carry. It costs more tokens per page and more latency, and its positions are whatever the model reports, which the vendors describe as approximate.
+
+**Specialist components.** A document-AI service, a table-structure model, a form-field detector, a signature detector, a barcode reader. Each one does one job with its own error profile and often its own confidence. A specialist is usually the strongest choice for its narrow job and adds an integration, a contract, a price, and a data-processing agreement to own.
+
+The vendors already mix the first two. Anthropic's PDF documentation, checked on 2026-10-09, describes what happens when you send a PDF: "The system converts each page of the document into an image." "The text from each page is extracted and provided alongside each page's image." Google's document guide says "Text natively embedded in the PDF is extracted and provided to the model", and that for Gemini 3 models "You are not charged for tokens originating from the extracted native text in PDFs." Both send the picture and the text together, so that the model can use the text where it is reliable and the picture where the text is missing or misleading.
+
+The mix has an edge that is easy to miss. Anthropic's PDF page describes a mode on Amazon Bedrock's Converse API where, without the citations flag, the request "falls back to basic text extraction only" and the model cannot see images, charts, or layout. The same model, the same file, and one flag decide whether the model sees the page at all. A scan has no text layer, so in that mode it arrives almost empty, and a team that tested only on digital PDFs would not notice.
+
+Google draws the same kind of line for other formats. Its document guide says that types other than PDF "will be extracted as pure text", and that "Any file-type specifics like charts, diagrams, HTML tags, Markdown formatting, etc., will be lost." Anthropic's PDF page says binary formats "such as .xlsx or .docx are not supported in document blocks and must be converted to text or PDF first." Every conversion is a parse, and every parse can drop structure.
+
+How do you choose? The talk's roadmap already gives the order: "Start constrained. One call. Then a workflow. Then a loop, only when it earns it." For documents, constrained means the cheapest path that meets the requirement on your cases, and escalation where it fails.
+
+- If the documents are born digital, from a few known sources, with a stable layout, start text first. The text is already there. Measure it.
+- If the documents are scans or photos, or carry meaning in layout, handwriting, stamps, or checkboxes, the direct path or a specialist will usually be needed for at least those conditions. Measure it on those conditions.
+- If one field carries most of the risk, such as a bank account number, consider a specialist or a deterministic check for that field, and let the general path handle the rest.
+- If the traffic mixes conditions, a hybrid often wins: the text path first, and escalation to the direct path for documents whose capture condition, confidence, or checks say the text path is not enough.
+
+A hybrid is a routing decision, and the Models module's [Route: when more than one model earns its place](/modules/models#route-when-more-than-one-model-earns-its-place) applies whole. The escalation rule is a component with its own errors. A document the rule wrongly keeps on the cheap path is a silent error, and the cost of the hybrid is the cheap path plus the escalated share of the expensive one.
+
+One more choice sits under all three: whether a model belongs in the path at all. A supplier that sends structured e-invoices, or a portal that already has the data in a database, does not need a model to read a picture of it. "No model" is a valid answer, and orientation's [Look before you build](/modules/orientation#look-before-you-build) explains why you check for it first.
+
+### Where document understanding fails
+
+Each path fails in its own places. Here they are in pipeline order, because the place a failure enters decides what can catch it.
+
+**Capture.** The page is rotated, skewed, blurred, shadowed, cropped, or photographed at an angle. A finger covers a digit. A fold runs through a line. Google's guide gives two of the fixes as plain instructions: "Rotate pages to the correct orientation before uploading." "Avoid blurry pages." Amazon's Textract best practices, checked on 2026-10-09, ask for "a high quality image, ideally at least 150 DPI", and say not to "convert or downsample the document before uploading". Capture problems are the cheapest to detect, with a blur score, an orientation check, or a resolution check, and the most expensive to recover from after the fact.
+
+**Text recognition.** OCR misreads characters: 0 and O, 1 and l, 5 and S, a comma and a period in a number. A misread decimal separator turns 1.250,00 into 1.25. Language matters too. Textract's best practices list the languages it supports, "English, Spanish, German, Italian, French, and Portuguese", and OpenAI's guide notes weaker performance on "text of non-Latin alphabets". A supplier who writes in another language is a capture condition.
+
+**Layout and reading order.** The page is two-dimensional. Text is one-dimensional. Something has to decide the order. Two columns read straight across interleave two unrelated sentences. A sidebar warning lands between two steps of a procedure, or after the end of it. A header and footer repeat on every page and turn up in the middle of a paragraph. The Context and knowledge module's [Knowledge starts as data](/modules/context-and-knowledge#knowledge-starts-as-data) describes the version of this that breaks retrieval: "A warning box rendered in a sidebar gets separated from the procedure step it qualifies."
+
+**Table structure.** A table is a grid of cells, and the grid is the meaning. A value is a quantity because of the column it sits in. Lose the column and you keep the number and lose its meaning. Tables fail in recognizable ways: a description that wraps onto a second line shifts the rows below it; a merged header cell spans two columns and one of them inherits the header; an empty cell lets the next value slide left; a table continues on the next page without its header. Textract's best practices name two of these directly. Results can be inconsistent with "Merged table cells that span multiple columns" and with "Tables with cells, rows, or columns that are different from other parts of the same table." A table-structure error produces correctly read characters in the wrong fields, which is why it is the most dangerous failure on this list.
+
+**Obscured qualifiers.** The book's Chapter 22 failure exercise names it: "a scan obscures a critical qualifier." A stamp covers the word "not". A highlighter hides "excluding freight". A footnote marker on a price is too small to survive a resize, and the footnote that says "per case of 12" is on the next page. The extracted value is right and the meaning is wrong, because the word that qualified it never reached the model.
+
+**Invented fields.** The schema asks for a purchase order number. The document has none. A model that reads text and images and fills a schema will sometimes produce a plausible value rather than an empty one. The Models module's [Syntactic validity is not semantic correctness](/modules/models#syntactic-validity-is-not-semantic-correctness) describes the same failure for text, and its fix applies here: make "absent" expressible with an explicit null, and check every value that matters against something the model did not write. Invented fields are more common where the evidence is weak: a blurred area, a cropped edge, a field whose label exists and whose value is empty.
+
+**Model-reported positions.** When the direct path returns a box around a value, the box is a model output. Anthropic's documentation calls coordinate outputs "approximate". A box can be in the right row and the wrong column, or around the label instead of the value. A position from OCR is a measurement. A position from a model is a claim.
+
+### OCR confidence measures characters, not meaning
+
+OCR services return confidence scores, and teams use them as gates. That is sound, within limits that are worth stating exactly.
+
+Amazon's Textract documentation defines its score: "A confidence score is a number between 0 and 100 that indicates the probability that a given prediction is correct." It recommends a threshold set by the use case: "In applications that are sensitive to detection errors (false positives), enforce a minimum confidence score threshold. The application should discard results below that threshold or flag situations as requiring a higher level of human scrutiny." And it gives a range: "For archival purposes, such as documenting handwritten notes, it might be as low as 50%. Business processes involving financial decisions might require thresholds of 90% or higher."
+
+The words to read closely are "a given prediction". A word-level OCR confidence is a prediction about which characters are in a region. It says nothing about which field those characters belong to. If a layout step assigns a perfectly read "3" from a pack-size column to the quantity field, the confidence on the "3" is high and the extraction is wrong.
+
+Three practices follow.
+
+- **Gate on the right confidence.** Use OCR confidence to catch misread characters. Use structure checks to catch misplaced values: does the value's position fall inside the column it was assigned to, does the row's y-range match its neighbors. Use cross-checks against other systems to catch both.
+- **Calibrate the threshold on your documents.** A confidence of 0.90 means what it means on the vendor's data. Foundations' [Token likelihood, expressed confidence, and empirical reliability](/modules/foundations#token-likelihood-expressed-confidence-and-empirical-reliability) makes the general point: a score is a number until you measure how often the predictions at that score are right on your cases. Plot accuracy against confidence for your critical fields, and set the threshold where the error rate meets the requirement.
+- **Gate on the minimum, not the average.** A document whose average confidence is 0.98 can have one digit at 0.41 in the bank account number. Gate on the lowest confidence among the critical fields.
+
+A model's own statement of confidence is a different thing again. When a model writes "confidence: high" in its output, that is generated text, and the same Foundations section explains why it needs measuring before anyone acts on it.
+
+### Extraction is a contract, and checks have blind spots
+
+An extraction is an interface between a model and your application, and the Models module's output-contract rules carry over intact: a schema the provider enforces for shape, explicit nulls for absent values, authoritative values from the application, and every failure with a destination. Documents add one more property that is worth designing around. Many documents contain their own redundancy, and you can check it.
+
+An invoice has line amounts that should equal quantity times unit price, a subtotal that should equal the sum of the lines, tax that should equal the subtotal times the rate, and a total that should equal the subtotal plus tax. A bank statement has an opening balance, transactions, and a closing balance that should reconcile. A passport's machine-readable zone repeats the printed fields with check digits. A VAT id has a format and, in some countries, a checksum. These checks are cheap, deterministic, and catch a large share of misreads, because a misread digit almost never preserves every sum.
+
+Then there is a second layer: checks against systems the model did not read. Is the supplier in the vendor master, the company's approved supplier list? Does the purchase order exist, and do the quantities and prices match it? Is the bank account on the invoice the one on file for that supplier? That last check is also a fraud control, because an invoice with a changed bank account is a classic attack, and a model that reads it perfectly will extract the attacker's account perfectly.
+
+Now the blind spots, because a check you trust more than it deserves is worse than no check.
+
+**Arithmetic is symmetric.** If quantity and unit price are exchanged on a line, quantity times unit price is unchanged. The line amount, the subtotal, the tax, and the total all still reconcile. A table-structure error that swaps two numeric columns passes every arithmetic check on the document.
+
+**Sums do not see descriptions.** A description copied from the row below, an item number from the wrong line, or a unit of measure from the next column passes every numeric check.
+
+**Format is not truth.** A VAT id with a valid checksum can belong to a different company. A date in the right format can be the delivery date rather than the invoice date.
+
+**Skipped checks are silent.** A cross-check that is disabled for some suppliers, or skipped when a lookup times out, leaves the document with fewer guards and the same "pass" in the log, unless the log says what did not run.
+
+The response to blind spots is not more arithmetic. It is a check of a different kind: field-level comparison against labeled references in evaluation, structure checks on positions in production, cross-checks against systems of record wherever one exists, and human review for the documents the checks cannot protect. Chapter 22's completion evidence asks you to "identify modality-specific errors". A swapped column is the kind of modality-specific error that only a check designed for it will find.
+
+### Trace every value to a page, region, or interval
+
+The book's Chapter 22 completion evidence ends with a requirement that turns a document feature into something auditable: "trace output claims to the correct page, region, or time interval." Every extracted value, every claim in a summary, carries a pointer to where in the source it came from. A reviewer can then check the value against the source in seconds instead of minutes, and your code can check some of it with no reviewer at all.
+
+What a trace looks like depends on the path.
+
+- **From OCR or a text layer:** a page number and a bounding box for each word, measured, not generated. This is the strongest trace, because the position came from the same component that read the characters.
+- **From a vendor citation feature:** a page range and a quoted passage. Anthropic's citations documentation, checked on 2026-10-09, says that for PDFs "Citations include the page number range (1-indexed)", and that the quoted `cited_text` "does not count toward output tokens."
+- **From the model itself:** a box or a page the model reports. Useful for navigation. Approximate, by the vendors' own description.
+
+Know where the vendor trace stops. Anthropic's citations page says: "As image citations are not yet supported, PDFs that are scans of documents and do not contain extractable text are not citable." The documents most likely to be misread, scans and photos, are the ones without a vendor trace. If your feature needs a trace for them, and for anything that matters it does, the trace comes from your own pipeline: OCR word boxes, a layout step, or a requirement that the model quote the text it read so that your code can find that text in the OCR output and recover its position.
+
+A trace is only as good as the check on it. Three checks are cheap enough to run on every document.
+
+1. **The quoted text exists at the cited location.** If the model says the total is "840.62" on page 1, the OCR text of page 1 contains "840.62".
+2. **The value's region falls inside the right structure.** A quantity's box lies inside the quantity column's x-range, on the same row as its line's other fields.
+3. **Every claim has a trace.** A summary claim with no page, region, or interval is either unsupported or untraceable, and either way it does not go to the customer unmarked.
+
+The Verification and evals module's [Check the result, inspect the trace](/modules/verification-and-evals#check-the-result-inspect-the-trace) makes the general case for checking the outcome rather than the claim. For media, the trace is how the outcome becomes checkable.
+
+### Audio: a transcript is a model output
+
+This is the third part, audio, and it starts with something you have read. Your video calls produce captions or a meeting transcript. You have seen a colleague's name spelled three ways, a product name turned into a common word, and a pause filled with a sentence nobody said. You noticed because you were in the meeting. You knew what was said, so you read the transcript as a draft and fixed it in your head. In a product, nobody who was on the call reads the transcript. A support agent reads the summary of a voicemail they never heard. A search index points at a moment by a time it was given. The transcript is the record, and the person who could check it is gone.
+
+A recording reaches a product in one of two ways. It goes through a transcription component first, and a text model reasons over the transcript. Or it goes directly into a model that accepts audio, and the model answers from the sound. The trade is the same one documents present. The transcript path is cheaper, easier to audit, and loses everything that is not words: tone, hesitation, who spoke, background events. The direct path keeps more of the signal and gives you less to check.
+
+Either way, treat the transcript as what it is: a model output, not a recording. Whisper, the speech model behind many transcription products, was introduced in a 2022 paper by Alec Radford and colleagues. Its abstract describes models "trained simply to predict large amounts of transcripts of audio on the internet", at a scale of "680,000 hours of multilingual and multitask supervision". A model trained to predict transcripts produces the transcript that is most likely given the audio and what it learned. Most of the time that is what was said. Sometimes it is what is usually said.
+
+The vendor surface for transcription moves quickly. OpenAI's speech-to-text guide, checked on 2026-10-09, recommends `gpt-transcribe` as the general model and names specialized ones: `gpt-4o-transcribe-diarize` for speaker labels, and `whisper-1` for word or segment timestamps. On timestamps it is exact: "The `timestamp_granularities[]` parameter is only supported for `whisper-1`." It caps a file at 25 MB, tells you to split longer recordings into chunks, and warns: "Avoid splitting in the middle of a sentence, which can remove context and reduce accuracy."
+
+Now read OpenAI's deprecations page, checked on 2026-10-09. On August 26, 2026, OpenAI announced that `whisper-1`, `gpt-4o-transcribe`, `gpt-4o-mini-transcribe`, and `gpt-4o-transcribe-diarize` shut down on February 26, 2027, with "gpt-live-transcribe or gpt-transcribe" as the recommended replacement. Put the two pages side by side and you have a migration problem that has nothing to do with accuracy. On the day checked, the guide documents word and segment timestamps for `whisper-1` only, and `whisper-1` has a shutdown date. A product whose captions, search, or evidence links depend on word timestamps has to find them somewhere else before that date: a different model, a different vendor, or a forced-alignment step that matches the transcript to the audio after the fact. The Models module's [The lifecycle you inherit](/modules/models#the-lifecycle-you-inherit) applies to every component that turns media into text, not only to the model that answers.
+
+Google's audio documentation, checked on 2026-10-09, shows the direct path. Gemini represents audio at "32 tokens per second of audio (1 minute = 1,920 tokens)". It processes a reduced signal: audio is "Downsampled to 16 Kbps" and "Multi-channel audio combined to single channel". It lets a prompt refer to time: "Use `MM:SS` format to reference specific sections", with the example "Provide a transcript from 02:30 to 03:29." Read the downmix line twice if you record calls in stereo with the agent on one channel and the customer on the other. Combining channels discards exactly the separation that told you who spoke.
+
+Two vendor features help with the commonest transcription errors, and both have limits. Vocabulary: OpenAI's guide says a prompt can pass "a dictionary of the correct spellings" for unusual words. Product names, part numbers, and people's names are where general transcription is weakest and where your product cares most. The guide limits prompt length on one model and does not support prompts on another, so check the component you pick. Speaker labels: the diarization model returns segments labeled by speaker, and the guide says speaker labeling "isn't supported in Realtime transcription sessions." If your feature needs to know whether the customer or the agent said "I agree", speaker attribution is a requirement, and it narrows your choice of component.
+
+### How transcription fails
+
+Here are the failure modes in the order a recording meets them.
+
+**Capture.** Background noise, music, crosstalk, a bad line, a speakerphone in a car. A recording is a capture condition in the same way a photo is.
+
+**Segmentation.** Long audio is cut into pieces to fit a limit. A cut in the middle of a word or a sentence loses context on both sides, which is why OpenAI's guide warns against it. Overlap between chunks helps the words and creates a bookkeeping problem with the times, covered in the next section.
+
+**Recognition.** The model hears the wrong word. Numbers suffer most, because "fifteen" and "fifty" differ by one syllable and the language around them fits both. Names, product codes, and domain terms suffer next.
+
+**Dropped qualifiers.** A short word that changes meaning is lost or replaced: "only if" becomes "and", "can't" becomes "can", "not" disappears. The rest of the sentence is right, and the word error rate barely moves. Word error rate, the standard transcription metric, is substitutions plus deletions plus insertions, divided by the number of words in the reference transcript. One dropped "not" in a hundred words is 1%. This is the audio form of the scan that obscures a critical qualifier.
+
+**Speech invented in silence.** The model writes words where nobody spoke. This is the failure with the strongest public evidence. Allison Koenecke and colleagues studied it in "Careless Whisper: Speech-to-Text Hallucination Harms" (February 2024, revised May 2024). Their abstract, on the Whisper service as of 2023: "roughly 1% of audio transcriptions contained entire hallucinated phrases or sentences which did not exist in any form in the underlying audio." Of those, "38% of hallucinations include explicit harms such as perpetuating violence, making up inaccurate associations, or implying false authority." And on where they happen: "hallucinations disproportionately occur for individuals who speak with longer shares of non-vocal durations", which the authors note is "a common symptom of aphasia." Silence, pauses, and hold music are where a model trained to produce transcripts is most likely to produce one.
+
+Read the qualifications with the numbers. The study measured one service at one time. The rate on a current model may be different, and the rate on your audio will be different again. What transfers is the failure class and the test: put silence, long pauses, non-speech sound, and speakers who pause in your case set, and check every word in the transcript against the audio.
+
+**Speaker attribution.** The right words are assigned to the wrong person. In a support call, "I'll refund it" from the agent and "I'll refund it" from the customer are different facts.
+
+**Timing.** The words are right and the times are wrong. That breaks every downstream feature that points at a moment: captions, search, evidence links, and the trace from a summary claim to the interval that supports it.
+
+### Timestamps drift at the seams
+
+Here is a worked example. It is a fictional voicemail, a reference transcript a person made against the audio, the transcript a fictional pipeline produced, and the summary a text model wrote from it.
+
+<Artifact id="multimodal-systems-call-transcript" level={4} />
+
+Try it before you read on. Compare the machine transcript and the summary with the reference, line by line. Write down each place they differ, with its time interval, and name the failure from the list above that it belongs to. Then read the walk-through and compare it with your list.
+
+Read the two transcripts side by side, from the top.
+
+The first two segments match. The times differ by a tenth of a second, which is normal.
+
+The third segment is the dropped qualifier. The caller said "I'd like to return it, but only if the return shipping is covered." The machine wrote "I'd like to return it, and the return shipping is covered." Three words of 120 changed. The summary turned it into a fact: "return shipping is covered." Nobody said that.
+
+The fourth machine segment is speech invented in silence. From 00:21.0 to 00:28.4 the reference has no speech, only paper and a door. The machine wrote "Thanks for calling, have a great day." The last machine segment does the same during hold music: "Thank you."
+
+The fifth segment is the number. "Fifteen days" became "fifty days". The summary then reasoned from the wrong number to a wrong conclusion: "12 days have passed, so there is no urgency." The caller has three days left.
+
+Now the times. From 01:00 onward, every machine segment starts 2.4 seconds after the reference. The pipeline cut the audio into 60-second chunks with 2.4 seconds of overlap, so the second chunk really starts at 57.6 seconds. The service returned times relative to the start of each chunk. The pipeline added 60.0 seconds to the second chunk's times, the nominal chunk boundary, instead of 57.6, its true start. Every segment after the seam is late by exactly the overlap. The callback claim cites 01:00-01:10. The words are at 00:58.2-01:07.6. A reviewer who jumps to 01:00 hears the sentence start mid-word and has to scrub back. With more chunks and a per-chunk offset error, a citation can land on the wrong sentence entirely.
+
+Then the numbers that were recorded with the run. The word error rate was 10.8%: two substitutions, two deletions, and nine insertions, so (2 + 2 + 9) / 120. A team watching that one metric would see a decent transcript. The metric weighs "fifteen" and "fifty" the same as "Hi" and "Hello", counts the invented courtesy phrase as seven insertions, and has no term at all for a timestamp. The service's chunk confidences were 0.93 and 0.91, one number per minute of audio, and nothing in them marks the invented sentence.
+
+Four checks would have caught most of this.
+
+- **Check numbers and qualifiers against the audio.** Extract every number, date, negation, and conditional from the transcript and have them confirmed, by a second component or a person, at their timestamps.
+- **Check silence.** A voice-activity detector marks where speech exists. A transcript segment inside a span the detector marks as silent is suspect by construction.
+- **Check the seams.** Compute chunk offsets from the true chunk starts, and test the joining code with audio whose times you know, such as a recorded count from one to a hundred.
+- **Check claims against intervals.** A summary claim's interval must contain the words that support it. Your code can test that the interval's transcript text contains the claim's key terms.
+
+The book's Chapter 22 workshop says to "use a separate audio exercise to examine transcription and timing errors." If you wrote your list before the walk-through, you did that exercise at a small scale. Check it once more against the four checks: which of your findings would each one catch, and which would none of them catch? The Verification and evals module's [Error analysis before infrastructure](/modules/verification-and-evals#error-analysis-before-infrastructure) is the method: read the outputs against the source, write down what is wrong with each, and let the categories you find become the checks you build.
+
+### Live audio and missing inputs
+
+Everything so far assumed a finished recording that arrived whole. Two more conditions change the design: audio that is still arriving, and an input that is missing part of what the pipeline expects.
+
+**A streaming transcript is a draft.** OpenAI's speech-to-text guide describes two paths. A completed file can stream partial text while the model works: with `stream=true` on `gpt-transcribe`, the model "emits `transcript.text.delta` events as it transcribes the audio", then sends the full transcript in a final done event. Live audio from a microphone or a call goes through a separate path. OpenAI's Realtime transcription guide, checked on 2026-10-09, says streaming "trades latency for transcript quality". Lower delay settings give earlier partial text. Higher ones "give the model more audio context before emitting text and can improve word error rate." The guide tells you to "Decide how your UI should revise partial text when later deltas correct earlier text," and warns that "Ordering between completion events from different speech turns isn't guaranteed."
+
+Read those lines as an owner. Anything that acts on a partial transcript, a live caption, a keyword alert, an agent that answers mid-sentence, acts on words that may change a second later. Show partial text if you like. Act only on completed text for anything that matters, and match each completion to its turn by its id, not by the order it arrived in. The delay setting is a quality dial: measure the word error rate and the critical-term accuracy at the setting you will ship, not at the one that demos well.
+
+Live audio also gives you less to check with. The same guide says `gpt-live-transcribe` "doesn't return word-level timestamps, speaker labels, or transcription confidence scores." A live feature that needs to point at a moment, or to say who spoke, gets that from its own side: its own clock when each turn is committed, and its own audio capture, such as one channel per speaker. The guide also has you detect the end of speech yourself: "Use client-side VAD to detect the end of speech". VAD is voice-activity detection. The silence check from the previous section becomes part of the live pipeline itself.
+
+**A missing modality is an input, not an edge case.** A video arrives with no audio track. A PDF arrives with no text layer, so the text path receives an empty string. A stereo call arrives with one channel silent because a line dropped. A form arrives with page two missing. A model given any of these still answers, from whatever part remains, and the answer looks complete. The fix is a check before the model, not after it.
+
+- **Detect the gap with something deterministic.** Count the audio tracks and measure their loudness. Count the characters in the text layer of each page. Compare the page count with the document's own "page 1 of 3". Check that both channels of a call carry speech.
+- **Route the input instead of answering.** Send the PDF without text to OCR or the direct path. Send the one-channel call to review with a note that one side is missing. Send the incomplete form back to the user with a request for the missing page.
+- **Record the route.** Your evaluation can then report how often each gap occurs and what happened to it, and a gap never logs as a pass.
+
+The blind control in the evaluation section below is the same idea turned around: you remove a modality on purpose, to learn whether the pipeline needed it.
+
+### A public account: speech that was never said
+
+On October 26, 2024, the Associated Press published an investigation by Garance Burke and Hilke Schellmann into Whisper's use in medical transcription. It was widely syndicated; Fortune ran it under the headline "OpenAI's transcription tool hallucinates more than any other, experts say, but hospitals keep using it." The reporting gathered findings from researchers and developers rather than a single controlled measurement, and should be read that way.
+
+The account's details are the reason to study it. It reported that "Over 30,000 clinicians and 40 health systems" had started using a Whisper-based tool built by a company called Nabla, and that Nabla estimated 7 million medical visits transcribed with it. It reported that developers said "the fabrications tend to occur amid pauses, background sounds or music playing", the pattern Careless Whisper measured. It gave an example of the harm: "Whisper invented a non-existent medication called 'hyperactivated antibiotics.'" And among the findings it gathered, a machine learning engineer "discovered hallucinations in about half of the over 100 hours of Whisper transcriptions he analyzed."
+
+One detail is the lesson for an owner: "Nabla's tool erases the original audio for 'data safety reasons.'" Think about what that design means for verification. A clinician who reviews a transcript can compare it with their memory of the visit. Nobody can compare it with the visit. An invented sentence about a medication, written into a pause, cannot be found later by any process, because the only evidence that it was invented is gone.
+
+That is not an argument that the audio must always be kept. Recordings of medical visits are sensitive, and deleting them may be the right privacy decision. It is an argument that retention is two decisions at once, a privacy decision and a verification decision, and that a team must make both on purpose. If the source is deleted, the verification has to happen before the deletion: a review of the transcript against the audio while the audio exists, at least for the segments that carry risk, such as medications, doses, and negations. If neither is possible, the transcript cannot carry the weight of a record, and the product has to say so.
+
+Translate it to your product. Your support feature summarizes voicemail. Your claims feature reads photos of damage. Your intake feature reads scanned invoices. For each one, write down where the source is kept, for how long, who can see it, and how a reviewer gets from an output back to the page, region, or interval it came from. If the answer to the last question is "they cannot", you have built the clinical transcription design in a different domain.
+
+### Video, briefly
+
+Video is images over time, usually with an audio track, and the cost and failure modes are those of both, multiplied by length. The book keeps advanced video work out of the chapter's core. This section gives you the three facts that decide whether a video feature is feasible.
+
+**Video is sampled.** Google's video documentation, checked on 2026-10-09, says "By default, video inputs use static processing (extracting frames at 1 FPS)", and that a custom rate can be set "by passing an `fps` argument in the `processing` configuration object." It adds a warning: "Note that fast action sequences might lose detail due to the 1 FPS sampling rate." Whatever happens between sampled frames was not seen. A product that asks whether a person dropped a package, or which card a dealer turned, is asking about events that a one-frame-per-second sample can miss entirely, and the model will still answer.
+
+**Video is expensive per second.** The same page gives "Approximately 100 tokens per second of video at default (low) media resolution" and "approximately 300 tokens per second of video at high media resolution", with audio processed alongside at "1Kbps (single channel)". A ten-minute video at the default setting is about 60,000 tokens before the prompt. Sampling rate and resolution are cost dials, and each one trades against what the model can see.
+
+**Times are references, not measurements.** The page asks you to "use the `MM:SS` format" to point at moments, and says nothing about how accurate the model's own timestamps are. Treat a time the model reports for an event the way you treat a box it reports on a page: as a claim to check against the source.
+
+If your product needs video, start with the question you are asking of it, then the frame rate that question needs, then the cost at that rate. Many video questions turn out to be audio questions, or questions about a handful of keyframes, which are cheaper and easier to verify.
+
+### Cases that require the evidence
+
+This is the fourth part, the owner's work across all media. Evaluation comes first, because the other two decisions, cost and provenance, are only as good as the measurement behind them.
+
+The [Verification and evals](/modules/verification-and-evals) module teaches the general method: representative cases, a criterion, a grader you have checked, repeated runs, and results by category. Multimodal evaluation adds one requirement that is easy to violate without noticing. The cases must require the evidence the feature claims to use.
+
+The book's Chapter 22 failure exercise opens with the version of this failure that research found first: "A text shortcut makes an image benchmark look successful even though the model ignores the image." The book's source for the lesson is MMMU-Pro, a 2024 benchmark paper by Xiang Yue and colleagues, revised in May 2025 and published at ACL 2025. It rebuilt an earlier multimodal benchmark in three steps, which its abstract lists: "(1) filtering out questions answerable by text-only models, (2) augmenting candidate options, and (3) introducing a vision-only input setting where questions are embedded within images." The result: "model performance is substantially lower on MMMU-Pro than on MMMU, ranging from 16.8% to 26.9% across models." That range is the drop from each model's MMMU score, not its accuracy. Some of what the earlier benchmark scored as visual understanding was answerable from the text alone.
+
+The book's research notes give the lesson and its limit together. The lesson: "an evaluation advertised as visual understanding must actually require the visual evidence." The limit: the paper is a benchmark-design lesson, not evidence about any current model's accuracy on your application.
+
+Your own case set can have the same flaw, and it usually does, because the easiest documents to collect are the ones that already work. A case set of born-digital PDFs evaluates a vision pipeline mostly on the text layer the vendor extracts for it. The fix is a control you can run in an afternoon.
+
+**Run a blind control.** Give the same model the same cases with the evidence removed: the text layer without the page image, the question without the audio, the transcript without the recording. Score it with the same grader. Where the blind control does nearly as well as the full pipeline, that category is not testing the modality. It may still be a valid test of your product, since digital PDFs are real traffic, but it cannot tell you whether the image path is earning its cost.
+
+**Build cases where the modality decides.** Phone photos, handwriting, stamps over text, checkboxes, a qualifier only visible in a footnote, a speaker who pauses for ten seconds, two people talking over each other. The book's completion evidence names the goal: "Evaluate cases that require visual evidence."
+
+**Weight by capture condition and by traffic.** Group cases by how they were captured, and compare the case-set mix with the production mix. A case set with 17% phone photos reports a different number from traffic with 30% phone photos. Report by condition first, then compute the traffic-weighted total, so that a change in the mix does not hide a change in quality.
+
+### Scoring fields, not prose
+
+A document feature usually produces fields. A transcript feature produces text with times. Score each at the level where errors matter.
+
+**Field-level exact match, after normalization.** Normalize dates, number formats, and whitespace, then compare each field with a label keyed from the original document. Report per field, because a 99% overall field accuracy can hide a 90% accuracy on the one field that pays the wrong supplier. Define critical fields with the people who own the outcome, and report the share of documents with every critical field right.
+
+**Absent fields scored as absent.** Put documents in the set where a field the schema asks for does not exist, and score whether the output says null. That is the only way to measure invented values, and invented values are the failure a schema check never catches.
+
+**Labels from the source, not from a model.** A label set made by correcting a previous pipeline's output inherits that pipeline's blind spots, because people tend to accept what looks plausible. Key labels from the original document. Have two people key the critical fields and adjudicate where they disagree, which also tells you how hard the task is for people.
+
+**Silent errors as the headline.** The number that reaches the business is not accuracy. It is the rate of wrong critical values that pass every check and are accepted without review. A pipeline with lower raw accuracy and better checks can have fewer silent errors than one with higher accuracy and checks that miss its failure modes. Count the silent errors, by condition, and read them one by one.
+
+**Trace accuracy.** Sample extracted values and check that the cited page and region contain them. A pipeline whose traces are wrong 13% of the time makes review slower, and makes your automated structure checks unreliable.
+
+For transcripts, add three measures to word error rate, because word error rate alone treats every word as equal.
+
+- **Critical-term accuracy.** Numbers, dates, names, negations, and conditionals, checked against the audio. These are the words that change decisions.
+- **Insertions in silence.** Words the transcript places in spans a voice-activity detector or a person marks as silent. This is the measure for the failure Careless Whisper documented.
+- **Timing error.** For a sample of words or segments, the difference between the transcript's time and the reference time, reported as a distribution, and checked separately after each chunk seam.
+
+The Verification and evals module's [Designing eval data](/modules/verification-and-evals#designing-eval-data) covers sampling, labeling, and set size. Its arithmetic matters here more than usual, because the error you care about is rare. If silent critical errors happen on about 1% of documents, a 300-document set sees about three of them. Three is enough to read and learn from. It is not enough to tell 1.0% from 1.5% with any confidence. Foundations' [Intervals: how sure is the number](/modules/foundations#intervals-how-sure-is-the-number) shows how wide that interval is.
+
+### Cost in modality units
+
+Media changes what a token is made of. You already price text by counting tokens in a string. Here is the arithmetic for the other units, from the vendors' own documentation.
+
+**Images.** Anthropic: one visual token per 28 by 28 pixel patch, so an image "costs `⌈width / 28⌉ × ⌈height / 28⌉` visual tokens", with the long edge and the token count capped by the model's resolution tier. Its table gives a 1000 by 1000 pixel image as 1,296 tokens on either tier, and a 3840 by 2160 image as 1,560 tokens on the standard tier, after downscaling, against 4,784 on the high-resolution tier. The page works an example in dollars: at a price of $5 per million input tokens, "the 4K image about $23.92 USD per thousand." OpenAI: a 32-pixel patch count times a per-model multiplier for newer models, and a base-plus-tiles scheme for older ones, with a `detail` parameter whose "low" setting, the page notes, does not always use fewer tokens than "high".
+
+**PDF pages.** Anthropic: each page costs its image tokens plus its text, and "Each page typically uses 1,500" to 3,000 text tokens "depending on content density." Google: "Each document page is equivalent to 258 tokens", with extracted native text not charged on Gemini 3 models.
+
+**Audio.** Google: 32 tokens per second, so a minute is 1,920 tokens. Transcription services usually price per minute of audio instead of per token.
+
+**Video.** Google: about 100 tokens per second at the default setting and about 300 at high resolution, plus the audio track.
+
+Two lessons follow from the arithmetic, and the workshop's cost table shows both.
+
+<Artifact id="multimodal-systems-cost-table" level={4} />
+
+**Resolution and route are the cost dials.** In the table, a three-page invoice through the direct path is 9,867 input tokens, against 3,900 for the OCR path, because each page image is 1,989 tokens on top of its text. Downsampling the page images cuts the direct path to 7,008 tokens. The hybrid sends only the escalated share through the expensive path. Each dial trades against accuracy, and the table's own note says the downsampled row has no accuracy measurement. A cost saving you have not measured against quality is a guess about quality.
+
+**The model bill is rarely the whole cost.** Look at the review column. The OCR path costs $0.0067 per invoice in model and OCR charges, by far the cheapest, and $0.1507 per document once its 16% review rate is priced at $0.90 per reviewed invoice. The direct path costs five times more in model charges and less per document overall, because it sends fewer invoices to a person. The hybrid is cheapest of all per document. A few cents of model cost decide nothing beside a clerk's three minutes. The table's cost basis says what it leaves out, and that matters too: retries, storage, and the cost of silent errors, which for accounts payable is the cost of paying the wrong amount or the wrong account.
+
+The table's voice-message rows make the same comparison for audio. Sending the audio directly costs about twice the transcribe-then-summarize route, and its timestamps are whatever the model writes. The table's note on the fictional parla-stt-1 is the `whisper-1` lesson again: the component that returns word timestamps is the one being retired.
+
+This is the Models module's cost per completed task, applied to media. Its section [Select: six axes, eligibility first](/modules/models#select-six-axes-eligibility-first) says to "Price the tail of your workload, not the median", quoting Anthropic's guidance. For a document feature the tail is the phone photos, the handwritten corrections, and the tables that wrap, and the people who fix them.
+
+Latency follows the same arithmetic. More image tokens mean more input to process. A page through the direct path takes longer than its text through the OCR path, and a hybrid's escalated documents take the longest of all, because they pay for both. Report p95 for each route, not only overall, so that a synchronous feature does not discover in production that its escalated cases miss the deadline.
+
+### Generated media, provenance, and consent
+
+The book's Chapter 22 adds a fourth topic beside understanding: "Introduce generated media, provenance, consent, and modality-specific evaluation." Media carries obligations that text mostly does not, and they arrive in both directions: the media your product receives, and the media it produces.
+
+**Provenance of what you receive.** A product that accepts images as evidence, such as damage photos for a refund or receipts for an expense, now has to ask where an image came from. Do not ask the model. Anthropic's limitations list says it directly: "Claude cannot determine whether an image is AI-generated and might be incorrect if asked. Do not rely on it to detect fake or synthetic images." Use provenance data where it exists. The Coalition for Content Provenance and Authenticity (C2PA) maintains "an open technical standard for publishers, creators and consumers to establish the origin and edits of digital content", which its site describes as Content Credentials that "function like a nutrition label for digital content". Record the credentials when an image carries them. Do not treat their absence as proof of anything, because a genuine photo can carry none. Then design the decision so it works without them: limits on what an image alone can approve, cross-checks against order and delivery records, and a person for the high-value cases.
+
+Remember also that both vendors document that their models do not read file metadata. The capture date and location your fraud rules want are your code's job to extract and keep.
+
+**Provenance of what you produce.** If your product generates or edits images, audio, or video, record which model produced each item, from which inputs, at which version, and consider attaching Content Credentials so that downstream viewers can tell. NIST's Generative AI Profile, NIST AI 600-1 of July 26, 2024, treats content provenance as a recurring risk-management theme, with actions for measuring provenance approaches. It is voluntary guidance, and following it does not establish compliance with any law. It is a reasonable checklist for a team that does not have one.
+
+**Consent.** A recording of a person is personal data, and in many places recording a call requires telling the people on it. A photo of a document can contain other people's data: the customer's invoice carries the supplier's bank details and a contact's name. A voice sample used to enroll a speaker for diarization is a biometric in some jurisdictions. These are legal questions for your counsel, not engineering choices. The engineering part is to know, for each medium your product accepts, what consent covers it, and to make your retention, access, and deletion follow that answer.
+
+**Retention and access.** Media files are large, sensitive, and often more revealing than the fields extracted from them. Decide how long you keep the source, who can view it, and how deletion propagates, including to caches, review queues, and evaluation sets. The public account above shows the other side: the source is also the evidence. Keep it long enough, and accessible enough, for the verification your product depends on.
+
+**Eligibility.** The Models module's [Eligibility comes first](/modules/models#eligibility-comes-first) applies with extra force. A scanned medical form, a recorded call, and a photo of a passport are among the most sensitive inputs a product can receive. Every component that touches them, the OCR service, the transcription service, the model, the review tool, and the evaluation store, must be approved for that data.
+
+### When you are the owner
+
+Pull the module together around the artifact an owner keeps for a multimodal feature. It extends the model-selection decision record from the Models module with what media adds.
+
+- **Inputs and conditions.** Each medium accepted, each format, each capture condition, and the traffic mix across conditions. The limits on size, length, and resolution, and what happens to an input outside them.
+- **Pipeline.** For each condition, the path: text first, direct, specialist, or a hybrid with its escalation rule. Every component with its version and lifecycle, including the transcription or OCR component, not only the model.
+- **Contract and checks.** The schema with explicit nulls, the document's internal checks, the cross-checks against systems of record, and the structure checks on positions. Which checks are skipped, when, and how a skip is logged.
+- **Trace.** How every value and claim points to its page, region, or interval, where that trace comes from, and how your code checks it.
+- **Evaluation.** The case set by condition, the blind control, field-level and critical-term scoring, absent-field cases, silent errors, trace accuracy, and for audio, insertions in silence and timing error at the seams. The run-to-run range beside every number.
+- **Cost and latency.** Cost per completed item including review, by route, with the cost basis stated. p95 by route.
+- **Source retention.** Where the source media is kept, for how long, who can see it, and how a reviewer reaches it from an output.
+- **Provenance and consent.** What consent covers each medium, what provenance data is recorded, and what generated media is labeled.
+- **Review triggers.** A component deprecation, a change in the capture mix, a new supplier or document type, a rise in a check's firing rate, a price change.
+
+Then the first step, which is the same as everywhere in this program. The talk's roadmap begins: "Look before you build. Monday: review 20 to 50 outputs by hand." For a multimodal feature the instruction has one addition. Review each output beside its source. Put the scanned page next to the extracted fields, the photo next to the description, the audio next to the transcript with the player at the cited time. Write down what is wrong with each. The talk's line for this step: "That is your first eval." For media, it is also the only way to find the failures that every automated check passes, because those are the ones that look exactly like success.
 
 ## Workshop
 
 <Workshop>
 
-The workshop will be an analysis exercise on provided artifacts. No code. It will state the task in one paragraph and give a rubric.
+<Artifact id="multimodal-systems-extraction-eval" />
+
+<Artifact id="multimodal-systems-cost-table" />
+
+You own the accounts-payable intake feature in the report. Today clerks key every invoice by hand. The team compared three pipelines on 300 invoices and wants a decision for the first pilot. Read the eval report and the cost table together as the evidence. Then write four parts of the owner's record from this module, in 300 to 450 words in total. Pipeline: say which pipeline you would ship, for which capture conditions, and with which checks. Say what share of documents goes to a person, or that you would ship none yet. Evaluation: check each candidate against every line of the requirement. Say what the blind control tells you about the case set. Name what the evidence cannot establish and what you would add before the pilot widens. Cost: compare cost per document, including review, and say what the cost basis leaves out. Review triggers: list the events that would make you revisit the decision. No code. Your response is saved to your account and never graded. Apply the rubric below to it yourself.
+
+- Checks every pipeline against all four lines of the requirement, and does not choose on overall accuracy alone.
+- Reads the silent-error counts with their sample size and run-to-run range, and says whether a difference such as 3 against 4 is established.
+- Notices that the report measures invented values only per 1,000 fields over all documents. Only P2's note shows invented critical values on auto-accepted documents, so P2 fails that line, and P1 and P3 are unmeasured against it.
+- Notices that silent errors, review rate, and invented values are reported only overall, not by capture condition, so a routing decision by condition cannot yet be checked against the silent-error line.
+- Uses the blind control to say which condition does not test the image path, and what that means for P2's gain there.
+- Compares the case-set mix with the traffic mix, especially for phone photos, and says how the numbers would move.
+- Compares cost per document including review, not the model bill alone, and names what the cost basis leaves out.
+- Connects at least one silent-error pattern to a check that would catch it, such as a structure check on positions for exchanged columns, or a cross-check for invented purchase order numbers.
+- Names review triggers specific to media: a component deprecation, a change in capture mix, a new supplier layout, or a check whose firing rate moves.
 
 </Workshop>
 
@@ -42,11 +724,21 @@ The workshop will be an analysis exercise on provided artifacts. No code. It wil
 
 <FailureExercise>
 
-The failure exercise will plant a failure in an artifact and ask you to find it and explain it.
+<Artifact id="multimodal-systems-invoice-extraction" />
+
+This invoice was extracted, validated, and posted automatically. Every check in the log passed, and the team believes its checks would have caught a misread. The extraction is wrong. Find the error from the artifact alone. In a few sentences, say which values are wrong and what the source shows instead, point to the evidence in the extraction that gives it away, explain why every check passed, and say which check would have caught it.
 
 <Fragment slot="explanation">
 
-The explanation appears here after a response is saved.
+Line 3 has its quantity and unit price exchanged. The source table shows 12 conduits at 8.00 EUR. The extraction says 8 at 12.00 EUR. The table was read across the wrong column boundary.
+
+The evidence is in the regions. The quantity column spans x 410 to 450 and the unit price column spans x 490 to 560. On every other line, the quantity's region sits inside the first range and the unit price's region inside the second. On line 3, the quantity's region is x 520 to 552, inside the unit price column, and the unit price's region is x 418 to 444, inside the quantity column. Each value was read correctly as characters, which is why the OCR confidence is 0.97. It was assigned to the wrong field. The row above, line 2, is the one whose description wraps onto a second line, the condition the eval report recorded for all three of the OCR path's exchanged-column errors.
+
+Every check passed because none of them could fail on this error. Eight times 12.00 is 96.00, the same as 12 times 8.00. Multiplication commutes, so the line amount reconciles, and so do the subtotal, the VAT, and the total. The schema accepts any integer quantity and any decimal price. The supplier is on the vendor master. OCR confidence measures characters, not structure. The one check that compares quantities and prices with an independent record, the purchase order match, was skipped because the supplier is on a no-PO list, and the log still ends in auto-accept.
+
+The damage is downstream, not in the payment. Accounts payable pays the right total. Receiving expects 8 conduits and gets 12, and inventory values the conduit at 12.00 instead of 8.00, so the next margin report and the next reorder both start from a wrong unit cost. Nothing in the system disagrees with itself, which is why nobody will notice until a person counts the shelf.
+
+The check that would have caught it is a structure check on positions: every extracted value's region must fall inside the x-range of the column it was assigned to. The data for it is already in the extraction. A field-level evaluation against labels keyed from the original would have found the pattern before launch, since the eval report shows the same failure three times. And the skipped purchase-order match should either run for every supplier or send the document to review when it cannot, because a skipped check that logs as part of a pass is not a check.
 
 </Fragment>
 

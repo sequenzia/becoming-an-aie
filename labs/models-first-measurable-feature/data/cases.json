@@ -1,0 +1,31 @@
+{
+  "task": "Assign exactly one category to a Cedar Support ticket.",
+  "note": "Synthetic. Cedar Support is a fictional help desk product. No ticket comes from a real customer.",
+  "categories": ["billing", "bug", "how_to", "feature_request", "account", "other"],
+  "cases": [
+    {"id": "c01", "input": "I was charged twice on the 3rd. Please reverse the second charge.", "expected": "billing"},
+    {"id": "c02", "input": "Our invoice for September lists 14 seats but we only have 9 agents.", "expected": "billing"},
+    {"id": "c03", "input": "Can you switch us from monthly to annual payment before the next renewal?", "expected": "billing"},
+    {"id": "c04", "input": "The receipt you emailed has our old company address on it. Our accountant needs a corrected copy.", "expected": "billing"},
+    {"id": "c05", "input": "CSV export crashes above 500 rows.", "expected": "bug"},
+    {"id": "c06", "input": "Since this morning the ticket list shows a blank page in Firefox.", "expected": "bug"},
+    {"id": "c07", "input": "Saved replies insert the wrong customer name when two tabs are open.", "expected": "bug"},
+    {"id": "c08", "input": "The SLA timer keeps counting on weekends even though our business hours are Monday to Friday.", "expected": "bug"},
+    {"id": "c09", "input": "How do I add a second email address to a shared inbox?", "expected": "how_to"},
+    {"id": "c10", "input": "The auto-close setting for solved tickets moved in the redesign and I can't find it now.", "expected": "how_to"},
+    {"id": "c11", "input": "Is there a way to tag tickets in bulk?", "expected": "how_to"},
+    {"id": "c12", "input": "What's the right way to move a ticket to another team without losing its history?", "expected": "how_to"},
+    {"id": "c13", "input": "Please add a dark mode to the agent dashboard.", "expected": "feature_request"},
+    {"id": "c14", "input": "Weekly reports emailed every Monday would save my manager an hour a week.", "expected": "feature_request"},
+    {"id": "c15", "input": "We'd love a chat integration that posts new urgent tickets to a channel.", "expected": "feature_request"},
+    {"id": "c16", "input": "Could customers pick a refund reason from a list in the portal? Right now they type it freehand.", "expected": "feature_request"},
+    {"id": "c17", "input": "I can't log in. The password reset email never arrives.", "expected": "account"},
+    {"id": "c18", "input": "Please remove a former agent from our workspace and reassign their open tickets.", "expected": "account"},
+    {"id": "c19", "input": "Please make our new operations lead the owner of our workspace.", "expected": "account"},
+    {"id": "c20", "input": "Are you hiring support engineers in Lisbon?", "expected": "other"},
+    {"id": "c21", "input": "Thanks for the quick help yesterday. The whole team noticed.", "expected": "other"},
+    {"id": "c22", "input": "Could someone from your team speak at our customer service meetup in March?", "expected": "other"},
+    {"id": "c23", "input": "My card was declined and now I can't log in.", "accept": ["billing", "account"]},
+    {"id": "c24", "input": "Exporting invoices to PDF does nothing when I click the button. How do I get them out another way?", "accept": ["bug", "how_to"]}
+  ]
+}

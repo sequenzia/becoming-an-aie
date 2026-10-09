@@ -623,7 +623,7 @@ The book asks you to "Distinguish conversation history, application state, saved
 - **Application state** is what is true in your systems: the workspace edition, the ticket status, the refund that was or was not issued. It lives in a database with an owner, and it is the authority.
 - **Saved preferences and memory** are what the system chose to remember about a user across sessions. They are claims with an age and a source.
 - **Retrieved knowledge** is the corpus, with its revisions and scopes.
-- **Learned parameters** are the model's weights. You do not change them per user. Fine-tuning is a separate elective.
+- **Learned parameters** are the model's weights. You do not change them per user. Fine-tuning is a [separate elective](/modules/fine-tuning-and-adaptation).
 
 A common design error is letting history stand in for application state. The user said in turn 2 that they are on version 7.4. The workspace record says the same. Which one does the harness trust when they disagree, or when turn 2 is compacted away? The book's workshop answers it: build "reconstruction from authoritative application records." Read the edition from the workspace record every time it matters. Treat the user's sentence as a hint, and the record as the fact.
 

@@ -75,7 +75,7 @@ test.describe('landing page', () => {
     await expect(page.locator('details.collapsible', { hasText: 'Long description' })).toHaveCount(1);
   });
 
-  test('lists every module by name and marks the unpublished ones as planned', async ({ page }, testInfo) => {
+  test('lists every module by name and says whether any is still planned', async ({ page }, testInfo) => {
     const { all, electives } = moduleTitles(resolve(testInfo.config.rootDir, '..'));
     expect(all).toHaveLength(14);
     expect(electives).toHaveLength(5);
@@ -83,7 +83,8 @@ test.describe('landing page', () => {
     const text = squash(await page.locator('main').innerText());
     for (const name of [...CORE_MODULES, ...electives]) expect(text).toContain(name);
     for (const name of all) expect(text).toContain(name);
-    expect(text).toMatch(/planned/i);
+    // "planned" while any module is unpublished (Phases 0 to 2), "published" once every module has opened (Phase 3).
+    expect(text).toMatch(/14 modules are (planned|published)\./);
     await expect(page.locator('a[href="/modules"]').first()).toBeVisible();
   });
 
