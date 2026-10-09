@@ -3,26 +3,34 @@ title: "Models"
 kind: area
 area: models
 order: 1
-summary: "The model is a component you select, measure, and replace. Pinned versions, moving aliases, routing, and the eval suite behind every choice."
-readingMinutes: 45
+summary: "The model is a component you select, measure, and replace. Eligibility first, your own cases over public benchmarks, output contracts your code enforces, pinned versions and moving aliases, routing on evidence."
+readingMinutes: 52
 prerequisites: [foundations]
 talkBeats: ["2.1"]
 bookChapters: [6, 7, 10]
-draft: true
-updatedOn: 2026-10-03
-checkedOn: 2026-10-03
+draft: false
+updatedOn: 2026-10-09
+checkedOn: 2026-10-09
 staleAfterDays: 90
 takeaway: "The model is a versioned, expiring dependency. Treat it like one."
 pitfall: "A hardcoded model ID with no eval suite behind it"
 transferRows: [testing]
-artifacts: [models-fixture-trace]
+artifacts: [models-triage-contract, models-alias-drift-dashboard, models-selection-report, models-migration-pr]
 outcomes:
   - id: select-axes
-    text: Name the six axes the talk gives for selecting a model on your own tasks.
+    text: Name the six axes the talk gives for selecting a model on your own tasks, and apply data eligibility before the others.
   - id: measure-own-cases
     text: Measure your product on representative cases instead of trusting a public benchmark.
+  - id: failure-modes
+    text: Recognize the model failure modes that decide a selection, and say how each one shows up in an eval.
+  - id: output-contracts
+    text: Separate syntactic validity from semantic correctness, and design an output contract the application enforces.
   - id: pin-or-alias
     text: Choose between a pinned version and a moving alias and say what each one costs.
+  - id: route-on-evidence
+    text: Read a routing comparison on accuracy and cost per completed task together, and decide whether routing has earned its complexity.
+  - id: diagnose-before-swap
+    text: Decide whether a failure calls for better instructions, retrieval, tools, adaptation, a different task design, or a different model.
   - id: eval-before-replace
     text: Replace a model only with an eval suite behind the decision.
 selfCheck:
@@ -31,13 +39,13 @@ selfCheck:
     question: "Which of these is one of the talk's six selection axes for a model?"
     options:
       - "Cost per completed task"
-      - "Parameter count"
-      - "Release date"
+      - "Public leaderboard rank"
+      - "Context window size as listed on the spec sheet, without testing"
     correct: [0]
     feedback:
       - "Correct. The six axes are capability on your tasks, cost per completed task, latency at p95, context window, tool-use reliability, and data residency."
-      - "Not yet. Parameter count is not one of the six. Reread Select, measure, replace."
-      - "Not yet. Release date is not one of the six. Reread Select, measure, replace."
+      - "Not yet. A leaderboard rank is a discovery signal, not one of the six axes. Reread Measure: benchmarks discover, your cases decide."
+      - "Not yet. Context window is an axis, but a listed size is a capacity, not a capability. It is measured on your inputs. Reread Select: six axes, eligibility first."
   - id: q2-residency
     outcome: select-axes
     question: "Which axis can override every other axis for an enterprise deployment, according to the talk's research?"
@@ -47,21 +55,21 @@ selfCheck:
       - "Context window"
     correct: [1]
     feedback:
-      - "Not yet. Latency matters, but it is not the axis that can override the rest. Reread Select, measure, replace."
-      - "Correct. Data residency can override every other axis for enterprise."
-      - "Not yet. The context window is one axis among six. Reread Select, measure, replace."
+      - "Not yet. Latency matters, but it is not the axis that can override the rest. Reread Eligibility comes first."
+      - "Correct. Data residency can override every other axis for enterprise. A model your data may not reach is not a candidate, whatever it scores."
+      - "Not yet. The context window is one axis among six. Reread Eligibility comes first."
   - id: q3-benchmark
     outcome: measure-own-cases
     question: "A public benchmark reports a high score for a model. What does the talk say that score measures?"
     options:
       - "Your product's behavior under its operating conditions"
       - "A task population and harness you did not choose"
-      - "The model's behavior on your traffic"
+      - "How the model performs with the vendor's recommended prompt"
     correct: [1]
     feedback:
-      - "Not yet. Benchmarks use their task population and harness. Measure your product on representative cases. Reread Select, measure, replace."
+      - "Not yet. Benchmarks use their task population and harness. Measure your product on representative cases. Reread Measure: benchmarks discover, your cases decide."
       - "Correct. A public benchmark measures a population you did not choose, on a harness you do not control. Your eval suite measures your traffic."
-      - "Not yet. Only your own eval suite measures your traffic. Reread Select, measure, replace."
+      - "Not yet. A benchmark runs its own harness, which is neither the vendor's recommended prompt nor yours. Reread Measure: benchmarks discover, your cases decide."
   - id: q4-pinned
     outcome: pin-or-alias
     question: "What does a pinned model version buy you, in the talk's words?"
@@ -71,9 +79,9 @@ selfCheck:
       - "Freedom from measuring the replacement"
     correct: [1]
     feedback:
-      - "Not yet. Automatic updates and regression monitoring describe a moving alias. Reread Select, measure, replace."
+      - "Not yet. Automatic updates and regression monitoring describe a moving alias. Reread Pinned version or moving alias."
       - "Correct. Pinned version: controlled migration and lifecycle management. Moving alias: automatic updates and regression monitoring."
-      - "Not yet. A pinned version still expires, and the replacement still has to be measured. Reread the pitfall."
+      - "Not yet. A pinned version still expires, and the replacement still has to be measured. Reread The lifecycle you inherit."
   - id: q5-snapshot
     outcome: pin-or-alias
     question: "A snapshot controls one source of variation. What else affects behavior, according to the talk?"
@@ -83,65 +91,675 @@ selfCheck:
       - "Only the temperature setting"
     correct: [1]
     feedback:
-      - "Not yet. A snapshot controls one source of variation. Reread Select, measure, replace."
-      - "Correct. Prompts, tools, retrieval, and the environment also affect behavior."
-      - "Not yet. Sampling parameters are one input among many, and some vendors have deprecated them. Reread Select, measure, replace."
+      - "Not yet. A snapshot controls one source of variation. Reread What a snapshot does not freeze."
+      - "Correct. Prompts, tools, retrieval, and the environment also affect behavior. So can the vendor's serving infrastructure, which Anthropic documents separately from the weights."
+      - "Not yet. Sampling parameters are one input among many, and Anthropic has deprecated them on its newer models. Reread What a snapshot does not freeze."
   - id: q6-pitfall
     outcome: eval-before-replace
-    question: "What is the Models pitfall?"
+    question: "A team names its model id as a string in three files and has no eval suite. A deprecation notice arrives with sixty days' warning. What describes their position?"
     options:
-      - "A moving alias with regression monitoring"
-      - "A hardcoded model ID with no eval suite behind it"
-      - "Routing cheap calls to a small model"
+      - "They are covered, because CI will catch any problem once the id is swapped"
+      - "They are in the Models pitfall: a hardcoded model ID with no eval suite behind it"
+      - "They are covered if the recommended replacement comes from the same vendor"
     correct: [1]
     feedback:
-      - "Not yet. That is one of the two defensible replacement strategies. Reread the pitfall."
-      - "Correct. That leaves you choosing a replacement without evidence when the deprecation notice arrives."
-      - "Not yet. Routing is a configuration to measure, not the pitfall. Reread the pitfall."
+      - "Not yet. CI checks the code around the model. Unless it runs an eval suite against the live replacement, it says nothing about the replacement's behavior. Reread The migration, step by step."
+      - "Correct. That leaves them choosing a replacement without evidence, and finding every place the id appears by memory."
+      - "Not yet. A vendor's recommendation is a candidate, not evidence about your product. Reread When you are the owner."
+  - id: q7-failure-modes
+    outcome: failure-modes
+    question: "A fluent answer describes a product feature that does not exist. Separately, a longer prompt makes the model miss a fact it found when the prompt was short. Which pair of failure modes is this?"
+    options:
+      - "An unsupported claim, and position-sensitive use of a long context"
+      - "A refusal, and truncation at the output limit"
+      - "Inconsistent behavior across runs, and a knowledge cutoff"
+    correct: [0]
+    feedback:
+      - "Correct. Fluency is not evidence. A fact being in the window does not mean the model uses it, which is what Lost in the Middle measured."
+      - "Not yet. A refusal declines the task and truncation cuts the output short. Neither invents a feature. Reread How models fail, in one page."
+      - "Not yet. Run-to-run variation does not invent a feature, and a fact supplied in the prompt is not limited by the cutoff. Reread How models fail, in one page."
+  - id: q8-contracts
+    outcome: output-contracts
+    question: "Your provider's structured-output feature guarantees schema adherence. Which of these can still reach your application code?"
+    options:
+      - "A schema-valid tenant id that belongs to a different tenant"
+      - "An invented order number in a field the schema allowed to be null"
+      - "An extra property the schema forbids, on a normal completed response"
+      - "A response cut off at the output token limit, missing a required field"
+    correct: [0, 1, 3]
+    feedback:
+      - "Correct. The schema checks the shape. Only your code knows which tenant the session belongs to."
+      - "Correct. Allowing null does not make the model use it. The value is well formed and false."
+      - "Not yet. On a normal completion, schema adherence is exactly what the feature guarantees. Reread Syntactic validity is not semantic correctness."
+      - "Correct. Both Anthropic and OpenAI document truncation as a case where output may not match the schema. Check the response status before you parse."
+  - id: q9-route-noise
+    outcome: route-on-evidence
+    question: "In LangChain's August 2026 comparison, the routed configuration scored 80.0% and small-only scored 77.7%. Run-to-run variation was about 2.7 points. What does that support?"
+    options:
+      - "Routing clearly beats the small model on accuracy."
+      - "The 2.3-point gain is within run variation, so the comparison does not establish it."
+      - "The router proved that 7% of calls need a frontier model."
+    correct: [1]
+    feedback:
+      - "Not yet. A gain smaller than the noise is not established. Reread Reading the LangChain comparison."
+      - "Correct. Read accuracy and cost together, and read every difference against the variation."
+      - "Not yet. As the talk's research puts it, the router's 7% share did not establish which calls required that model, and the share ranged from 4.1% to 9.1% across runs. Reread Reading the LangChain comparison."
+  - id: q10-route-requirement
+    outcome: route-on-evidence
+    question: "On the LangChain workload, your product's quality requirement is 85% accuracy. Taking the reported accuracies at face value, which configuration meets it?"
+    options:
+      - "Frontier only, at $0.092 per completed task"
+      - "Routed, at $0.026 per completed task"
+      - "Small model only, at $0.006 per completed task"
+    correct: [0]
+    feedback:
+      - "Correct. At face value it is the only configuration above the requirement, and the cheaper ones are cheaper at a quality you said you cannot ship. A 1-point margin on 145 tasks is not established. Confirm it on your own cases."
+      - "Not yet. Routed scored 80.0%, below the requirement. Cost only decides among configurations that meet it. Reread Reading the LangChain comparison."
+      - "Not yet. Small-only scored 77.7%, below the requirement. Reread Reading the LangChain comparison."
+  - id: q11-diagnose
+    outcome: diagnose-before-swap
+    question: "A support assistant gives wrong refund answers. The trace shows the retrieved policy document is last year's version. What does the failure call for first?"
+    options:
+      - "A larger model"
+      - "A fix to retrieval, so the current policy is what the model reads"
+      - "Fine-tuning on this year's policy"
+      - "A higher reasoning effort"
+    correct: [1]
+    feedback:
+      - "Not yet. A larger model reads the same stale document. Reread Diagnose before you swap."
+      - "Correct. The model answered from the evidence it was given. The evidence was wrong."
+      - "Not yet. Adaptation bakes in a policy that will change again, and the retrieval fault stays. Reread Diagnose before you swap."
+      - "Not yet. More thinking about the wrong document still gives the wrong answer. Reread Diagnose before you swap."
+  - id: q12-migration
+    outcome: eval-before-replace
+    question: "A deprecation notice arrives with a recommended replacement. Which of these belong in the migration check?"
+    options:
+      - "Run the same representative cases on the current model and the replacement"
+      - "Compare results per category, not only the overall score"
+      - "Confirm the replacement accepts the parameters and schema features your code sends"
+      - "Accept the replacement because the vendor recommends it"
+      - "Merge when CI passes on recorded model responses"
+    correct: [0, 1, 2]
+    feedback:
+      - "Correct. The same cases, the same grader, both models. That is the comparison."
+      - "Correct. An overall score can hold steady while one category falls. Reread Regression monitoring for an alias."
+      - "Correct. Parameters expire too. Anthropic's newer models return a 400 error for a non-default temperature."
+      - "Not yet. A vendor's recommendation is a candidate, not evidence about your product. Reread The migration, step by step."
+      - "Not yet. Recorded responses come from the old model. They cannot tell you anything about the new one. Reread The migration, step by step."
 sources:
+  - title: Beyond the Coding Agent, the talk repository
+    author: Stephen Sequenzia
+    date: "2026-09"
+    url: https://github.com/sequenzia/beyond-the-coding-agent
+    checkedOn: 2026-10-09
+    note: "Beat 2.1: slides 8 and 9, and the pitfall on slide 23, as compiled in the program's talk knowledge base on 2026-09-15. Research section 1 of research/section-2.md. A later revision of the repository (commit d90f230, read 2026-10-09) renumbers the Models slides 16 to 20 and leads with data eligibility; this module draws on both. The later revision words the pitfall 'Selecting or changing models without testing them on your task.'; this module quotes the slide 23 wording the content map fixes."
+  - title: Becoming an AI Engineer, the book blueprint
+    date: "2026-09"
+    checkedOn: 2026-10-09
+    note: "Chapters 6, 7, and 10 of the blueprint, with its source list. The public link is pending."
   - title: Model deprecations
     org: Anthropic
     date: "2026"
     url: https://platform.claude.com/docs/en/about-claude/model-deprecations
-    checkedOn: 2026-09-14
-    note: "Lifecycle states and the notice period. Date checked is the talk research's check date."
+    checkedOn: 2026-10-09
+    note: "Lifecycle states, the 60-day notice, the deprecation history, and the parameter deprecations. The page is undated; its latest entry is 2026-09-30."
+  - title: Model IDs and versioning
+    org: Anthropic
+    date: "2026"
+    url: https://platform.claude.com/docs/en/about-claude/models/model-ids-and-versions
+    checkedOn: 2026-10-09
+    note: "Dateless IDs as pinned snapshots, aliases for earlier models, and weights versus serving infrastructure. Undated page."
+  - title: Models overview
+    org: Anthropic
+    date: "2026"
+    url: https://platform.claude.com/docs/en/about-claude/models/overview
+    checkedOn: 2026-10-09
+    note: "Context windows, default effort, partner-platform lifecycles, and regional endpoints. Undated page."
+  - title: Optimizing for cost and intelligence
+    org: Anthropic
+    date: "2026"
+    url: https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence
+    checkedOn: 2026-10-09
+    note: "Cost per completed task and the four-step measurement procedure. The page states no publication date and says its figures drift with models and prices."
+  - title: Structured outputs
+    org: Anthropic
+    date: "2026"
+    url: https://platform.claude.com/docs/en/build-with-claude/structured-outputs
+    checkedOn: 2026-10-09
+    note: "Constrained decoding, its guarantees, and its documented exceptions. Undated page."
+  - title: A postmortem of three recent issues
+    org: Anthropic
+    date: "2025-09-17"
+    url: https://www.anthropic.com/engineering/a-postmortem-of-three-recent-issues
+    checkedOn: 2026-10-09
+  - title: Model selection
+    org: OpenAI
+    date: "2026"
+    url: https://developers.openai.com/api/docs/guides/model-selection
+    checkedOn: 2026-10-09
+    note: "Undated page. The talk research read it on 2026-09-16 with the accuracy-then-cost principle; the version checked on 2026-10-09 words the same idea as experiment and keep the lightest setting that meets the quality bar."
+  - title: Semantic conventions for generative AI client spans
+    org: OpenTelemetry
+    date: "2026"
+    url: https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-spans.md
+    checkedOn: 2026-10-09
+    note: "Status Development. Attribute names can still change."
+  - title: Deprecations
+    org: OpenAI
+    date: "2026"
+    url: https://developers.openai.com/api/docs/deprecations
+    checkedOn: 2026-10-09
+    note: "Notice periods by model class, vocabulary, and recent shutdown dates. Undated page; latest entries 2026-10-01."
+  - title: Structured model outputs
+    org: OpenAI
+    date: "2026"
+    url: https://developers.openai.com/api/docs/guides/structured-outputs
+    checkedOn: 2026-10-09
+    note: "Schema adherence versus JSON mode, the refusal field, and incomplete responses. Undated page."
+  - title: Reasoning models
+    org: OpenAI
+    date: "2026"
+    url: https://developers.openai.com/api/docs/guides/reasoning
+    checkedOn: 2026-10-09
+    note: "The reasoning effort parameter and reasoning tokens in the context window. Undated page."
+  - title: Expanding on what we missed with sycophancy
+    org: OpenAI
+    date: "2025-05-02"
+    url: https://openai.com/index/expanding-on-sycophancy/
+    checkedOn: 2026-10-09
+    note: "openai.com returned 403 to a direct fetch on 2026-10-09. The quotations here were read through Simon Willison's post, which quotes the passages used."
+  - title: Expanding on what we missed with sycophancy
+    author: Simon Willison
+    date: "2025-05-02"
+    url: https://simonwillison.net/2025/May/2/what-we-missed-with-sycophancy/
+    checkedOn: 2026-10-09
+    note: "Commentary on OpenAI's post, with extended quotations."
   - title: "How Is ChatGPT's Behavior Changing over Time?"
     author: Lingjiao Chen, Matei Zaharia, James Zou
     date: "2023-07"
-    url: https://arxiv.org/html/2307.09009v3
-    checkedOn: 2026-09-15
-    note: "arXiv 2307.09009, revised version 3. Task-specific evidence of behavior across versions, not overall model quality. Date checked is the talk research's check date."
+    url: https://arxiv.org/abs/2307.09009
+    checkedOn: 2026-10-09
+    note: "arXiv 2307.09009, revised version 3 of 2023-10-31. Task-specific evidence of behavior across versions of a service, not a measure of overall model quality."
+  - title: How many of your agent's calls actually need a frontier model?
+    author: Srimanth Tangedipalli and Karan Singh
+    org: LangChain
+    date: "2026-08-11"
+    url: https://www.langchain.com/blog/switchyard-agent-routing-benchmark
+    checkedOn: 2026-10-09
+    note: "One controlled workload of 145 tasks. The authors describe it as a measurement of one workload, not a forecast."
+  - title: "FrugalGPT: How to Use Large Language Models While Reducing Cost and Improving Performance"
+    author: Lingjiao Chen, Matei Zaharia, James Zou
+    date: "2023-05-09"
+    url: https://arxiv.org/abs/2305.05176
+    checkedOn: 2026-10-09
+    note: "Historical models and prices. The savings it reports are a ceiling for its setting, not a forecast."
+  - title: The Shift from Models to Compound AI Systems
+    author: Matei Zaharia and colleagues
+    org: Berkeley Artificial Intelligence Research
+    date: "2024-02-18"
+    url: https://bair.berkeley.edu/blog/2024/02/18/compound-ai-systems/
+    checkedOn: 2026-10-09
+  - title: Model Cards for Model Reporting
+    author: Margaret Mitchell and colleagues
+    date: "2018-10-05"
+    url: https://arxiv.org/abs/1810.03993
+    checkedOn: 2026-10-09
+    note: "Documentation accompanies evidence. It does not certify fitness."
+  - title: "Lost in the Middle: How Language Models Use Long Contexts"
+    author: Nelson F. Liu and colleagues
+    date: "2024"
+    url: https://aclanthology.org/2024.tacl-1.9/
+    checkedOn: 2026-10-09
+    note: "TACL volume 12. A failure class and a method for testing it, not a curve every model shares."
+  - title: Agent Harness Engineering
+    author: Addy Osmani
+    date: "2026-04-19"
+    url: https://addyosmani.com/blog/agent-harness-engineering/
+    checkedOn: 2026-10-09
+    note: "An attributed engineering judgment from the author's own work, not a benchmark result."
+  - title: Codex CLI slash commands
+    org: OpenAI
+    date: "2026"
+    url: https://learn.chatgpt.com/docs/cli/slash-commands
+    checkedOn: 2026-10-09
+    note: "The /model and /fast commands as documented on the day checked. Undated page."
+  - title: Codex configuration reference
+    org: OpenAI
+    date: "2026"
+    url: https://learn.chatgpt.com/docs/config-file/config-reference
+    checkedOn: 2026-10-09
+    note: "model_reasoning_effort, plan_mode_reasoning_effort, the subagent model keys, and provider retry settings, as documented on the day checked. The talk research read the same page on 2026-09-14 with a different list of effort levels."
+  - title: Devin CLI commands and flags
+    org: Cognition
+    date: "2026"
+    url: https://docs.devin.ai/cli/reference/commands
+    checkedOn: 2026-10-09
+  - title: Devin CLI config file
+    org: Cognition
+    date: "2026"
+    url: https://docs.devin.ai/cli/reference/configuration/config-file
+    checkedOn: 2026-10-09
+    note: "agent.model and agent.subagent_model, with their defaults on the day checked."
+  - title: "Devin CLI: Start Local, Hand Off to the Cloud"
+    org: Cognition
+    date: "2026-04-27"
+    url: https://cognition.com/blog/devin-for-terminal
+    checkedOn: 2026-10-09
+  - title: Introducing Fusion in Devin Desktop and CLI
+    org: Cognition
+    date: "2026-09-11"
+    url: https://cognition.com/blog/local-fusion
+    checkedOn: 2026-10-09
+    note: "Vendor-reported benchmark results on vendor-chosen configurations: ten lead and benchmark pairs, SWE-2 as the sidekick in each."
+  - title: Cascade plugin changelog
+    org: Cognition
+    date: "2026-04-06"
+    url: https://docs.devin.ai/windsurf/plugins/changelog
+    checkedOn: 2026-10-09
+    note: "Versions 2.12.14 and 2.12.20. The 2.12.14 multipliers are described as limited-time promotional credit multipliers for self-serve users. The date is the latest entry used."
+  - title: Devin Desktop changelog
+    org: Cognition
+    date: "2026-06-02"
+    url: https://docs.devin.ai/desktop/changelog
+    checkedOn: 2026-10-09
+    note: "Version 3.0.12, the rename from Windsurf."
+  - title: Selected GitHub Copilot models deprecated
+    org: GitHub
+    date: "2026-08-31"
+    url: https://github.blog/changelog/2026-08-31-selected-github-copilot-models-deprecated/
+    checkedOn: 2026-10-09
 ---
 
 ## Transfer connection
 
-This is the Phase 1 fixture draft of the Models module. Its prose is placeholder text that exercises the module layout, the artifact card, the workshop and failure forms, and the self-check. Phase 2 replaces every paragraph. The frontmatter, the structure, and the self-check questions are real.
+This module expands one row of the talk's transfer table. You already do "Testing discipline". It becomes "Eval discipline". Of the six rows, it is the one that turns choosing a model into an engineering task instead of a matter of taste.
 
-This module expands one row of the talk's transfer table: testing discipline becomes eval discipline. What stays the same: the habit of checking before accepting a result, and the refusal to ship on a green run you did not read. What changes: the unit of measurement. A test checks one path you wrote. An eval measures a model's behavior across a population of your own cases, and that population is the evidence behind every selection and every replacement.
+You already manage dependencies for a living. You pin versions in a lockfile. You read release notes before an upgrade. You know that a runtime has an end-of-life date, and you plan the move before the date, not on it. You run the test suite against the new version on a branch, you stage the rollout, and you keep the old version deployable until the new one has earned its place. When a library's maintainers say a minor release is backward compatible, you believe them a little, and you run your tests anyway.
+
+What stays the same: the habit of checking before accepting a result, and the refusal to ship on a green run you did not read. Pinning stays the same. Staged rollout stays the same. A written decision with its evidence stays the same. So does the instinct that a dependency upgrade is a change to your product, whoever authored it.
+
+What changes is the unit of measurement. A test checks one path you wrote. An eval measures a model's behavior across a population of your own cases, and that population is the evidence behind every selection and every replacement. A library ships a changelog that lists what changed. A model ships a release note that describes intent, and the behavior you depend on was never written down by anyone, so no changelog can list its changes. A library breaks loudly, with a type error or a failing assertion. A model drifts quietly, with answers that still parse and are now wrong more often in one category. A library's maintainers rarely delete a published version. A hosted model has a retirement date, and after that date the version you pinned answers every request with an error.
+
+One more thing changes. Your tests used to be the only judge of correctness, because your code was the only author of behavior. Now part of the behavior is authored by a component you did not write, cannot read, and will be forced to replace. The tests still guard the code around it. The eval suite is what guards the part you did not write. The talk's word for the person responsible for both is owner: "Owner means the engineer or team accountable for the delivered product's behavior and operating limits." This module is about what owning the model box means.
 
 ## Topics and learning outcomes
 
 <Outcomes />
 
-Fixture draft. The real section arrives in Phase 2 with the coding-agent worked example (what the user touched, what the vendor engineered), a sourced public incident, and every tool fact dated.
+The talk gives the model box three and a half minutes: a user slide, an owner slide, and a pitfall. The owner slide's title is the thesis of this module: "The model is a component you select, measure, and replace." Each verb gets a part of this page. Selection gets the six axes and eligibility. Measurement gets your own cases against public benchmarks. Replacement gets the lifecycle, pinned versions and moving aliases, and the migration. Two parts sit between them because a model is only replaceable when they exist: the output contract your code enforces, and the diagnosis that tells you whether the model is the thing to replace at all. Routing, the fourth point on the talk's owner slide, gets its own part, with the numbers. If you read in two sittings, stop after Syntactic validity is not semantic correctness. That covers select and measure. The rest covers replace.
 
-### Select, measure, replace
+The book's three chapters for this area supply the depth. Chapter 6 explains how foundation models work and fail; the Foundations module carries the mechanism, and this module says what each failure mode demands of a selection. Chapter 7 is about prompts, structured outputs, and application contracts. Chapter 10 is about selecting models and system approaches, and its transfer statement is worth keeping in view while you read: "Architecture decision records gain task-specific behavioral evidence."
 
-Fixture draft. When you are the owner, the model is a component you select, measure, and replace. Select on six axes: capability on your tasks, cost per completed task, latency at p95, context window, tool-use reliability, and data residency. Measure your product on representative cases under its operating conditions, because public benchmarks use a task population and a harness you did not choose. Replace with one of two strategies: a pinned version, which gives you controlled migration and lifecycle management, or a moving alias, which gives you automatic updates and regression monitoring. A snapshot controls one source of variation. Prompts, tools, retrieval, and the environment also affect behavior.
+### When you are the user: the model picker
+
+Start with what you already touch. Every coding agent has a model picker, and most have a second control beside it.
+
+In Codex CLI, the picker is a slash command. The documentation describes `/model` as "Choose the active model (and reasoning effort, when available)." It adds that "The picker only shows models available to your account and workspace." A second command, `/fast`, will "Toggle a Fast service tier when the model catalog exposes one." Both facts are from OpenAI's Codex documentation, checked on 2026-10-09.
+
+In Devin CLI, `/model [name]` will "Show or change the current model", the `--model` flag will "Set the AI model for this session", and `devin models list` will "List available models, organized by model family." The `/fast` command does something different from Codex's: "Switch to SWE-1.6 Fast." The default in the config file is `agent.model` set to `swe-1-6-fast`. Cognition's launch post for the CLI, April 2026, put the choice plainly: "Choose between any frontier model, including Opus 4.7, GPT-5.5, and our own SWE-1.6." Those facts are from Cognition's documentation and blog, checked on 2026-10-09.
+
+In Devin Desktop, formerly Windsurf, the picker shows a price beside each reasoning level. For GPT-5.4, the plugin changelog of March 11, 2026 (version 2.12.14) priced the levels, as limited-time promotional multipliers for self-serve users, from "No Reasoning: 1x credits" to "Extra High Reasoning: 8x credits", with low at 1x, medium at 2x, and high at 3x in between. Both facts are from Cognition's changelogs, checked on 2026-10-09.
+
+Read that as one lesson. **Reasoning effort is a cost and latency dial.** Under that promotion, the same model at the top setting cost eight times the credits of the bottom setting. Higher settings also tend to take longer, because the extra cost is extra tokens, and tokens take time to generate. Whether the higher setting bought a better answer for your task is a question the picker does not answer. You answered it, informally, every time you turned the dial up for a hard refactor and down for a rename.
+
+Now go one layer down, into Codex's configuration file. Foundations' worked example covers the effort keys: `model_reasoning_effort` for the session and `plan_mode_reasoning_effort`, a separate effort for planning. The keys that matter here are the ones for subagents. The reference lists `agents.default_subagent_model` as the "Default model for spawned agents" and `agents.default_subagent_reasoning_effort` as the matching effort. Devin CLI has the same idea in `agent.subagent_model`: "Model for subagents, used instead of your team's default subagent model."
+
+That is routing. A different effort for planning than for execution is routing by phase. A different model for subagents than for the main loop is routing by role. The talk's line for it: most of you have used routing without ever calling it that. Cognition took the idea further on September 11, 2026 with Fusion, which pairs two models in one session: "Pick a frontier model for planning and review (the 'lead'), and a cost-effective model for execution (the 'sidekick')."
+
+The documented effort levels for `model_reasoning_effort` changed between 2026-09-14 and 2026-10-09. A configuration that names a level, a model, or a tier can stop being valid.
+
+### What someone engineered behind the picker
+
+The picker is a few pixels. Behind it, the talk lists five responsibilities the provider carries for you: "Defaults. Model-specific prompt and tool tuning. Failover. Price-change handling. Retirement handling." Each one is work you will own when the product is yours, so each one deserves a closer look.
+
+**Defaults.** Someone chose the model you get when you choose nothing. Devin CLI's default is `swe-1-6-fast`. Anthropic's documentation lists a default effort per model: `high` for some, `medium` for others, as of 2026-10-09. A default is a decision someone made for the average user's task. It is a sensible starting point for the average task and not a statement about yours. When you own the product, there is no default you did not choose. An unset parameter is a decision you delegated to whoever sets the provider's default, and that default can change.
+
+**Model-specific prompt and tool tuning.** A coding agent's system prompt and tool descriptions are tuned per model family. You can see the edges of this in the configuration reference: Codex has a `model_verbosity` key, an override that exists only for GPT-5 models and not for others. Models differ in how they follow instructions, how they call tools, and what they do with ambiguity. A prompt tuned on one model is a prompt tuned on that model. When the provider ships a new model in the picker, someone has to re-tune the prompts and tool descriptions around it. When you own the product, a model change is a prompt change too, and both need the same measurement.
+
+**Failover.** Requests fail. Providers have outages, rate limits, and overloaded regions. Codex's configuration shows the first layer of the answer as settings: `request_max_retries`, "Retry count for HTTP requests to the provider (default: 4)", and `stream_max_retries`, "Retry count for SSE streaming interruptions (default: 5)." The page has no general fallback-model setting. Whatever happens beyond retries happens inside the provider's platform, out of your sight. When you own the product, you decide what happens after the retries run out: a second provider, a smaller model, a cached answer, a degraded interface, or an honest error. Each of those is a model your product will serve in production, so each is a configuration your eval suite has to cover.
+
+**Price-change handling.** The Devin Desktop plugin changelog (named Cascade) shows promotional per-level multipliers in March 2026 and, in version 2.12.20 of April 6, 2026, a picker that "now shows token pricing information directly", all within a few months. Someone absorbed or passed on those changes. Anthropic's own guidance, checked on 2026-10-09, notes a subtler kind of price change: "the same text costs about 30% more tokens on Claude 4.7 and later models." The per-token price can stay the same while the bill moves, because the tokenizer changed. When you own the product, a price change is a change to your unit economics, and a model change can be a price change even when the price list did not move.
+
+**Retirement handling.** Models are retired, and the picker keeps working. Someone migrated you. GitHub's changelog of August 31, 2026 shows what that looks like from the provider's side: "As of today, September 1, 2026, we have deprecated the following models across most GitHub Copilot experiences". Six models went: Gemini 3.1 Pro, Claude Opus 4.5, Claude Opus 4.6, Claude Sonnet 4.5, Claude Sonnet 4.6, and Raptor Mini, each with suggested alternatives. The entry tells enterprise administrators that they "may need to enable access to alternative models" through policy. Somebody at GitHub chose those alternatives. Whatever re-tuning and measurement happened behind them, the changelog does not show it. Most users who had a favorite model in those experiences got a different one.
+
+The talk's callout for this slide: "Model retirement creates migration work." The talk is careful about what the records show. A documented retirement illustrates lifecycle work. It does not tell you how every coding-tool provider migrated every user, who paid for a price change, or whether a migration was silent. What it does tell you is that the work exists, and that someone did it for you.
+
+Here is the whole worked example in one table. The left column is what you touched as a user. The right column is what someone engineered so that it would work.
+
+| What you touched | What someone engineered for it |
+|---|---|
+| The model picker and `/model` | A catalog of eligible models per account, with a default someone chose |
+| The reasoning-effort slider, with a price beside each level | Per-level pricing, and a judgment about which levels are worth offering for which model |
+| `plan_mode_reasoning_effort` and a subagent model key | Routing by phase and by role, measured so that the cheaper setting does not break the run |
+| A request that succeeded after a hiccup | Retries with documented defaults, and failover you never saw |
+| A model that vanished from the picker | A retirement handled: replacements chosen, prompts re-tuned, users moved |
+
+Every row of the right column becomes yours when you ship a product that depends on a model. The talk's owner title says it in one sentence: the model is a component you select, measure, and replace.
+
+### What a model call is
+
+Foundations' Context windows, position, and reasoning tokens covers the mechanism: tokens, the shared window, and hidden reasoning tokens billed as output. One consequence decides how you select. The model and its settings are one configuration. A selection is never "model A". It is model A at a given effort, with a given prompt, a given tool set, and a given output contract. Change any of those and you have a new configuration to measure.
+
+### How models fail, in one page
+
+Foundations' How foundation models fail gives the mechanism for each failure mode, with the evidence behind it. Chapter 6's failure exercise compresses two of them into one line: "A fluent explanation invents a product capability; a longer input causes a previously available fact to be missed." Here is what each mode demands of a selection case set.
+
+- **Unsupported claims.** This failure appears in a selection run only if your cases include questions whose honest answer is "that is not supported" or "I do not know", and your grader checks for it. A case set made only of questions with clean answers rewards the model that guesses best and never tests the one that declines correctly.
+- **Sensitivity to instructions.** A prompt tuned for one model is not a fair prompt for another. Compare candidates on the prompt you will ship, and expect to tune per candidate before the comparison is fair.
+- **Knowledge limitations.** A model that answers well from memory on public facts tells you little about a product whose answers depend on your documents or on events after its cutoff. Your cases must ask about what only your context supplies.
+- **Position and length effects.** A candidate's context window size is a capacity, not a capability. Test with inputs as long as production's, with the decisive fact in different positions.
+- **Inconsistent behavior.** A single run per candidate is an anecdote. LangChain's routing experiment, discussed below, observed about 2.7 points of run-to-run variation in accuracy on a 145-task suite. Repeat runs, report the range, and treat a difference smaller than the range as not established.
+- **Explanations are not access.** A model's account of why it answered is more generated text. Use it as a hypothesis, never as evidence in a selection record.
+
+<Callout kind="plain" label="Why this list decides your case set">
+
+Each failure mode names a kind of case your selection set must include: questions whose right answer is a refusal, the prompt you will actually ship, questions that depend on private or recent facts, long inputs with the key fact in the middle, and enough repeated runs to see the noise. A case set that leaves one out cannot detect the failure it would have caught.
+
+</Callout>
+
+### Select: six axes, eligibility first
+
+The talk's owner slide lists six axes, in this order: capability on your tasks, cost per completed task, latency at p95, context window, tool-use reliability, and data residency. Each has a precise meaning, and each is easy to measure the wrong way. The book's Chapter 10 gives the same idea as an outcome: "Construct a task-specific comparison across quality, latency, cost, operational constraints, and data handling." Take them one at a time, then put them in the order you apply them, which is not the order on the slide.
+
+**Capability on your tasks.** The words that matter are "your tasks". A model is not capable in general. It is capable on a population of inputs, judged by a criterion. Your population is your traffic: its vocabulary, its document formats, its ambiguity, its share of hard cases. Your criterion is your acceptance rule: what counts as a correct triage, a faithful summary, a safe refusal. Capability is the fraction of your cases that meet your criterion, with the range across runs beside it. Until you have both a case set and a criterion, there is no capability number to compare.
+
+**Cost per completed task.** Not cost per token. Anthropic's guide on cost and intelligence, checked on 2026-10-09, explains why: "You pay for completed tasks, though, so compare models on cost per completed task. A more capable model finishes a task with less work: fewer turns, less searching, less re-reading of its own context, and less backtracking." The same page has the line the talk's later revision (a revised version of the talk's slides, read on 2026-10-09, which this module also draws on) uses as its opening quote: "The ranking flips by workload, and no price list tells you which way." And it says where to look: "Price the tail of your workload, not the median". On the typical task every model looks similar. The bill is decided by the tasks the cheaper model fails, "because a failed task still bills its tokens, then the retry, then whatever the failure costs downstream."
+
+Here is the arithmetic, with invented numbers so that nothing is mistaken for a measurement. Model S costs $0.002 per attempt and completes 80% of tasks on the first try. Model L costs $0.010 per attempt and completes 98%. Suppose a failed attempt is retried once on the same model, and a task that fails twice goes to a human at $2.00 of support time. For S, the expected cost per task is $0.002, plus 0.20 times $0.002 for the retry, plus 0.20 times 0.20 times $2.00 for the human, which is about $0.0824. For L, it is $0.010, plus 0.02 times $0.010, plus 0.02 times 0.02 times $2.00, which is about $0.0110. The model that is five times more expensive per attempt is seven times cheaper per completed task. Change the human cost to zero and S wins again. That is what "the ranking flips by workload" means. The denominator is completed tasks, and the numerator includes everything a failure sets in motion: retries, verification, judge calls, and human review.
+
+**Latency at p95.** You already know why the slide says p95 and not average. Users experience the tail. A model call's latency has parts: time to the first token, then generation time for every output token, including hidden reasoning tokens. Higher reasoning effort moves both cost and latency, because more tokens are generated before the answer starts. Routing and verification add calls. LangChain's routing experiment notes that its judge "is a second model call per turn, roughly 700ms against effectively zero for the stage router", and the article lists latency-sensitive use under "When not to use this." Measure latency on the configuration you will ship, at the concurrency you expect, from the place your application runs. A latency number from a provider's dashboard is a number from somebody else's network.
+
+**Context window.** A window is a capacity, not a capability. Anthropic's overview, checked on 2026-10-09, lists 1M tokens of context for each current model, and says that "1M tokens is roughly 555k words or 2.5M Unicode characters on the current tokenizer". That number tells you what fits. Lost in the Middle tells you that fitting is not the same as being used. The talk's later revision puts it in one row of a table: context capacity means the evidence fits, and that does not establish answer quality. Two more cautions. The window holds input, output, and reasoning together, so reserve room for the answer. And the per-request accounting differs by model and API, so read the documentation for the model you are pricing, not the one you priced last quarter.
+
+**Tool-use reliability.** For an agent, the model does not answer once. It chooses a tool, fills its arguments, reads the result, and chooses again. A small per-step error rate compounds. If a model picks the right tool with valid arguments 98% of the time, a ten-step task with no recovery succeeds about 0.98 to the tenth power, roughly 82% of the time. At 99.5% per step, the same task succeeds about 95% of the time. A difference that looks like noise on a single-call benchmark is the difference between a usable agent and an unusable one. Measure tool use on multi-step tasks from your own workflow, with your own tool descriptions, and count task completion, not step accuracy. The Tools and extensibility module covers the tool side of the contract.
+
+**Data residency.** Where the data may be processed, by whom, and under which terms. The talk's research makes the strongest claim about this axis: "Data residency can override every other axis for enterprise." It gets its own section next, because it is not one axis among six. It is the filter that decides which candidates are on the table.
+
+### Eligibility comes first
+
+The talk lists data residency last. The talk's own later revision moves it to the front, under a broader name: choose a model version and settings "suited to the task and approved for the data." The research behind that revision states the order directly: identify eligible model services and deployment environments for the data before comparing task quality, cost, and latency.
+
+The reason is simple. A model your data may not reach is not a candidate, whatever it scores. Measuring it wastes the run and, worse, plants a number in the team's memory that someone will quote later. "The US-only model was the best one" becomes an argument for routing restricted data somewhere it may not go.
+
+Eligibility has several parts, and residency is only one of them.
+
+- **Region.** Where inference runs and where request data is stored. Anthropic's overview, checked on 2026-10-09, notes that Amazon Bedrock offers "global endpoints (dynamic routing) and regional endpoints (guaranteed data routing)" for newer Claude models. Same model, two different answers to the residency question, chosen by an endpoint string.
+- **Platform and lifecycle.** The same model on a partner platform can have a different life. Anthropic's deprecations page says its dates apply to Anthropic-operated platforms, and that "Partner-operated platforms (Amazon Bedrock and Google Cloud) set their own retirement schedules, so a model's lifecycle status and dates can differ." Your retirement date depends on where you buy the model, not only which model it is.
+- **Terms and approvals.** Data retention, use for training, contractual commitments, and your organization's own approvals. For regulated data, the approved list is usually set by someone outside your team. For regulated data such as controlled unclassified information, the approved models are often older and less capable. That is one practitioner's report, recorded in the talk's research, not a public claim about any service. The lesson holds anyway: availability in a model picker does not establish authorization for a particular dataset.
+- **Required capabilities and hard limits.** A model that does not accept images is not eligible for a document pipeline that receives scans. A model whose p95 is above a hard ceiling is not eligible for a synchronous path. These are eligibility, too. They remove candidates before you spend an eval run on them.
+
+The eligibility rule applies to everything that can serve a request, not only the primary model. A fallback provider is a candidate. A routed small model is a candidate. A replacement recommended in a deprecation notice is a candidate. Each one must be eligible for the data it would see. A fallback that sends restricted records to an unapproved model during an outage is a data incident with a retry loop in front of it.
+
+The book adds a distinction that belongs in the same filter: "Distinguish hosted access, available weights, licensing, and deployment responsibility." A hosted model is operated by the vendor, who sets the price, the region options, and the retirement date. A model with available weights can be run where you choose, which can settle a residency question and removes the vendor's retirement date. It does not remove the work. You take on serving, capacity, upgrades, security patches, and proving that a quantized copy (compressed to lower numeric precision to run cheaper) or any self-hosted copy kept the quality you measured. The license decides what you may do with the weights at all. These are different bundles of responsibility, and the eligibility filter is where you decide which bundles you are willing to carry. The Inference and hosting elective covers the operating side.
+
+Put the six axes in the order you apply them:
+
+1. Eligibility: data handling, required capabilities, and hard limits on latency and cost. This removes candidates.
+2. Capability on your tasks: the share of your cases that meet your acceptance criterion. This sets the acceptable set.
+3. Within the acceptable set, cost per completed task and p95 latency. This picks among configurations that are good enough.
+4. Context window and tool-use reliability are measured inside step 2, on your inputs and your workflow, not read off a spec sheet.
+
+That is the same order OpenAI's model-selection guide used when the talk's research read it on 2026-09-16: optimize for accuracy until you hit the target, then keep that accuracy with the cheapest, fastest model you can.
+
+### Measure: benchmarks discover, your cases decide
+
+The talk's second point on the owner slide is two sentences: "Benchmarks use their task population and harness. Measure your product on representative cases." The research gives the claim that needs no citation: a public benchmark measures a population you did not choose, on a harness you do not control, reported by a party with an interest in the result. Your eval suite measures your traffic.
+
+That does not make benchmarks useless. The book's Chapter 10 gives them the right job: "Use public benchmarks as discovery signals and local evaluations as decision evidence." A benchmark tells you which candidates are worth the cost of your own run. It cannot tell you which one to ship.
+
+Three reasons a benchmark number does not transfer to your product.
+
+**The population is not yours.** A benchmark's tasks were chosen to be measurable, public, and general. Your traffic is none of those. The book's failure exercise for this chapter is exact: "A model with a stronger public benchmark performs worse on the support team's terminology or deployment requirements." The terminology is the kind of difference no public suite can contain. Your product names, your internal abbreviations, your customers' habits of writing are absent from every benchmark ever published.
+
+**The harness is not yours.** A benchmark result is a model inside a scaffold: a prompt, a tool set, a retry policy, a context strategy. Change the scaffold and the number moves. Cognition's Fusion announcement of September 11, 2026 shows how much. The same lead models scored differently with and without the sidekick arrangement. With Astra as the lead on Terminal-Bench 4, Fusion scored 50.0 against Astra alone at 55.6, at $6.06 against $10.08. Across the ten lead and benchmark pairs in the post, Fusion's score ranged from 6.4 points lower to 2.7 points higher than the lead alone, and it cost less in every pair. Those are vendor-reported numbers on vendor-chosen configurations, and the vendor reports the lower score itself. The point is not which configuration is better. The point is that "the model's score" does not exist apart from a harness. Addy Osmani's line, from April 2026, is an engineering judgment rather than a measurement, and worth keeping: "A decent model with a great harness beats a great model with a bad harness."
+
+**The reporter is not neutral.** Benchmarks are published by people who built the model, sell the product, or run the leaderboard. That is not an accusation. It is a reason to read the conditions before the number.
+
+So what does "representative cases" mean in practice? Anthropic's cost guidance, checked on 2026-10-09, gives a procedure in four steps. It is worth reading as the minimum.
+
+1. "Pull a few tasks from production logs, weighted like real traffic, and write outcome checks for each: tests pass, ticket closed, row count correct." Record cost per task beside the score.
+2. "Baseline the model tiers across effort levels, not only the default, and plot score against spend. A multi-model configuration must beat the single model's whole curve."
+3. "If the curve shows a gap effort can't close, add the multi-model strategy that fits and re-run the suite."
+4. "Run the winner in shadow on a traffic slice before cutover, then keep the suite running."
+
+Read those steps against your instincts as a tester. Step 1 is sampling, and "weighted like real traffic" is the difference between a test suite and an eval set. Your test suite is weighted by what you thought of. An eval set for selection is weighted by what users send, plus a deliberate sample of the hard tail, because that is where the bill and the risk live. Step 2 says a model is not one point. It is a curve over effort settings, and a candidate's best setting may not be its default. Step 3 says routing is a response to a measured gap, not a starting architecture. Step 4 is shadow traffic, then a canary: run the new configuration on live requests without serving its answers, compare, and only then shift real traffic.
+
+Add three things the procedure takes for granted.
+
+**A baseline that is not a model.** The book's Chapter 10 workshop asks you to "Compare at least two candidates and the baseline using the same application cases and explicit constraints." The baseline is what you do today without a model: a rules engine, a keyword router, a human queue. If no candidate beats the baseline by enough to pay for itself, the decision is not which model. It is whether to use one. The book's Chapter 2 already allowed that answer, as orientation's section on looking before you build explains.
+
+**Categories, not only a total.** A case set has kinds of cases: billing and outage tickets, short and long documents, easy and adversarial requests. Report each category. An overall score is a weighted average, and averages hide the category where one candidate fails. The category that matters most, the costly error, often has the fewest cases.
+
+**Enough cases to see a difference.** You know this from Foundations, and it is worth doing the arithmetic once. On 50 cases, one case is 2 points. On 25 security cases, one case is 4 points. With 145 tasks and an accuracy near 80%, the standard error is the square root of 0.8 times 0.2 divided by 145, about 0.033, so a rough 95% interval is plus or minus 6.5 points. Two configurations 3 points apart on that suite are not distinguishable from one run. Repeated runs narrow the run-to-run noise, not the sampling noise from having only 145 cases. Either way, write the uncertainty beside the number, and do not let a difference smaller than the uncertainty decide anything.
+
+The Verification and evals module teaches how to build the case set, label it, and trust the grader. This module needs only the conclusion: a selection decision is a measurement, and a measurement has a population, a criterion, a grader, and an error bar. A benchmark score has all four, chosen by someone else.
+
+### Syntactic validity is not semantic correctness
+
+A model is replaceable only if something defines what the rest of the system accepts from it. In ordinary code, that something is an interface: a type, a schema, a contract test. The book's Chapter 7 carries the idea over intact: "Contracts and validation remain essential even when an upstream component returns plausible prose." The output contract is the interface between the model and your application, and it is the thing you test a replacement against.
+
+Start with what the contract specifies. Chapter 7's first outcome is to "Design instructions, examples, task boundaries, and output specifications." Instructions say what to do. Examples show it. Task boundaries say what is out of scope and what to do with it. The output specification says what shape the answer takes. All four belong to the configuration you measure, and all four are versioned, because a change to any one of them is a change to behavior. Chapter 7's last outcome: "Version prompts and compare changes against evidence." A prompt in a string literal with no version is a hardcoded model ID's twin.
+
+Providers now enforce the shape for you. OpenAI's documentation, checked on 2026-10-09, says its Structured Outputs feature "ensures the model will always generate responses that adhere to your supplied JSON Schema", and distinguishes it from the older JSON mode: "While both ensure valid JSON is produced, only Structured Outputs ensure schema adherence." Anthropic's documentation, checked the same day, says structured outputs "guarantee schema-compliant responses through constrained decoding", and lists what that buys: "Always valid", "Type safe", and "Reliable", the last explained as "No retries needed for schema violations."
+
+Constrained decoding is worth understanding in one sentence. At each step of generation, the tokens that would break the schema are made unavailable, so the model can only produce output the schema allows. That is a real guarantee, and it removes a whole class of parsing failures. It is a guarantee about shape.
+
+Both vendors document the edges of that guarantee, and the edges are where incidents live. Anthropic's page says that "there are scenarios where the output may not match your schema", and names them. On refusals: "the refusal message takes precedence over schema constraints". On the token limit: "The output may be incomplete and not match your schema". On enums: "Structured outputs don't guarantee the capitalization of string `enum` and `const` values". It lists numeric constraints such as `minimum` and `maximum`, and string length constraints such as `minLength`, as not supported. OpenAI's page surfaces refusals in a separate `refusal` field and shows how to detect a response that stopped at the output limit, with status `incomplete` and reason `max_output_tokens`. Neither vendor claims the values are correct. The schema says a field is a string. It cannot say the string is true.
+
+The book's Chapter 7 failure exercise is the one to remember: "An output passes JSON validation but associates the request with the wrong tenant or invents a field value." Its second outcome names the skill: "Separate syntactic validity from semantic correctness." Syntactic validity is whether the output has the right shape. Semantic correctness is whether it is right. The provider can guarantee the first. Only your code can check the second, because only your code knows which tenant the session belongs to, which order numbers exist, and which actions the user may take.
+
+Here is a worked example. It is a contract for a fictional ticket-triage service, five outputs from one evening, and what each layer of checking said about them.
+
+<Artifact id="models-triage-contract" level={4} />
+
+Read the table from the right. T-90211 passed everything and was routed. T-90214 and T-90219 passed the schema check and failed the semantic checks: one carried a tenant id with two transposed digits, copied from a quoted email thread, and one carried an order number the model produced although the ticket had none and the schema allowed null. Both were well-formed. Both would have entered application state if the schema check were the only check. T-90230 was a refusal, so the schema did not apply and the application sent it to a person. T-90233 hit the output limit, came back incomplete and missing a required field, and the application retried with a larger limit.
+
+Four design choices in that contract are worth copying.
+
+- **Explicit unknowns.** `customer_order_id` allows null and says when to use it. A schema that makes every field required and non-null forces the model to fill it with something, and something is often invented. Allowing null does not guarantee the model uses it, as T-90219 shows. It makes the honest answer expressible, and it makes the dishonest one checkable.
+- **Authoritative values come from the application.** The tenant id is in the schema only so that the application can compare it with the session. The project specification behind the book states the principle for retrieval, and it holds for every output: "The model does not choose its own authorization scope." Better still, do not ask the model for values you already know. Every field the model fills is a field it can get wrong.
+- **Rules that must hold are enforced in code.** Check 3 sends a ticket to the security queue whenever a keyword rule matches, whatever the model said. That is a guarantee the model cannot give and the application can. Check 4 enforces a length the schema cannot express on every provider.
+- **Every failure has a destination.** Rejected outputs go to a manual queue with the reason. Refusals carry their text. Truncations retry once, then fail loudly. Chapter 7's third outcome is to "Handle refusals, missing fields, ambiguity, truncation, and unsupported requests", and handling means a defined path for each, not a try block that logs and continues.
+
+Chapter 7's completion evidence states the bar: "Demonstrate that malformed and semantically invalid results cannot silently enter application state, and document unresolved ambiguities." The word that matters is silently. Failures will happen. They must be caught, routed, and counted.
+
+Why does this belong in the Models module rather than with tools or evals? Because the contract is what makes a model replaceable. A replacement candidate either meets the contract on your cases or it does not. Schema support itself is part of the comparison: a feature your contract relies on, such as a particular schema keyword, a strict tool mode, or a refusal field, may not exist on the candidate, or may behave differently. The semantic checks are also the cheapest evals you will ever write. Count how often each check fires, per model, per week. A replacement that makes the tenant check fire twice as often has told you something before any grader runs.
+
+### The lifecycle you inherit
+
+Second sitting: replace.
+
+Now the third verb: replace. It starts with a fact about hosted models that has no close parallel in your dependency manager. The version you depend on will stop existing, on a date someone else chooses.
+
+Anthropic's deprecations page, checked on 2026-10-09, names four states:
+
+- **Active:** "The model is fully supported and recommended for use."
+- **Legacy:** "The model will no longer receive updates and may be deprecated in the future."
+- **Deprecated:** "The model is still functional but no longer recommended. Anthropic provides a recommended replacement and assigns a retirement date."
+- **Retired:** "The model is no longer available for use. Requests to retired models will fail."
+
+The notice period: "Anthropic notifies customers with active deployments for models with upcoming retirements, providing at least 60 days' notice before model retirement for publicly released models." And a warning that belongs in every migration plan: "Deprecated models are likely to be less reliable than active models."
+
+The deprecation history shows the cadence. On April 14, 2026, Claude Sonnet 4 and Claude Opus 4 were deprecated, with retirement on June 15, 2026. Claude Opus 4.1 was deprecated on June 5, 2026 and retired on August 5, 2026. On September 30, 2026, Anthropic notified developers using Claude Sonnet 4.5 that `claude-sonnet-4-5-20250929` retires on November 30, 2026, with `claude-sonnet-5-5` as the recommended replacement. That is sixty-one days from notice to failure, and it was the newest entry on the page when this module was checked.
+
+OpenAI's deprecations page, checked the same day, sets notice by class of model. Generally available models get "At least 6 months." Specialized variants get "At least 3 months." Preview models "may be retired with much shorter notice, such as 2 weeks." The page advises avoiding preview models for business-critical production unless you can migrate on short notice. The recent entries show the range: older GPT-5 and o3 snapshots, announced June 11, 2026, shut down December 11, 2026. A specialized variant, `gpt-5.4-cyber`, was announced September 11, 2026 for shutdown on October 1, 2026, twenty days later.
+
+Use the vocabulary carefully, because vendors differ. At OpenAI, deprecation is the announcement, and "We use the terms "sunset" and "shut down" interchangeably to mean a model or endpoint is no longer accessible." Legacy means no more updates, a sign that deprecation is likely. At Anthropic, retirement is the day requests fail. Read your vendors' definitions once and write them into your runbook, so that "deprecated" in a notice email triggers the right clock.
+
+Parameters expire too, not only models. Anthropic's page has a table for API parameter deprecations. For `temperature`, `top_p`, and `top_k` on Claude 4.7 and later models, the behavior is that the API "Returns a 400 error when set to a non-default value". The Python SDK from version 1.0 removes them, "so passing them raises a `TypeError`." A codebase that sets temperature on every call works on the old model and fails on the new one with an error that has nothing to do with quality. A migration check that only compares answers will not reach that error if the harness strips unknown parameters. One that runs your real request code will.
+
+Now do the calendar math, because it is the heart of the pitfall. Sixty days is about eight working weeks. If an eval suite already exists, a migration fits in that window with room to spare: run the suite on the replacement in the first week, tune prompts, rerun, shadow, cut over, and keep the old model as a rollback target until it retires. If no eval suite exists, the window has to hold everything: sampling cases from logs, labeling them, writing graders, checking the graders, and only then the comparison. That is a project, and it competes with whatever else the team was doing in those eight weeks. Most teams that start from nothing do the comparison by hand on a dozen examples and ship. The notice period was long enough for a migration. It was not long enough to build the instrument the migration needed.
+
+One more consequence is easy to miss. With a pinned model, your rollback target has an expiry date. After a cutover, "roll back to the old model" works until the old model retires. After that, the only rollback is to another configuration you have measured. Plan the migration so that the decision is settled well before the old version disappears.
+
+### Pinned version or moving alias
+
+The talk gives two defensible replacement strategies, one card each: "Pinned version: controlled migration and lifecycle management." "Moving alias: automatic updates and regression monitoring."
+
+A pinned version names one specific model snapshot. Your behavior changes only when you change the id. You choose the day. You also take on the lifecycle: watching for deprecation notices, keeping an inventory of where each id is used, and migrating before the retirement date. Lifecycle management is the price of control.
+
+A moving alias names a family or a channel, and the vendor decides which snapshot it resolves to. Your behavior changes when the vendor updates the alias, on a day you did not choose and may not hear about. You get improvements without a migration project. You take on regression monitoring: a scheduled measurement that notices when the alias moved and whether your product got worse. Regression monitoring is the price of convenience.
+
+Know which one you have, because the naming is not consistent across vendors or even across generations of one vendor. Anthropic's model ID documentation, checked on 2026-10-09, says: "Each Claude model ID identifies a pinned version of the model. When you use a model ID in an API request, the underlying model remains constant for the lifetime of that ID." Starting with the 4.6 generation, IDs have no date in them, and the page warns against reading that as a moving pointer: "A common misconception is that dateless model IDs such as `claude-sonnet-4-6` behave as evergreen pointers that route to the latest or best-performing version. That is not the case." For earlier models, a short name such as `claude-sonnet-4-5` is different: it "is a convenience pointer that resolves to the most recent dated snapshot for that minor version." Two strings with the same shape, one a snapshot and one an alias, from one vendor. Other vendors use other conventions. Read the documentation for every id you ship, and record in your configuration which kind it is.
+
+Neither strategy is safe without measurement. That is the point of the talk's two cards: each strategy names the evidence it needs. A pinned version with no eval suite is the pitfall. A moving alias with no regression monitoring is its mirror image, which the talk's research names in the fuller form of the pitfall: "Mirror image: an alias with drift you never detect. Same fix". The fix is the same suite, run on a different trigger. A pinned version runs it when you choose a replacement. A moving alias runs it on a schedule, because you do not choose when the replacement arrives.
+
+### What a snapshot does not freeze
+
+The talk's third point continues past the two cards: "A snapshot controls one source of variation. Prompts, tools, retrieval, and the environment also affect behavior."
+
+List what changes your product's behavior with the model id held constant. Your prompt, every time someone edits it. Your tool descriptions and the tools' own behavior. Your retrieval: the index, the documents in it, the ranking. Your context assembly: what history you keep, what you summarize away. The environment: the data your tools read, the systems your agent acts on, the time of year. Your traffic: what users ask this month that they did not ask last month. A pinned snapshot freezes none of these. A team that pins a model and calls its behavior fixed has frozen one input out of many.
+
+There is a source of variation on the vendor's side too. Anthropic's model ID page draws the line explicitly, under the heading "Model weights versus serving infrastructure": "Model weights are fixed for a given ID, but the serving infrastructure around the model can change over time. This infrastructure includes components such as the request router, safety classifiers, and sampling logic." And: "Occasionally, infrastructure updates produce minor differences in observable behavior even when the model ID and weights have not changed." A pinned ID is a promise about weights, not about every behavior you observe.
+
+The talk's evidence for change across versions is the paper by Lingjiao Chen, Matei Zaharia, and James Zou, "How Is ChatGPT's Behavior Changing over Time?" (July 2023, revised October 2023). They evaluated the March 2023 and June 2023 versions of two services on several tasks. Their abstract: "GPT-4 (March 2023) was reasonable at identifying prime vs. composite numbers (84% accuracy) but GPT-4 (June 2023) was poor on these same questions (51% accuracy)." It adds: "This is partly explained by a drop in GPT-4's amenity to follow chain-of-thought prompting." The talk keeps three qualifications with the number, and so should you. The result is for one task with step-by-step prompting. It is not a measure of overall model quality. It compares two versions of a service, which is what an alias user gets, and does not show a pinned snapshot changing internally. Other results in the same abstract moved the other way: "GPT-3.5 was much better in June than in March in this task." The authors' conclusion is the one this module rests on: the "same" service "can change substantially in a relatively short amount of time, highlighting the need for continuous monitoring of LLMs."
+
+### Regression monitoring for an alias
+
+If you choose a moving alias, regression monitoring is not optional. It is the half of the strategy that makes the other half defensible. Here is what one looks like, for a fictional assistant that calls an alias on purpose.
+
+<Artifact id="models-alias-drift-dashboard" level={4} />
+
+Three things in that table are worth learning to see.
+
+First, the resolved model column. The request named the alias. The response reported which snapshot actually answered. Without that column, the week of September 21 is a small dip with no cause. With it, the dip has a date and a name. Log the model the response reports, not only the one the request asked for. OpenTelemetry's generative AI span conventions, still marked Development when checked on 2026-10-09, keep the two apart: `gen_ai.request.model` is "The name of the GenAI model a request is being made to" and `gen_ai.response.model` is "The name of the model that generated the response." The Operating it module covers the trace schema.
+
+Second, the alert rule watched the overall score, and the overall score barely moved: from a four-week median of about 90.8% to 89.6%, a drop well under the 3-point alert threshold. The refund policy category fell from 94% to 81%. Billing and outage improved at the same time, which is why the total held. A refund policy answer is the kind that becomes a support escalation or a chargeback. An aggregate alert is a smoke detector in the wrong room. Alert per category, at least for the categories whose failures cost the most.
+
+Third, the vendor's release note. "Improved instruction following and more concise answers" is a description of intent, and it may be accurate. More concise answers could be exactly what dropped the qualifying conditions from refund answers. The note could not tell you that, because the vendor does not know your refund policy. Your suite does.
+
+What do you do on the Monday the alert fires? Decide in advance. The options are to pin the previous snapshot while it is still available, to fix the prompt for the new behavior and rerun the suite, or to accept the regression with a written reason. A team that chose an alias without deciding this has chosen to improvise during an incident.
+
+### When the same name changed behavior
+
+Two public accounts show what the gap between a model's name and its behavior looks like from inside a vendor. Neither concerns your product. Both are instructive because the vendors had far more evaluation infrastructure than most product teams, and their evaluations still missed the problem.
+
+**Anthropic, August and September 2025.** On September 17, 2025, Anthropic published "A postmortem of three recent issues." It opened with a plain statement: "To state it plainly: We never reduce model quality due to demand, time of day, or server load." Then it described three infrastructure bugs that had degraded responses over several weeks. A routing error sent some Sonnet 4 requests to servers configured for an upcoming 1M-token context window; it began at about 0.8% of Sonnet 4 requests and reached 16% in the worst hour, on August 31. A misconfiguration on some servers produced corrupted output, such as characters from other scripts in English responses or syntax errors in code. A compiler bug triggered by a sampling change sometimes dropped the most probable token. None of the three changed a model's weights. All three changed what users received under the same model name.
+
+The postmortem's account of why detection was slow is the part to study. Its evaluations did not capture the degradation users reported, partly because the model often recovers from isolated mistakes. Privacy controls limited engineers' access to interactions that users had not submitted as feedback. Each bug produced different symptoms on different platforms at different rates, so reports looked random. The fixes it describes are evaluation fixes: evaluations that better distinguish working implementations from broken ones, and quality evaluations run continuously on production systems rather than only in regular testing.
+
+Translate that to your product. The vendor's evaluations measure the vendor's idea of quality. Your product has its own idea, on its own traffic. When the serving infrastructure changes, as Anthropic's own documentation says it can, the only detector tuned to your product is the suite you run against production. That is the "Keep both checks running as the system changes" part of the evals takeaway, seen from the model box.
+
+**OpenAI, April 2025.** On April 25, 2025, OpenAI updated the GPT-4o model used in ChatGPT. Within days the update was rolled back for sycophancy, an excessive tendency to agree with and flatter the user. OpenAI's follow-up post of May 2, 2025, "Expanding on what we missed with sycophancy", explained what happened. In its words, as quoted by Simon Willison the same day: "In the April 25th model update, we had candidate improvements to better incorporate user feedback, memory, and fresher data, among others." It continued: "Our early assessment is that each of these changes, which had looked beneficial individually, may have played a part in tipping the scales on sycophancy when combined."
+
+The evaluation story is the reason this account is in a Models module. The post says the offline evaluations, especially those testing behavior, generally looked good. "Similarly, the A/B tests seemed to indicate that the small number of users who tried the model liked it." Expert testers were uneasy: "Nevertheless, some expert testers had indicated that the model behavior "felt" slightly off." The update shipped on the strength of the numbers. OpenAI's commitment afterward: "We need to treat model behavior issues as launch-blocking like we do other safety risks." Willison's reading, his and not OpenAI's: "The biggest miss here appears to be that they let their automated evals and A/B tests overrule those vibe checks!"
+
+Three lessons transfer. An aggregate preference signal can rise while a specific behavior you care about gets worse, the same pattern as the refund category in the dashboard above. If a behavior matters, it needs a named eval, not a hope that a general score will catch it. And a product built on a moving alias inherits every update of this kind on the day it ships, which is why the alias strategy's second word is monitoring. This was an update to the model in ChatGPT, a consumer product, not a pinned API snapshot. That is the point: it is what an alias looks like from the user's side.
+
+### Route: when more than one model earns its place
+
+The talk's fourth point is routing: more than one model in one product, each call sent to the one that should handle it. You met it in the coding agent as a planning effort and a subagent model. In a product, it takes a few common forms.
+
+- **By phase or role.** A fixed rule: planning on one model, execution on another; classification on a small model, drafting on a large one. Codex's subagent keys and Fusion's lead and sidekick are this form.
+- **Cascade.** Try the cheaper model first, check the result, and escalate when the check fails or confidence is low. FrugalGPT (Chen, Zaharia, and Zou, May 2023) studied this form and called it an "LLM cascade". It reported matching the best individual model of the time "with up to 98% cost reduction" on its tasks. Those are historical models and prices, and the figure is a ceiling for that setting, not a forecast.
+- **Learned router.** A classifier or a model decides per call which model to use. LangChain's experiment, below, tested one.
+- **Fallback.** A second model used when the first is unavailable. This is routing for availability rather than cost, and it is the form teams most often ship without measuring.
+
+Every form adds a component to own: the routing rule or model, its thresholds, and a second set of failure modes. The talk's later revision gives the default plainly: start with one configuration, and add routing when measurements justify the complexity. Anthropic's cost guidance makes the same demand in sharper words: "A multi-model configuration must beat the single model's whole curve", meaning every effort setting of the single model, not only its default.
+
+### Reading the LangChain comparison
+
+The talk's evidence for routing is one experiment, read carefully. Srimanth Tangedipalli and Karan Singh published "How many of your agent's calls actually need a frontier model?" on the LangChain blog on August 11, 2026. They ran 145 multi-step agentic tasks, averaging 6.3 model calls per task, across support, incident investigation, and workflow automation, under three configurations. The article, checked on 2026-10-09, reports:
+
+| Configuration | Accuracy | Cost per run | Cost per completed task |
+|---|---:|---:|---:|
+| Frontier only | 86.0% | $11.45 | $0.092 |
+| Routed | 80.0% | $3.00 | $0.026 |
+| Small model only | 77.7% | $0.72 | $0.006 |
+
+The frontier model in the article is Opus 4.8 and the small model is Nemotron 3.5 Lightning. The router sent about 7% of agent calls to the frontier model, and those calls were 68.4% of the routed spend.
+
+Now read it the way the talk does, which is with every qualification attached.
+
+**Read accuracy and cost together.** That is the talk's main line for routing. Routing cut cost per completed task from $0.092 to $0.026. It also cut accuracy by 6 points. The 6-point gap is larger than the 2.7 points of run-to-run variation the article reports. Against the sampling interval of about 6.5 points worked out above for 145 tasks, it is likely, not settled. A paired comparison on the same tasks, from Foundations' Comparing two systems, is the test that settles it. Routing was cheaper and probably worse. Whether that is a good trade depends on a number the article cannot know: your quality requirement.
+
+**Compare against the cheapest arm too.** The routed arm beat small-only by 2.3 points. That is smaller than the 2.7 points of run-to-run variation. On this workload, the experiment does not establish that routing was more accurate than using the small model alone, which cost a quarter as much per completed task. The authors say so themselves.
+
+**Know which denominator you are reading.** The article's headline is 74% lower cost, which is total run cost, $11.45 to $3.00. The talk computes the drop in cost per completed task from the displayed values: (0.092 minus 0.026) divided by 0.092 is 71.7%, about 72%. Both are correct. They answer different questions, because the routed arm completed fewer tasks. When you report a saving, name the denominator.
+
+**Know what the router did not prove.** The 7% share is not a finding that 7% of calls need a frontier model. In the talk's research: the router "did not establish which calls required that model." Across five runs, the share ranged from 4.1% to 9.1%.
+
+**Count everything that runs.** "Call counts exclude the judge", the article notes, and the judge took 21.2% of routed spend, about $0.64 per run, and added about 700 milliseconds per turn. A router has its own cost and its own latency, and they belong in the comparison.
+
+**Know the limits of the workload.** The authors' own limitation: "Treat what follows as a measurement of one workload rather than a forecast for yours." They add that the suite is saturated, with only 8 points between the small and frontier models, so routing had little room to show value.
+
+Then ask the talk's question, the one on the slide above the pitfall band: "Which configuration meets your product's quality requirement?" Work it through, taking the reported accuracies at face value. If your requirement is 85%, only frontier-only meets it, and cost is irrelevant: the cheaper configurations are cheaper at a quality you said you cannot ship. But frontier-only clears 85% by 1 point on 145 tasks, and a configuration that clears the requirement by less than the noise has not been shown to meet it. Confirm it on your own cases. If your requirement is 75%, all three meet it, and small-only is the cheapest by a wide margin. Routing is the answer only when the requirement sits between the small model and the routed configuration, a 2.3-point band that this experiment cannot distinguish from noise. That is not an argument against routing. It is an argument for deciding the requirement before you look at the costs, and for measuring on your own workload, where the gap between models may be much wider than 8 points.
+
+### Diagnose before you swap
+
+When a model-powered feature fails, swapping the model is the most visible fix and often the wrong one. The book's Chapter 10 makes it an outcome: "Decide whether a failure calls for better instructions, retrieval, tools, adaptation, or a different task design." A different model is on the list too, last, because it is the change most likely to move every other behavior at once.
+
+The Berkeley post on compound AI systems, from February 2024, frames why. It describes "a system that tackles AI tasks using multiple interacting components", including "multiple calls to models, retrievers, or external tools", and argues that leading results increasingly come from "clever engineering, not just scaling up training." Your product is a compound system. A failure has a location in it, and the model is one location among several. The talk's later revision says it in a sentence: when a result fails, inspect the supplied evidence and workflow before replacing the model.
+
+Read the trace and place the failure.
+
+| What the trace shows | What the failure calls for |
+|---|---|
+| The instructions never stated the rule the answer broke | Better instructions, then a rerun on the same cases |
+| The right document was missing, stale, or ranked too low | Retrieval: the index, the freshness, the ranking |
+| The model needed a fact or action it had no tool for, or misused a tool with an ambiguous description | Tools: a new tool, a clearer description, a narrower interface |
+| The model has the facts and the instructions and still fails a narrow, stable, high-volume task | Adaptation: examples in context first, then fine-tuning as a measured experiment |
+| The task asks one call to do too much, or the right output is not well defined | Task design: split the task, add a deterministic step, define acceptance |
+| The facts, instructions, and tools are right, and a stronger model succeeds on the same cases | A different model, chosen with the full comparison |
+
+The last row has a condition: on the same cases. A stronger model that fixes the five failures you looked at can break twenty cases you did not look at. A model swap is a selection, and it needs the whole selection run. The other rows are cheaper, more targeted, and easier to verify. The Context and knowledge, Tools and extensibility, and Fine-tuning and adaptation modules take each one apart.
+
+### The migration, step by step
+
+When a deprecation notice arrives, or a candidate looks better, or an alias moves, the work is the same. Here it is as a runbook, assuming the eval suite exists. If it does not, step 0 is to build it, and the calendar math above says when that should have happened.
+
+1. **Inventory.** Find every place the model id is used: services, background jobs, scripts, notebooks, prompts that mention it. Anthropic's deprecations page offers a usage export from its console for this reason: a CSV "broken down by API key and model." Ids in string literals across a codebase are how a migration misses the nightly job that nobody remembers. Keep model ids in one configuration file, and make that file the only place they appear.
+2. **Check eligibility.** The replacement must be eligible for the data on every path that will call it, including fallbacks. A recommended replacement is not automatically approved by your organization.
+3. **Check compatibility.** Parameters, schema features, tool modes, context and output limits, and the tokenizer. Run your real request code against the replacement, so that a 400 error for a deprecated parameter shows up now and not in production.
+4. **Run the suite on both.** The same cases, the same graders, the current model and the replacement, with repeated runs. Report per category, cost per completed task, and p95 latency, beside the run-to-run range.
+5. **Tune, then rerun.** If the replacement is worse on a category, try prompt changes and rerun the whole suite, not only the failing cases. Record each prompt version with its results.
+6. **Shadow, then cut over in stages.** Run the replacement on a slice of live traffic without serving its answers, compare, then shift traffic in steps, watching the semantic check rates and the categories that matter.
+7. **Keep the rollback until it expires.** The old model is your rollback target until its retirement date. Decide before the cutover what result would send you back.
+8. **Record the decision.** Write down what was compared, what it showed, what you could not measure, and when to look again. That record is the subject of the last section.
+
+Notice what is not on the list: "swap the id and see if CI passes." CI tells you the code around the model still compiles and its tests still pass. Unless CI runs the eval suite against the live replacement, it tells you nothing about the replacement's behavior. A test suite that replays recorded model responses, often stored as fixtures called cassettes, is especially misleading here, because it replays the old model's answers no matter which id the code now names.
+
+### When you are the owner
+
+Pull the module together around the artifact the book asks for. Chapter 10's completion evidence: "Write a model-selection decision record, state evidence gaps, and define checks for future migrations. Recheck actual terms during implementation." You know the architecture decision record. The book's transfer statement for the chapter says what changes: the record gains task-specific behavioral evidence.
+
+A model-selection decision record has these parts.
+
+- **Context.** The task, the users, the baseline without a model, and the quality requirement, written before the results.
+- **Eligibility.** The data the model will see, the regions and terms that apply, the approvals, and the candidates removed by them.
+- **Configurations compared.** Each one complete: model id and whether it is pinned or an alias, effort setting, prompt version, schema version, tool set, and routing rule if any.
+- **Evidence.** The case set and its version, how it was sampled, the grader, results per category with the run-to-run range, cost per completed task with its denominator, and p95 latency.
+- **Decision.** Which configuration, and why it meets the requirement. If a cheaper configuration came close, why it was not chosen.
+- **Evidence gaps.** What was not measured: categories with few cases, human review time, behavior under load, the languages you have no cases for.
+- **Migration checks.** The suite to rerun, the categories to watch, the alert rules, and the retirement date of every model in the configuration.
+- **Review triggers.** A deprecation notice, a price change, an alias update, a new eligible candidate, a drift alert, or a change in the requirement.
+
+The Model Cards paper (Mitchell and colleagues, 2018) proposed that models be documented with "the context in which models are intended to be used" and "benchmarked evaluation in a variety of conditions". A decision record is the product-side version of the same idea: intended use, and evidence under the conditions that matter. The book's source notes add the caution that belongs with it: documentation accompanies the evidence; it does not substitute for it.
+
+Now the pitfall. On the talk's pitfalls slide it reads: "Models: a hardcoded model ID with no eval suite behind it." The research behind the talk gives the fuller form: "Treating the model as a fixed dependency: a hardcoded model ID with no eval suite behind it, so the deprecation email arrives with a replacement you have never measured." Each half is a problem on its own. A hardcoded id scattered through a codebase makes the migration hard to do completely. No eval suite makes it impossible to do with evidence. Together, they guarantee that on the day the notice arrives, the team will choose a replacement by reputation, swap a string in the places it remembers, watch CI pass, and ship. The talk's line for that moment: it leaves you choosing a replacement without evidence. The mirror image is an alias with drift you never detect, and the fix is the same suite on a different trigger.
+
+Orientation collects all six pitfalls and says what they share. This one is a demo mistaken for a product in its purest form: the id that worked in the demo, carried into production unchanged, with nothing measuring it.
 
 <Takeaway />
+
+Everything in this module is a way of treating it like one. Version it: a pinned id or a deliberate alias, recorded in one place, with its retirement date. Contract it: an output specification your code enforces, so that a replacement has something to meet. Measure it: your cases, your criterion, per category, with the noise written down. Expect it to expire: a suite that exists before the notice, a runbook that fits in sixty days, and a decision record that says when to look again.
 
 ## Workshop
 
 <Workshop>
 
-<Artifact id="models-fixture-trace" />
+<Artifact id="models-selection-report" />
 
-Fixture task. Read the trace and the config it points at. In a few sentences, say which of the six selection axes this system can answer for today, which it cannot, and what evidence you would need before the retirement date to choose between the two replacement strategies.
+You own the ticket-triage service in the report. Today a rules engine routes tickets. A prototype used acme-large-20250301, which retires on 2026-11-30, so the team ran a selection on the replacement candidates and wants a decision this week. Read the report as the evidence for that decision. Then write the Eligibility, Decision, Evidence gaps, and Migration checks parts of a model-selection decision record, in 250 to 400 words in total: which configuration you would ship, or that you would ship none yet; how it meets each part of the stated requirement; which candidates you removed before comparing scores, and why; what this evidence does not establish; and which checks you would set up so that the next migration has evidence behind it. No code. Your response is saved to your account and never graded. Apply the rubric below to it yourself.
 
-- Names at least two selection axes and says whether the trace gives evidence for them.
-- Distinguishes a pinned version from a moving alias and names a cost of each.
-- Names the evidence a replacement decision needs and where it would come from.
+- Removes any candidate that fails eligibility before comparing scores, and says why its numbers should not enter the argument at all.
+- Checks every remaining configuration against all three numeric parts of the requirement, not only overall accuracy.
+- Compares cost per completed task only among configurations that meet the requirement.
+- Reads the security category with its sample size, and says what a difference of one case means there.
+- Reads differences against the stated run-to-run range, and does not treat a smaller difference as established.
+- Names at least two evidence gaps, such as what the cost basis leaves out, or which latency figure the requirement refers to.
+- Records the chosen configuration completely: model id, whether it is pinned, effort setting, and routing rule if any.
+- Defines migration checks: the suite and version to rerun, the categories to watch, and the retirement dates to track.
 
 </Workshop>
 
@@ -149,13 +767,21 @@ Fixture task. Read the trace and the config it points at. In a few sentences, sa
 
 <FailureExercise>
 
-<Artifact id="models-fixture-trace" />
+<Artifact id="models-migration-pr" />
 
-Fixture exercise. Something in this trace will cause a migration with no evidence behind it. Find it and explain it in a few sentences.
+This pull request is about to merge. It contains the Models pitfall, and the people involved believe they have tested the change. Find it from the artifact alone. In a few sentences, say what the team does not know about the replacement after reading this CI run, point to the lines that show it, and say what would have to exist before this change could merge with evidence behind it.
 
 <Fragment slot="explanation">
 
-The request model is a hardcoded id in a config file, the vendor has started returning a deprecation header with a retirement date, and the harness has no eval suite and no last eval run. When the retirement date arrives, the team will choose a replacement it has never measured. The fix is not a different model id. It is an eval suite over representative cases, run against the current model today and against the replacement before the switch.
+The model id is hardcoded, and there is no eval suite behind the change. Everything that looks like testing measures something other than the replacement's behavior.
+
+Start with the CI log, because the description's claim rests on it. The integration tests ran in replay mode, from cassettes recorded on 2026-03-02. Those cassettes hold the old model's answers. They replay those answers whatever id the code now names, so all 38 integration passes and all 38 contract passes describe acme-large-20250301, not the replacement. The only live calls to the new model are three smoke prompts, and the smoke test checks that each answer is non-empty and schema valid. That is shape, not correctness. Three prompts have no categories, no reference answers, no comparison with the current model, and no cost or latency figure. "No prompt changes needed" is an assertion with no evidence behind it, and the escalation path still sends REPLY_PROMPT_V3, a prompt tuned on the old model, to the new one.
+
+Now the grep. The id appears as a string literal in three files. The PR changed two. The nightly digest job still names acme-large-20250301 and will start failing on 2026-11-30, the day the old model retires. That is the hardcoded half of the pitfall: with no single configuration, the migration depends on remembering every place.
+
+The reviewer approved on "CI is green". CI was green because nothing in it could fail for a behavioral reason. The team has sixty-one days between the notice and the retirement, and is about to spend them having learned nothing about the model it will run.
+
+What would have to exist: the model id in one configuration file, read by every caller; an eval suite of representative cases from production traffic, with categories and a grader, run on both the current model and the replacement with repeated runs; a compatibility check that runs the real request code against the replacement; a per-category comparison with cost per completed task and p95; a shadow period on live traffic; and the old model kept as the rollback target until it retires. The change should merge with a decision record that names what was compared and what was not.
 
 </Fragment>
 

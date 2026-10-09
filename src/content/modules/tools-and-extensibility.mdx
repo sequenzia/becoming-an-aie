@@ -3,35 +3,775 @@ title: "Tools and extensibility"
 kind: area
 area: tools
 order: 3
-summary: "A tool is a contract between code and a model caller. Descriptions, granularity, payloads, and the gate that authorization runs through."
-readingMinutes: 60
+summary: "A tool is a contract between code and a model caller. Task fit, descriptions and their evals, results the caller can act on, three kinds of action, and the gate that authorization runs through."
+readingMinutes: 50
 prerequisites: [foundations, context-and-knowledge]
 talkBeats: ["2.3"]
 bookChapters: [15]
-draft: true
-updatedOn: 2026-09-16
-checkedOn: 2026-09-16
+draft: false
+updatedOn: 2026-10-09
+checkedOn: 2026-10-09
 staleAfterDays: 90
 takeaway: "Design tools for a caller that reads the description every time and can still get it wrong."
 pitfall: "Copying the API surface without evaluating task fit"
 transferRows: [interface]
-artifacts: []
-outcomes: []
-selfCheck: []
-sources: []
+artifacts:
+  - tools-and-extensibility-mirrored-api
+  - tools-and-extensibility-task-shaped
+  - tools-and-extensibility-ambiguous-call-trace
+  - tools-and-extensibility-generated-toolset-pr
+outcomes:
+  - id: tool-as-contract
+    text: Describe a tool as a contract between deterministic code and a model caller, and say what each part is for, from the name and description to the input schema, the result, and the errors.
+  - id: task-fit
+    text: Evaluate tool granularity against representative tasks instead of mirroring the endpoints of an existing API.
+  - id: descriptions-as-prompts
+    text: Write tool names and descriptions as prompts for a caller that reads them on every request, and measure their effect with task-based evals.
+  - id: actionable-results
+    text: Shape tool results so the caller can act on them, with meaningful names beside stable IDs, controlled verbosity, and errors that separate confirmed, failed, and unknown outcomes.
+  - id: action-categories
+    text: Classify each action as a scoped read, a reversible change, or a consequential action, and name the control each category needs.
+  - id: authorize-outside-model
+    text: Enforce identity, authorization, and validation in code outside the model, so an unauthorized request is refused whatever the prompt, the description, or the model says.
+  - id: protocol-limits
+    text: Explain what MCP standardizes, what it leaves to you, and what connecting a third-party server costs in context and in trust.
+selfCheck:
+  - id: q1-schema-valid
+    outcome: tool-as-contract
+    question: "A model's tool call passed input schema validation. What has that established?"
+    options:
+      - "The arguments have the structure the schema describes."
+      - "The action is permitted for the user who asked."
+      - "The action succeeded."
+      - "The model chose the right tool for the task."
+    correct: [0]
+    feedback:
+      - "Correct. A schema checks shape. Permission, success, and task fit are separate questions that code and evals answer."
+      - "Not yet. A valid input shape does not establish that an action is allowed. Reread A tool is a contract."
+      - "Not yet. Validation happens before execution, so it says nothing about the outcome. Reread A tool is a contract."
+      - "Not yet. A well-formed call to the wrong tool is still well formed. Reread A tool is a contract."
+  - id: q2-reads-every-time
+    outcome: tool-as-contract
+    question: "Which parts of a tool does the model read on every request that includes it?"
+    options:
+      - "The tool's name"
+      - "The tool's description"
+      - "The input schema, including each parameter's description"
+      - "The code that implements the tool"
+      - "The approval mode the client sets for the tool"
+    correct: [0, 1, 2]
+    feedback:
+      - "Correct. The name is part of the definition the provider places in the model's context."
+      - "Correct. The description is loaded into context with every request and steers selection and use."
+      - "Correct. Parameter names and descriptions are read too, which is why user_id beats user."
+      - "Not yet. The model never sees the implementation. It sees only the definition and the results. Reread A tool is a contract."
+      - "Not yet. Approval mode is client configuration the model never sees. Reread A tool is a contract."
+  - id: q3-address-book
+    outcome: task-fit
+    question: "An address-book API offers an endpoint that lists every contact. What does Anthropic's tool-writing guidance suggest exposing to an agent instead?"
+    options:
+      - "The same list endpoint, with the page size raised to 1,000"
+      - "A search tool that returns only the relevant matches"
+      - "One tool per field of the contact record"
+    correct: [1]
+    feedback:
+      - "Not yet. A bigger page fills the caller's limited context with records it does not need. Reread Task fit and granularity."
+      - "Correct. Software can scan a list cheaply. A model reads every token it is given, so the tool should do the filtering."
+      - "Not yet. Finer granularity adds calls and coordination without fixing the cost of reading everything. Reread Task fit and granularity."
+  - id: q4-missing-evidence
+    outcome: task-fit
+    question: "A team generated one tool per endpoint from an OpenAPI file. Every tool is callable with valid fixtures, and latency is fine. What evidence is still missing before the tool set ships?"
+    options:
+      - "More contract tests with different fixtures"
+      - "Runs of representative tasks that measure tool selection, calls per task, tokens, errors, and the outcome in the system of record"
+      - "A p99.9 latency figure"
+    correct: [1]
+    feedback:
+      - "Not yet. Contract tests show each endpoint works. They do not show the agent can do the job. Reread Task fit and granularity."
+      - "Correct. Task fit is a property of tools and caller together, on the tasks users bring. Only task runs measure it."
+      - "Not yet. Latency is an operating number, not task fit. Reread Task fit and granularity."
+  - id: q5-connect-five
+    outcome: protocol-limits
+    question: "A team plans to connect five MCP servers. What does the talk say about the token cost?"
+    options:
+      - "About 55K tokens, the five-server figure"
+      - "It depends on the definitions, not just the server count"
+      - "Nothing, because definitions load on demand"
+    correct: [1]
+    feedback:
+      - "Not yet. 55K was one set of five servers in one vendor's example. One of them alone took about 26K. Reread The cost of connecting more tools."
+      - "Correct. A two-tool server and a thirty-five-tool server cost very different amounts. Count the definitions you will actually load."
+      - "Not yet. By default every definition is sent on every request. Loading on demand is a design choice you would have to make. Reread The cost of connecting more tools."
+  - id: q6-strong-task
+    outcome: descriptions-as-prompts
+    question: "Which is the stronger evaluation task for a calendar tool set, following Anthropic's example?"
+    options:
+      - "Schedule a meeting with Jane next week to discuss our latest Acme Corp project."
+      - "Schedule a meeting with jane@acme.corp next week."
+    correct: [0]
+    feedback:
+      - "Correct. It makes the agent resolve a person, find a time, and carry context, the way real requests do."
+      - "Not yet. Handing the agent the exact identifier skips the step where tool sets fail. Reread Descriptions are prompts, and prompts need evals."
+  - id: q7-two-danas
+    outcome: actionable-results
+    question: "A customer search finds two customers named Dana Whitfield. What should the tool return?"
+    options:
+      - "The names only, because names are what the user said"
+      - "The internal UUIDs only, because they are unambiguous"
+      - "Both matches with distinguishing context and the stable IDs needed to act, plus a note that the user must choose"
+      - "The first match, to save tokens"
+    correct: [2]
+    feedback:
+      - "Not yet. Names alone may be ambiguous. Reread Results, identifiers, and verbosity."
+      - "Not yet. Opaque identifiers invite hallucinated or swapped IDs, and the user cannot choose between them. Reread Results, identifiers, and verbosity."
+      - "Correct. Return meaningful names alongside stable IDs needed to act, and let the result say that a choice is needed."
+      - "Not yet. Picking for the caller hides the ambiguity the caller needs to see. Reread Results, identifiers, and verbosity."
+  - id: q8-timeout
+    outcome: actionable-results
+    question: "A tool that posts a public comment times out after 60 seconds. What should the result tell the caller?"
+    options:
+      - "Failed. Retry the call."
+      - "Unknown. The comment may exist. Check state before retrying."
+      - "Failed. Report the failure to the user and stop."
+    correct: [1]
+    feedback:
+      - "Not yet. A timeout is not a known failure. A blind retry can post the comment twice. Reread Results, identifiers, and verbosity."
+      - "Correct. Confirmed completion, known failure, and unknown outcome are three different results. Orchestration decides the recovery, using that evidence."
+      - "Not yet. The comment may already exist, so 'failed' is not known. Reread Confirmed, failed, unknown."
+  - id: q9-consequential
+    outcome: action-categories
+    question: "A support agent's tools can do the following. Which actions are consequential in the talk's sense?"
+    options:
+      - "Issue a refund to a customer's card"
+      - "Read a ticket in the signed-in support rep's own queue"
+      - "Post a public comment that emails the customer"
+      - "Save a draft reply that a person reviews before sending"
+    correct: [0, 2]
+    feedback:
+      - "Correct. Money moves and cannot be pulled back by the system. That needs policy authorization or approval."
+      - "Not yet. That is a scoped read. It needs access enforcement, not approval. Reread Three kinds of action."
+      - "Correct. A message that reaches the customer cannot be unsent. Treat it as consequential."
+      - "Not yet. A draft is a reversible change. It needs validation and a way back. Reread Three kinds of action."
+  - id: q10-smart-mode
+    outcome: authorize-outside-model
+    question: "Devin CLI's Smart permission mode lets a fast model judge whether some actions are safe to run unattended. What keeps that model's judgment from being the only gate?"
+    options:
+      - "A list of action types it never auto-approves, and organization deny and ask rules that no mode overrides"
+      - "The model's confidence score on each command"
+      - "The instructions file in the repository"
+    correct: [0]
+    feedback:
+      - "Correct. A model's approval recommendation does not establish permission, so the vendor put a code-enforced floor under it."
+      - "Not yet. A confidence score is still the model's own judgment. Reread Authorization lives outside the model."
+      - "Not yet. Instructions are context the model reads, not a control code enforces. Reread Authorization lives outside the model."
+  - id: q11-tenant
+    outcome: authorize-outside-model
+    question: "A tool takes tenant_id as a parameter, and the model fills it in. Where should the tenant come from?"
+    options:
+      - "From the model, checked against a regular expression"
+      - "From the signed-in session, with no tenant parameter on the tool at all"
+      - "From the tool description, which tells the model which tenant to use"
+    correct: [1]
+    feedback:
+      - "Not yet. A well-formed tenant id can still be the wrong tenant. Reread Authorization lives outside the model."
+      - "Correct. Do not ask the model for arguments your code already knows. Identity comes from authentication, and the server checks every id against it."
+      - "Not yet. A description is guidance, and the model can still get it wrong. Reread Authorization lives outside the model."
+  - id: q12-annotations
+    outcome: protocol-limits
+    question: "What does MCP revision 2026-07-28 say about tool annotations such as readOnlyHint?"
+    options:
+      - "They are hints and are not guaranteed to describe the tool's behavior faithfully."
+      - "Clients must consider them untrusted unless they come from trusted servers."
+      - "Servers are certified to set them accurately."
+      - "A tool marked read-only can skip authorization."
+    correct: [0, 1]
+    feedback:
+      - "Correct. The schema says so in a note on ToolAnnotations."
+      - "Correct. The tools page carries that warning."
+      - "Not yet. The protocol certifies nothing about a server's honesty. Reread What a protocol does and does not guarantee."
+      - "Not yet. A hint is not a control, and authorization applies to every category. Reread What a protocol does and does not guarantee."
+sources:
+  - title: Beyond the Coding Agent, the talk repository
+    author: Stephen Sequenzia
+    date: "2026-09"
+    url: https://github.com/sequenzia/beyond-the-coding-agent
+    checkedOn: 2026-10-09
+    note: "Beat 2.3, slides 12 and 13, as recorded in this program's talk knowledge base at commit 323bc2e. The Section 2 research file, section 3, was read again at commit d90f230, where the tools beat has been reworked onto later slides; quotes here use the slide 12 and 13 wording."
+  - title: Becoming an AI Engineer, the book blueprint
+    date: "2026-09"
+    checkedOn: 2026-10-09
+    note: "Chapter 15, Designing Tools for Model Callers, and the companion project's interface responsibilities, at commit b929064. The public link is pending."
+  - title: Writing effective tools for agents, with agents
+    org: Anthropic
+    author: Ken Aizawa
+    date: "2025-09-11"
+    url: https://www.anthropic.com/engineering/writing-tools-for-agents
+    checkedOn: 2026-10-09
+    note: "Consolidation, namespacing, results, response_format, the eval loop, and the SWE-bench Verified note. Describes Anthropic's own experience and models, not a general law."
+  - title: Introducing advanced tool use on the Claude Developer Platform
+    org: Anthropic
+    author: Bin Wu
+    date: "2025-11-24"
+    url: https://www.anthropic.com/engineering/advanced-tool-use
+    checkedOn: 2026-10-09
+    note: "The five-server example, tool search, programmatic tool calling, and tool use examples. The numbers are Anthropic's internal measurements in its own examples."
+  - title: "Code execution with MCP: Building more efficient agents"
+    org: Anthropic
+    author: Adam Jones and Conor Kelly
+    date: "2025-11-04"
+    url: https://www.anthropic.com/engineering/code-execution-with-mcp
+    checkedOn: 2026-10-09
+    note: "The 150,000 to 2,000 token figure is one worked example in the post, not a typical saving."
+  - title: Define tools
+    org: Anthropic, Claude Platform documentation
+    date: "2026"
+    url: https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools
+    checkedOn: 2026-10-09
+    note: "The page states no publication date. The year is the year read. Tool definition fields and best practices for descriptions."
+  - title: Function calling
+    org: OpenAI, API documentation
+    date: "2026"
+    url: https://developers.openai.com/api/docs/guides/function-calling
+    checkedOn: 2026-10-09
+    note: "The page states no publication date. The year is the year read. Function definition fields, strict mode, and the best-practice list."
+  - title: Tools, Model Context Protocol specification, revision 2026-07-28
+    org: Model Context Protocol
+    date: "2026-07-28"
+    url: https://modelcontextprotocol.io/specification/2026-07-28/server/tools
+    checkedOn: 2026-10-09
+  - title: Model Context Protocol schema, revision 2026-07-28, ToolAnnotations
+    org: Model Context Protocol
+    date: "2026-07-28"
+    url: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2026-07-28/schema.ts
+    checkedOn: 2026-10-09
+    note: "The note that annotations are hints, and the defaults of each hint."
+  - title: Security Best Practices, Model Context Protocol, revision 2026-07-28
+    org: Model Context Protocol
+    date: "2026-07-28"
+    url: https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices
+    checkedOn: 2026-10-09
+  - title: "LLM06:2025 Excessive Agency"
+    org: OWASP Gen AI Security Project
+    date: "2025"
+    url: https://genai.owasp.org/llmrisk/llm062025-excessive-agency/
+    checkedOn: 2026-10-09
+    note: "The talk's three action categories are the talk's heuristic, not OWASP's taxonomy."
+  - title: "CamoLeak: Critical GitHub Copilot Vulnerability Leaks Private Source Code"
+    org: Legit Security
+    author: Omer Mayraz
+    date: "2025-10-08"
+    url: https://www.legitsecurity.com/blog/camoleak-critical-github-copilot-vulnerability-leaks-private-source-code
+    checkedOn: 2026-10-09
+    note: "Researcher-demonstrated vulnerability, not evidence of observed exploitation of customers. The post was updated 2026-02-12."
+  - title: "GitHub MCP Exploited: Accessing private repositories via MCP"
+    org: Invariant Labs
+    author: Marco Milanta and Luca Beurer-Kellner
+    date: "2025-05-26"
+    url: https://invariantlabs.ai/blog/mcp-github-vulnerability
+    checkedOn: 2026-10-09
+    note: "A researcher demonstration. The authors say it is not a flaw in the GitHub MCP server's code."
+  - title: "MCP Security Notification: Tool Poisoning Attacks"
+    org: Invariant Labs
+    author: Luca Beurer-Kellner and Marc Fischer
+    date: "2025-04-01"
+    url: https://invariantlabs.ai/blog/mcp-security-notification-tool-poisoning-attacks
+    checkedOn: 2026-10-09
+    note: "A researcher demonstration of a class of attack, not a report of observed exploitation."
+  - title: Researchers Find 341 Malicious ClawHub Skills
+    org: The Hacker News
+    author: Ravie Lakshmanan
+    date: "2026-02-02"
+    url: https://thehackernews.com/2026/02/researchers-find-341-malicious-clawhub.html
+    checkedOn: 2026-10-09
+    note: "Secondary reporting of Koi Security's audit. The underlying audit was not independently checked."
+  - title: The lethal trifecta for AI agents
+    author: Simon Willison
+    date: "2025-06-16"
+    url: https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/
+    checkedOn: 2026-10-09
+  - title: Codex CLI configuration reference
+    org: OpenAI
+    date: "2026"
+    url: https://learn.chatgpt.com/docs/config-file/config-reference
+    checkedOn: 2026-10-09
+    note: "The page states no date or version. sandbox_mode, approval_policy, and the mcp_servers keys as listed on the day read."
+  - title: Codex CLI slash commands
+    org: OpenAI
+    date: "2026"
+    url: https://learn.chatgpt.com/docs/cli/slash-commands
+    checkedOn: 2026-10-09
+    note: "The page states no date or version. The /mcp and /permissions commands as described on the day read."
+  - title: Devin CLI permissions
+    org: Cognition
+    date: "2026"
+    url: https://docs.devin.ai/cli/reference/permissions
+    checkedOn: 2026-10-09
+    note: "The page states no date or version. The five permission modes, Smart mode's exclusions, and rule precedence as described on the day read."
 ---
 
 ## Transfer connection
 
-This module is planned. It is not yet written. This page holds its place in the catalog until it is.
+This module expands one row of the talk's transfer table. You already do this: **Interface design**. It becomes this: Tool design.
 
-It will expand one row of the talk's transfer table. You already do this: Interface design. It becomes this: Tool design. The module will say what stays the same and what changes.
+You have designed interfaces for years. You have named endpoints and argued about whether a resource deserves its own route. You have chosen between one coarse call and five fine ones. You have written error responses that a client can act on, versioned a contract so callers did not break, and scoped a credential so a compromised service could do less damage. The book's chapter on tools states the connection in one line: "API contracts, authorization, and least privilege constrain a new kind of caller."
+
+What stays the same: the contract. A tool has a name, a purpose, typed inputs, a result, and error behavior, and every one of those is a design decision you already know how to make. Granularity is still a tradeoff between flexibility and coordination. Naming still decides whether a caller finds the right operation. Errors still decide whether a caller can recover. Authorization still belongs on the server, never in the client's good intentions. Least privilege still limits what a mistake or an attacker can reach. Your instincts about all of this transfer whole.
+
+What changes: the caller. Your usual caller is a developer. She reads the documentation once, writes code against it, and a compiler or a test catches her mistakes before anything runs. Her code then calls the endpoint the same way every time. The new caller is a model. It reads the tool's name, description, and schema on every request, decides fresh each time which tool to call and with what arguments, and makes its mistakes at run time, as calls. It reads every result into a context window that has a cost and a limit. It can be steered by text in a ticket, a web page, or a tool description written by someone else. And it can still get it wrong after reading everything correctly, because the same input does not guarantee the same output.
+
+The talk compresses this into one line on the competency list: tool design, "for a caller that reads the description every time." The area's takeaway finishes the thought: the caller can still get it wrong. Everything in this module follows from those two facts. The description is part of the interface, so it is engineering, and it needs evals. The caller is fallible, so the code behind the tool must hold the line on identity, permission, and validation whatever the caller sends.
+
+One more change matters. A developer who calls your API is accountable for her code. A model that calls your tool is not accountable for anything. When you ship the tool, the owner of its behavior is you.
 
 ## Topics and learning outcomes
 
 <Outcomes />
 
-The module draws on talk beat 2.3 and on book chapter 15. Each concept arrives with its outcome. Each gets a coding-agent worked example: what the user touched, what the vendor engineered. Each cites a public incident or a first-hand account, with its checked-on date.
+In the version of the talk this module follows, the area has two slides. The first starts from what you have touched as a user of a coding agent: a tool server you connected and a permission prompt you answered. The second turns to the owner, under the title "You write the contract. You build the gate." This module takes both apart. It follows the outcomes above in order: the contract, task fit, descriptions, results, the three kinds of action, authorization, and what a protocol does and does not guarantee. It ends with the owner's responsibilities and the pitfall. This is two sittings. A good place to stop is after Results, identifiers, and verbosity.
+
+A note on the evidence. Much of what is known about tool design comes from vendors who build both models and agents, Anthropic and OpenAI above all, and from security researchers who break agents for a living. Vendor guidance describes their models and their experience on the day it was published. Where a number appears below, it comes with its source and its scope. Treat each one as a reason to measure your own system, not as a result you inherit. Quotes from the talk come from its slides, its spoken track, and the research notes behind it. A later revision of the talk reworded some slides, and quotes from it say so.
+
+### When you are the user
+
+Start with what you have done. You connected a tool server to a coding agent, and you answered a permission prompt. MCP, the Model Context Protocol, is a standard way for a tool server to offer tools to any agent that speaks it. The talk's spoken line for the user slide: "You have installed MCP servers and seen permission prompts. Codex and Devin expose sandbox and approval settings."
+
+The talk names two agents. Here is what they expose, as their documentation describes them on 2026-10-09. Only the settings this module returns to are named here. The rest are in the collapsible block after them.
+
+In Codex CLI, `/mcp` is the command you may have typed. The slash-command page describes it as "List configured Model Context Protocol (MCP) tools", for checking "which external tools Codex can call during the session". Each server in the configuration file has its own settings. Three of them matter later in this module. `default_tools_approval_mode` sets how that server's tools are approved, with one of four values, auto, prompt, writes, or approve, and a per-tool `approval_mode` can override it. `tool_timeout_sec` overrides "the default 60s per-tool timeout". `tool_output_token_limit` sets a "Token budget for storing individual tool/function outputs in history."
+
+In Devin CLI, the permissions page describes five modes. One of them, Smart mode, works differently from the rest: for shell commands, web fetches, MCP tools, and writes outside the workspace, "a fast model judges whether the action is safe to run unattended". If that model is unsure or unavailable, you get a prompt. And there is a list of things Smart mode never auto-approves, whatever the fast model thinks: package installs, mutating git operations, `rm`, `sudo` and other destructive or privilege-escalating commands, destructive cloud operations, and anything touching dotenv files, key material, Git config, or the agent's own configuration. Above every mode sit organization rules: "Organization-level deny and ask rules cannot be overridden by project or user config", and "A deny rule always wins."
+
+<Collapsible title="Codex and Devin settings in full">
+
+Codex CLI, configuration reference, checked on 2026-10-09. Per MCP server: `enabled_tools` is an "Allow list of tool names exposed by the MCP server." `disabled_tools` is a "Deny list applied after `enabled_tools`". Above the servers sit `sandbox_mode`, which is read-only, workspace-write, or danger-full-access, and `approval_policy`. The `/permissions` command will "Set what Codex can do without asking first."
+
+Devin CLI, permissions page, checked on 2026-10-09. You add a server with `devin mcp add`. In Normal, the default mode, read-only tools run automatically, and fetch, shell, and file edits prompt. Accept Edits adds workspace edits to the automatic set. Smart adds the fast-model judgment described above. Bypass approves everything. Autonomous pairs with a sandbox. Rules can name MCP tools one at a time, as `mcp__server__tool`, or a whole server.
+
+</Collapsible>
+
+The talk's line about all of this is the one to keep: "A model can recommend approving a command, but that recommendation does not establish permission."
+
+Read Devin's Smart mode again with that line in mind. The vendor uses a model to make a judgment, because a model is good at reading a shell command and guessing what it will do. Then the vendor surrounds that judgment with rules a model cannot change: a list of action types that always prompt, and organization rules that override every mode. The model is allowed to recommend. Code decides. Devin's users have been working behind a gate built on exactly the principle this module asks you to build on, probably without noticing.
+
+### What someone engineered
+
+Now look behind the surfaces. Every tool your coding agent has, from reading a file to running a shell command to calling a connected server, was designed by someone for a model caller. In the talk's research: "The vendor wrote descriptions, chose granularity, shaped payloads, built the approval UI."
+
+Walk through those four.
+
+**Descriptions.** The built-in tools in your coding agent have descriptions you have probably never read. The model reads them on every request. Someone wrote them, tested them, and rewrote them when the agent misused a tool. When you connect a third-party server, its author's descriptions join the vendor's in the same context window, at whatever quality that author achieved.
+
+**Granularity.** Someone decided that editing a file is a different tool from running a shell command, even though a shell can edit a file. That split is not about capability. It is about control and legibility. A file edit can be shown as a diff, approved separately, and kept inside the workspace. A shell command cannot be summarized that cleanly. Granularity follows the controls the vendor wanted, not the operations the operating system offers.
+
+**Payloads.** Someone decided how much of a tool's output the model gets to see. Anthropic's tool-writing post says that "For Claude Code, we restrict tool responses to 25,000 tokens by default." Codex exposes the same decision to you as `tool_output_token_limit`, and per MCP tool as an output token limit. A payload limit is a context-budget decision. The Context and knowledge module's takeaway puts it this way: "Context is a budget, not a bucket." It is also a correctness decision, as the workshop trace in this module shows: a truncated result can hide the one record that mattered.
+
+**The approval UI.** Someone classified actions into those that run, those that prompt, and those that never run unattended. Someone decided that an organization's deny rule beats a user's allow rule. Someone decided what the prompt shows you, so that you can approve with understanding rather than reflex.
+
+None of this is visible when it works. All of it becomes yours when you ship a product whose model calls tools. Here is the mapping in one table.
+
+| What you touched as a user | What someone engineered behind it |
+|---|---|
+| `/mcp` lists the connected tools | Discovery, naming, and which tools reach the model at all |
+| A tool call that did the right thing | A description written, tested, and rewritten for a model caller |
+| A long tool output, cut short | A payload limit chosen against the context budget |
+| A permission prompt | A classification of every action, and a policy enforced in code |
+| A setting you could not override | An organization rule that outranks the user and the model |
+
+### A tool is a contract
+
+The talk's sentence for this area: "A tool is a contract between code and a model caller."
+
+Anthropic's tool-writing guide, published 2025-09-11, explains why that contract is unusual. Ordinarily, "deterministic systems produce the same output every time given identical inputs", while "non-deterministic systems, like agents, can generate varied responses." A tool sits on the line between the two. The code behind it is deterministic. The caller in front of it is not.
+
+#### The loop, one step at a time
+
+Every model-powered tool call follows the same three steps. The talk's later research names them request, execution, and result.
+
+1. **Request.** The application sends the model the conversation plus the definitions of the available tools. The model replies either with text or with a tool call: a tool name and a set of arguments.
+2. **Execution.** Your code receives the call. It checks permissions and inputs, then performs the permitted operation, or refuses to.
+3. **Result.** Your code returns a result to the model as the next message. The model reads it and decides what to do next: call another tool, ask the user, or answer.
+
+The model never executes anything. It proposes. Your code disposes. That is why the talk keeps saying that authorization is enforced outside the model: there is no inside. Everything the model does to the world, it does by asking your code.
+
+#### What the caller sees
+
+Here is a tool definition in the shape Anthropic's API uses, from its documentation's own example of a good description.
+
+```json
+{
+  "name": "get_stock_price",
+  "description": "Retrieves the current stock price for a given ticker symbol. The ticker symbol must be a valid symbol for a publicly traded company on a major US stock exchange like NYSE or NASDAQ. The tool will return the latest trade price in USD. It should be used when the user asks about the current or most recent price of a specific stock. It will not provide any other information about the stock or company.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "ticker": { "type": "string", "description": "The stock ticker symbol, e.g. AAPL for Apple Inc." }
+    },
+    "required": ["ticker"]
+  }
+}
+```
+
+OpenAI's function definitions carry the same parts under slightly different names: a `type` that is always function, a `name`, a `description` of "when and how to use the function", `parameters` as JSON Schema, and a `strict` flag. MCP's tool definition, in the 2026-07-28 revision, has a `name`, an optional `title` for display, a `description`, an `inputSchema`, an optional `outputSchema`, and optional `annotations`. Three vendors, one shape.
+
+Notice where this definition goes. Anthropic's documentation describes how the API "constructs a special system prompt from the tool definitions" on every call. The definition is not documentation that sits on a website. It is prompt text, read by the caller on every request that includes the tool, and paid for in tokens every time. Anthropic's engineering post says the same from the other side: descriptions are loaded into the agent's context, so they "can collectively steer agents toward effective tool-calling behaviors."
+
+#### Four parts, four jobs
+
+A tool contract has four parts. Each has a different job, and each is enforced by something different.
+
+The **name** is the first thing the caller uses to select a tool. It is a selection signal before it is an identifier.
+
+The **description** says what the tool does, when to use it, and when not to. It guides selection and use. Nothing enforces it. It works only to the extent the caller reads it and follows it, which is most of the time, not all of the time.
+
+The **input schema** defines the structure of the arguments. It can be enforced. OpenAI's strict mode, for example, "will ensure function calls reliably adhere to the function schema, instead of being best effort", provided every object sets `additionalProperties` to false and every property is required. A schema constrains shape. Anthropic's advanced tool use post names its limit precisely: JSON Schema "can't express usage patterns", such as "when to include optional parameters, which combinations make sense, or what conventions your API expects."
+
+The **result and its errors** tell the caller what happened. They are the caller's only evidence about the world after the call. If the result is ambiguous, the caller's next step is a guess.
+
+One distinction matters most. The talk's research puts it this way: "A valid input shape does not establish that an action is allowed or that it succeeded." Schema validity, permission, and success are three separate facts. A schema answers the first. Your authorization code answers the second. Only the result, and often an independent check of state, answers the third.
+
+#### The intern test
+
+OpenAI's function-calling guide offers a compact test for the whole contract: "Pass the intern test." Could a capable new hire use this tool correctly given only what the model sees: the name, the description, the parameter names and descriptions? Anthropic's post says the same thing in different words: "think of how you would describe your tool to a new hire on your team."
+
+The test is useful because it removes your private knowledge. You know that `id` means the ticket's UUID and not its human-facing number. You know that `public` defaults to true and emails the customer. You know that the tenant id in the system prompt is the right one. The new hire does not, and neither does the model, unless the contract says so. Every fact you leave out is a fact the caller will guess.
+
+### Task fit and granularity
+
+This is the section the area's pitfall lives in, so it gets the most room.
+
+You have an API. It works. It has tests, documentation, and clients. The obvious move when an agent needs to do things in that system is to expose the API's operations as tools, one per endpoint. A generator can do it in an afternoon from an OpenAPI file. The tools will be correct, in the sense that each one does exactly what its endpoint does.
+
+Anthropic's tool-writing guide names this as the mistake it sees most: "A common error we've observed is tools that merely wrap existing software functionality or API endpoints, whether or not the tools are appropriate for agents." The next sentence gives the reason: agents have distinct affordances from traditional software, and "they have different ways of perceiving the potential actions they can take with those tools". A model perceives and uses tools differently from the code your API was designed for.
+
+#### Why an endpoint is the wrong unit
+
+An API's endpoints were shaped for a caller with three properties. It has cheap memory, so it can fetch a thousand records and loop over them. It has fixed control flow, so it chains five calls in exactly the right order every time. And it has a developer behind it, who resolved every ambiguity once, at design time.
+
+The model has none of those. The guide's example is an address book. Agents have limited context, meaning "there are limits to how much information they can process at once", "whereas computer memory is cheap and abundant." Traditional software "can efficiently store and process a list of contacts one at a time". An agent given a tool that returns every contact must read them token by token, "wasting its limited context space on irrelevant information." The fix is not a bigger context window. It is a different tool: "you might choose to implement a `search_contacts` or `message_contact` tool" instead of a `list_contacts` tool.
+
+The guide gives three more pairs, and each names a different reason an endpoint is the wrong unit.
+
+- Instead of `list_users`, `list_events`, and `create_event`, "consider implementing a `schedule_event` tool which finds availability and schedules an event." The reason is coordination. Three tools mean three calls, IDs carried from one result into the next call, and three chances to err.
+- Instead of a `read_logs` tool, a `search_logs` tool "which only returns relevant log lines and some surrounding context." The reason is volume. The filtering belongs in code, where it is cheap and exact.
+- Instead of `get_customer_by_id`, `list_transactions`, and `list_notes`, a `get_customer_context` tool "which compiles all of a customer's recent & relevant information all at once." The reason is the task. The agent never wants transactions for their own sake. It wants to understand a customer.
+
+Count what an endpoint-shaped tool set costs a model on a single task. Each extra call is a full model round trip, with the whole conversation and every tool definition sent again. Each intermediate result lands in context, where it is paid for on every later call in the session. Each ID that must be copied from one result into the next argument is a place where the model can copy the wrong one. Each choice between two similar tools is a selection the model can get wrong. Anthropic's advanced tool use post reports that, in its experience, "The most common failures are wrong tool selection and incorrect parameters, especially when tools have similar names like `notification-send-user` vs. `notification-send-channel`." Fine-grained, endpoint-shaped tool sets maximize all four costs.
+
+#### Consolidation is an option to test, not a rule
+
+It would be easy to turn this into a rule: always consolidate. The talk refuses to. Its line on the user slide is "Consider consolidation for the task", and its research calls consolidation "a task-design option, to evaluate against finer-grained alternatives."
+
+The later revision of the talk states the tradeoff in two sentences: "Small operations offer flexibility. Task-oriented tools handle more work internally." And in the talk track: small tools "require more calls to coordinate", while a task-oriented tool handles more work internally, "while embedding more assumptions."
+
+Those assumptions are the cost. A `schedule_event` tool decides how to find availability. If the user wants something the tool's author did not anticipate, such as a meeting outside working hours or a room with a projector, the coarse tool may not be able to express it, and the agent has no fine-grained tool to fall back on. A task-shaped tool set fits the tasks you designed it for and can fit others badly. A fine-grained set fits nothing well and everything a little.
+
+Vendors themselves disagree in the details. Anthropic's tool-definition documentation, as checked on 2026-10-09, recommends a different kind of consolidation: rather than separate `create_pr`, `review_pr`, and `merge_pr` tools, "group them into a single tool with an `action` parameter", because "Fewer, more capable tools reduce selection ambiguity". That reduces the number of tools without changing the granularity of each operation. It trades a selection between tools for a selection between enum values. Whether that helps depends on your model, your tools, and your tasks. Which is the point. The engineering post's own advice on namespacing makes it explicit: "Effects vary by LLM and we encourage you to choose a naming scheme" by evaluation.
+
+The rule that survives is about method, not shape. Start from the tasks.
+
+#### Starting from tasks
+
+Here is the method, in the order you would do it.
+
+1. **Write down the tasks.** Collect real requests the agent will receive, from tickets, logs, or interviews. Twenty to fifty is enough to start, the same number the talk's roadmap asks for when you first review outputs by hand. Include the boring common ones and the ambiguous ones.
+2. **Trace each task through the candidate tool set on paper.** For each task, write the sequence of calls an ideal caller would make. Count the calls. Mark every ID that must be carried from a result into a later argument. Mark every result that would return more than the task needs. Mark every point where two tools could plausibly fit.
+3. **Find the clusters.** Sequences that recur across many tasks are candidates for one task-shaped tool. Results that are always filtered the same way are candidates for filtering in code. Pairs of tools that are often confused are candidates for merging, renaming, or a sharper description.
+4. **Decide what not to expose.** Every operation the tasks do not need is a tool the model must read past and could call by mistake. OWASP's first prevention item for excessive agency is "Minimize extensions." Its common examples include an extension that, though only reading was needed, "also includes the ability to modify and delete documents", and a trial plugin that was replaced while "the original plugin remains available to the LLM agent."
+5. **Run the tasks.** Paper traces tell you where to look. Only runs tell you what the model does. The next section is about those runs.
+
+Notice what this method does not start from. It does not start from the API. The API is the implementation of the tools, and it may serve them well. It is not their specification.
+
+#### A copied surface and a task-shaped tool set
+
+Here are two tool sets over the same fictional helpdesk API. The first was generated one tool per endpoint, with each endpoint's summary as its description. The second was designed from the support team's tasks. Both artifacts are synthetic, written for this module.
+
+<Artifact id="tools-and-extensibility-mirrored-api" level={4} />
+
+<Artifact id="tools-and-extensibility-task-shaped" level={4} />
+
+#### Reading the two sets
+
+Read the first set as its caller would. "Returns customers." Which customers? All of them, 100 per page by default and up to 500, with internal fields such as `flags: 4` and `cf_1182`. To act on a customer the user named, the model must page through records and match names itself. Names are not unique, and the tool never says so. `tickets_update` takes a free-form `body` object with `additionalProperties: true`, so the schema permits any field the API accepts, and the description does not say which fields exist or what changing them does. `ticket_comments_create` has a `public` parameter that defaults to true. Nothing in the description says that a public comment emails the customer. Every tool takes a `tenant_id`, so the model supplies the tenant on every call, and the server's credential, scoped `tenant:*`, would accept any tenant it is given.
+
+None of that is a bug in the API. The API was designed for a developer who read its documentation, knew what `public` meant, and took the tenant from the authenticated session. Every one of those facts lived in the developer's head. The generator copied the endpoints and left the knowledge behind.
+
+Now read the second set. `desk_find_customer` searches and returns at most five matches, each with a name, a company, an email domain, an open ticket count, and a stable ID. Its description says names are not unique and tells the caller to ask the user when more than one match fits. `desk_get_ticket_context` replaces a list-then-get sequence with one call that returns what working a ticket needs. `desk_draft_reply` makes every customer-facing message a draft that a person sends, which changes an action that cannot be undone into one that can (Three kinds of action, below, names these categories). `desk_set_ticket_status` allows only two statuses and requires a reason. `billing_request_refund` does not move money. It files a request that billing policy decides. No tool takes a tenant.
+
+Is the second set better? It is better shaped for the tasks it was designed around. That is a hypothesis, not a result. Its descriptions might confuse a particular model. Its five-match limit might hide a match that a user expected. Its refund flow might be too slow for the support team. The artifact says so in its first paragraph: it is a design to evaluate, not a design proven better. The way to find out is the subject of the next section.
+
+### Descriptions are prompts, and prompts need evals
+
+The talk's owner slide lists the owner's work in four items. The first is "The descriptions, and their evals". Its research spells out the stance: "You write descriptions as prompt engineering and eval them". This section takes both halves in turn.
+
+#### Writing the description
+
+Anthropic's tool-definition documentation, as checked on 2026-10-09, is blunt about priority. "Provide extremely detailed descriptions. This is by far the most important factor in tool performance." It lists what a description should cover:
+
+- what the tool does;
+- when it should be used, and when it should not;
+- what each parameter means and how it affects the tool's behavior;
+- important caveats or limitations, such as what information the tool does not return.
+
+It sets a floor: "Aim for at least 3–4 sentences for each tool description, more if the tool is complex." Compare its good and poor examples of the same stock-price tool. The poor one reads, in full, "Gets the stock price for a ticker." The good one, shown in full earlier in this module, says which exchanges, which currency, when to use the tool, and what it will not return. The difference is five sentences. The documentation's verdict on the poor one is that it "leaves Claude with many open questions about the tool's behavior and usage." Every open question is a guess the caller makes at run time.
+
+The engineering post adds habits that come straight from interface design.
+
+Name parameters for the caller. "Instead of a parameter named `user`, try a parameter named `user_id`." The second name tells the caller what kind of value to supply. The first invites a name, an email, or an object.
+
+Namespace related tools. "Namespacing (grouping related tools under common prefixes) can help delineate boundaries between lots of tools." Anthropic found that choosing between prefix and suffix namespacing can "have non-trivial effects on our tool-use evaluations". The tool-definition docs recommend prefixing by service, as in `github_list_prs` and `slack_send_message`, and note that it matters more as the library grows.
+
+Say what the tool will not do. A caller that knows a tool's limits will not call it hoping for something it cannot return. The good stock-price description ends with what it will not provide. The task-shaped `desk_set_ticket_status` description says that solving a ticket sends a survey, which is exactly the side effect a caller would otherwise discover in production.
+
+Use examples where structure is subtle. Anthropic's API accepts an optional `input_examples` field: example arguments, each validated against the schema, that show "when to include optional parameters, what formats to use, and how to structure complex inputs." In Anthropic's internal testing, reported in November 2025, "tool use examples improved accuracy from 72% to 90% on complex parameter handling." That is one vendor's measurement on its own tasks. It is also a strong hint about where descriptions fall short: date formats, ID conventions, and which optional fields go together are exactly the facts a schema cannot carry.
+
+Offload what code already knows. OpenAI's function-calling guide, as checked on 2026-10-09, puts it as "Offload the burden from the model and use code where possible", and suggests not asking the model to fill in arguments your code already knows. Every argument the model does not have to supply is one it cannot get wrong. The tenant, the acting user, today's date, and the current ticket in an open console are all facts your code has. The best description of a `tenant_id` parameter is no `tenant_id` parameter.
+
+#### Why the description needs an eval
+
+A description is a prompt. You cannot know how a prompt behaves by reading it. You know by running it.
+
+The talk's evidence for this is one sentence from Anthropic's 2025 post: "Even small refinements to tool descriptions can yield dramatic improvements." The post's example is concrete. Claude Sonnet 3.5 reached state-of-the-art performance on SWE-bench Verified, a benchmark of real GitHub issues that an agent must fix, at the time, after Anthropic made "precise refinements to tool descriptions". Keep the scope honest: that is one vendor, one model, one benchmark, and one moment. The lesson is not that description tweaks always move benchmarks. It is that description changes are behavior changes, and behavior changes need measurement.
+
+There is a second reason. Descriptions drift. The code behind a tool changes in a release, and nobody updates the description, because nothing fails when they do not. A parameter gains a new allowed value. A default changes. A side effect is added. The talk's later research lists this first among the maintenance problems: "description/schema/behavior drift". A description that was accurate when it was evaluated is not accurate forever. The eval suite is what notices.
+
+#### What a tool eval looks like
+
+Anthropic's post lays out the loop. "Start by generating lots of evaluation tasks, grounded in real world uses." Run each task through "simple agentic loops", one loop per evaluation task, against the tools. Then read the transcripts, change the tools, and run again.
+
+The tasks are the part people get wrong. The post contrasts a strong task, "Schedule a meeting with Jane next week to discuss our latest Acme Corp project.", with a weak one, "Schedule a meeting with jane@acme.corp next week." The weak task hands the agent the exact identifier the tool needs. The strong task makes it resolve a person from a first name, find a time, and carry context into the invitation, which is what real users ask for and where tool sets actually fail. If your eval tasks are phrased the way your API is shaped, they will pass, and they will tell you nothing about your users.
+
+Collect more than pass and fail. The post names "the total number of tool calls, the total token consumption, and tool errors" as metrics to track. Each tells you something different about the contract.
+
+- **Calls per task** measure granularity. A task that takes eleven calls with one tool set and three with another is telling you about coordination cost.
+- **Tokens per task** measure payload design and definition overhead together.
+- **Tool errors** measure descriptions and schemas. A tool that is often called with invalid arguments has a contract the caller does not understand.
+- **Selection accuracy** measures names and descriptions. Record which tool the caller chose at each step and whether it was a reasonable choice.
+- **The outcome** measures the task. Check it in the system of record, not in the transcript. A ticket that the agent says it solved is solved only if the ticket says so. The [Verification and evals](/modules/verification-and-evals) module takes this rule apart; it applies to tool evals unchanged.
+
+Then guard against fooling yourself. Anthropic's team kept held-out test sets so that its description changes would not overfit to the tasks it had been tuning against. The same applies to you. If you rewrite descriptions until twenty tasks pass, you have tuned the descriptions to those twenty tasks. Keep some tasks back and run them only to check.
+
+A short worked example makes the loop concrete. Suppose the support team's top task is "a customer was charged twice; refund the duplicate and tell them." You write fifteen phrasings of it, drawn from real tickets, some naming the customer by first name only, some by company, two naming a customer who shares a name with another. You run each phrasing five times against the copied tool set and five times against the task-shaped set, because the caller is not deterministic and one run proves little. You record calls, tokens, errors, which tool was called at each step, and whether the right refund request exists in billing afterward. You read every failing transcript. You find that in the copied set, the model picks the first matching name in four of the ten runs on the shared-name cases. You find that in the task-shaped set, the model asks the user which customer in nine of ten. You keep the change, add the shared-name cases to the regression set, and move to the next task. Every number in that paragraph is invented to show the method. Yours will come from your own runs.
+
+### Results, identifiers, and verbosity
+
+The result is the half of the contract people design last. It deserves better, because it is the caller's only evidence about the world. A model that calls a tool and gets back an ambiguous result does not stop and ask a colleague. It continues, and its next step is built on whatever it inferred.
+
+#### Names beside stable IDs
+
+The talk's rule, kept on the slide in every cut: "Return meaningful names alongside stable IDs needed to act." And the reason, in the talk track: "Two customers may share a name."
+
+Each half of that rule guards against a different failure.
+
+A result with only IDs gives the model opaque strings to reason about. Anthropic's post recommends that tools "eschew low-level technical identifiers", and reports that resolving arbitrary alphanumeric UUIDs to meaningful language "significantly improves Claude's precision in retrieval tasks by reducing hallucinations." A model asked to act on `3f6c1e2a-9b4d-...` has nothing to check the string against. It can copy the wrong one from a long result, or produce one that looks right and exists nowhere. A user shown such a string cannot confirm anything either.
+
+A result with only names fails the other way. Names are what users say, so they are what the model can match. But names are not unique, and the tool that returns only names forces the caller either to guess or to make another call to find the ID it needs to act. The guess is the dangerous branch.
+
+So return both. The name, with enough context to tell two matches apart, is for the model's reasoning and the user's confirmation. The stable ID is for the next call. Anthropic's tool-definition docs say the same in their own terms: "Return semantic, stable identifiers (for example, slugs or UUIDs) rather than opaque internal references, and include only the fields Claude needs to reason about its next step."
+
+When a result has more than one plausible match, say so in the result. The task-shaped `desk_find_customer` artifact returns two Dana Whitfields and a note: "2 customers match this name. Ask the user which one." A description can tell the caller to ask in that case. A result that says it at the moment it matters is harder to miss.
+
+#### How much to return
+
+Verbosity is a decision with a price. In the talk's research: "you decide verbosity because it is your token bill".
+
+Anthropic's post offers a simple mechanism: let the caller choose. A `response_format` parameter with two values, concise and detailed, lets the model ask for the IDs and context it needs to act, or for the full record when it needs to reason about history. In the post's Slack example, the detailed response took 206 tokens and the concise one took 72. That is one example. The principle generalizes: a payload is paid for once when it is returned and again on every later turn it remains in context.
+
+For results that can be large, the post recommends "some combination of pagination, range selection, filtering, and/or truncation". Each choice has a correctness side as well as a cost side. Pagination with no hint that more pages exist lets a caller believe it saw everything. Truncation that drops the end of a list silently is worse: the caller cannot know what it did not see. If you truncate, say so in the result, say how much was dropped, and say how to narrow the query. A harness-level cap, such as Claude Code's 25,000-token default or Codex's `tool_output_token_limit`, protects the context window. It does not make an unfiltered tool safe, because the cap decides which records the model never sees.
+
+#### Errors the caller can use
+
+The talk's owner slide calls "Payload detail, granularity, and failure handling" the owner's decisions. Failure handling starts with what an error says.
+
+The MCP specification, revision 2026-07-28, separates two kinds of error. Protocol errors cover requests the model is unlikely to fix: an unknown tool, a malformed request, a server error. They return as JSON-RPC errors. Tool execution errors cover "API failures", "Input validation errors (e.g., date in wrong format, value out of range)", and "Business logic errors". These return inside a normal result with `isError` set to true, because they "contain actionable feedback that language models can use to self-correct and retry with adjusted parameters." The specification adds that clients "SHOULD provide tool execution errors to language models to enable self-correction."
+
+Its example of a good execution error is worth reading for its shape: "Invalid departure date: must be in the future. Current date is 08/08/2025." It names the problem, states the rule, and gives the fact the caller needs to fix the call. Compare what Anthropic's post calls unhelpful: "opaque error codes or tracebacks." A stack trace is written for the engineer who will debug the server. The caller needs a sentence it can act on.
+
+Write error messages the way you write descriptions: for a reader who will act on every word. "Ticket tkt_88A1 is already solved. Nothing changed." tells the caller both what is true and that no side effect occurred. "409 Conflict" tells it neither.
+
+#### Confirmed, failed, unknown
+
+There is a third outcome that most API contracts leave implicit and that model callers handle badly. The talk's later revision states it in its talk track: "Results must distinguish confirmed completion, known failure, and uncertainty. A timeout may leave completion unknown."
+
+You know this from distributed systems. A request that times out may have been applied. The client cannot tell from the timeout alone. A human developer writes retry logic with this in mind: idempotency keys, a read before the retry, or both. A model caller has no such habit unless the contract gives it one. Given "Error: upstream request timed out", a model may call again. If the first call landed, the action now happened twice.
+
+The fix belongs to the tool's contract and the harness together. The tool reports the third outcome explicitly: status unknown, the operation may have been applied, check before retrying. Mutations carry an operation identifier so that the server can recognize a retry of the same operation and so that someone can check later whether it happened. The book's companion project makes this a requirement for its ticket tools: they receive "operation identifiers", and "Mutations return enough information for independent state verification." The recovery policy itself, whether to inspect, retry, or hand off, belongs to orchestration. The talk's research draws that line: "Tool design supplies the result contract, while orchestration owns the recovery policy." The [Orchestration](/modules/orchestration) module picks up from here.
+
+One more rule follows. An unconfirmed action is not reported as complete. Not by the tool, and not by the agent to the user. The final message in a transcript is a claim. The result contract is what lets the claim be checked.
+
+### Three kinds of action
+
+The talk's owner slide puts three cards side by side. They are reproduced here as the talk states them.
+
+| Scoped reads | Reversible changes | Consequential actions |
+|---|---|---|
+| Enforce access policy | Validate and support recovery | Require policy authorization or approval |
+
+Under the cards, two lines. The first: "Authorization applies to every category. Enforce it outside the model." The second restates the user slide's line, quoted in When you are the user: a model's approval recommendation does not establish permission.
+
+The talk's research is careful about the status of these categories: they "are this talk's starting categories", and they "are the talk's heuristic, not OWASP's taxonomy." The book's chapter on tools uses nearly the same three: "Distinguish read operations, reversible changes, and consequential actions." Treat them as a starting classification that forces the right question for each tool: what can this action do to the world, and how would we undo it?
+
+#### Scoped reads
+
+A read changes nothing, so it can seem harmless. It is not. A read decides what data enters the model's context, and from there what the model can repeat, summarize, or send somewhere else. The control a read needs is access policy: the caller may read only what the user on whose behalf it acts may read. Scope is the operative word. A read tool that can fetch any customer's record in any tenant is not a scoped read, whatever its HTTP verb.
+
+The two incidents in the next section both start with a read. In each, the agent read data it was entitled to read, on the wrong instructions, then sent it out: once through rendered images, once through a pull request it created.
+
+#### Reversible changes
+
+A reversible change modifies state that can be restored: a draft, a label, a status that can be set back, a record kept in history. The control it needs is validation before the change and a recovery path after it. Validation means checking arguments against business rules in code: the ticket exists, it belongs to this tenant, the status transition is allowed. Recovery means the change can actually be undone, by someone, with a record of what it was before.
+
+Reversibility is a property you can design in. The task-shaped tool set turns "post a reply to the customer" into "write a draft", which moves the most dangerous action in the support agent's tool set from the third category to the second. That single design choice does more for safety than any description could.
+
+#### Consequential actions
+
+A consequential action cannot be cleanly undone, or costs real money or trust if wrong: moving money, sending a message to a customer, deleting data without history, changing permissions, deploying code, filing something with a regulator. The control it needs is authorization by policy or by a person, before the action. The talk's owner spoken line: "Use human approval, async workflows, or enforced policies according to the deployment."
+
+Approval does not mean a human clicks on everything. The research says the gate "can use human approval, an async workflow, or an enforced policy, according to the product and action." A refund under a set amount for a confirmed duplicate charge can be approved by a policy service that checks the charge history. A refund above it waits in a queue for a billing specialist, and the agent tells the user it has been requested, not done. Both are gates. Neither is the model deciding.
+
+#### Classifying real tools
+
+The categories apply to actions, not to endpoints. One endpoint can hold all three. A `tickets_update` that takes a free-form body can change a label (reversible), solve a ticket and send a survey to the customer (consequential, because the survey reaches the customer), or reassign it to another team's queue. A PATCH is not a category. This is one more reason a copied API surface is hard to secure: its tools are cut along the API's lines, and the categories cut across them. A task-shaped tool set can be cut along the categories, one tool per kind of effect, so that each tool gets one control.
+
+You have seen classification at work as a user. Codex lets you set `default_tools_approval_mode` per MCP server to auto, prompt, writes, or approve, and override it per tool. Devin's rules can name a single MCP tool, as in its documentation's example of denying `mcp__github__delete_repo`. Both vendors give you the means to classify. Neither can classify your tools for you. They do not know what your tools do.
+
+### Authorization lives outside the model
+
+This is the part of the contract that does not depend on the caller at all. That is the point of it.
+
+#### Excessive agency
+
+OWASP's Gen AI Security Project names the risk in its 2025 list as LLM06, Excessive Agency: "the vulnerability that enables damaging actions to be performed in response to unexpected, ambiguous or manipulated outputs from an LLM", "regardless of what is causing the LLM to malfunction." It does not matter whether the model was confused, mistaken, or manipulated by an attacker. If a damaging action was available and the model asked for it, the system allowed it.
+
+OWASP traces the risk to three roots: excessive functionality, excessive permissions, and excessive autonomy. Its examples read like a review of a copied API surface: an extension meant "to run one specific shell command" that fails to prevent others; a read-only need met by an extension that can also modify and delete; an extension that "accesses downstream systems with a generic high-privileged identity." Its prevention list reads like this module's outline: "Minimize extensions", "Avoid open-ended extensions", "Minimize extension permissions", "Execute extensions in user's context", "Require user approval", "Complete mediation". And the line the talk quotes: "Implement authorization in downstream systems rather than relying on an LLM to decide if an action is allowed or not."
+
+#### Why the description cannot be the control
+
+It is tempting to write the policy into the description. "Only refund amounts under 50 dollars." "Never access tickets from other tenants." "Do not delete anything." These sentences are useful as guidance. They are not controls.
+
+Go back to the takeaway: a caller that reads the description every time and can still get it wrong. A description is followed most of the time. Most of the time is not a security property. The book's failure exercise for this chapter names both ways it breaks: "The model supplies another tenant's identifier or treats a tool's descriptive text as permission to perform an action." The first is an honest mistake in an argument. The second is a misreading of the contract: a description that says a tool "can refund orders" is not a grant of permission to refund this order.
+
+And a description can be attacked. The model reads the whole context, and some of that context is written by people who are not your users: a ticket body, a web page, a pull request, a document. Text that looks like instructions can steer the caller. If the only thing standing between that text and an action is the caller's judgment, then the attacker's text is, in effect, an authorization.
+
+The book's completion evidence for the chapter is the test to remember: "Demonstrate rejection of unauthorized requests and invalid arguments independently of prompt compliance." If your test of authorization passes only because the model behaved, it is not a test of authorization.
+
+#### Identity comes from authentication, not from arguments
+
+The most common way a tool contract hands authorization to the model is a parameter. A `tenant_id`, an `account_id`, a `user_id` for the acting user, a `role`. The model fills it in from context. Usually it copies the right value. Sometimes it transposes two digits, or picks up an ID from a pasted email, or follows an instruction in a ticket that names another account.
+
+The fix is structural. Take identity out of the arguments. The application knows who is signed in and which tenant they belong to; it authenticated them. The server derives the acting principal from that authenticated session and checks every ID in every call against it. The book's companion project states the rule for retrieval in a sentence: "The model does not choose its own authorization scope." The MCP security guidance states it for state handles: servers "MUST NOT treat possession of a state handle as authentication", and should bind state to "the user ID" that is "derived from the verified token rather than supplied by the client". The MCP tools page, in non-normative design guidance, says that for authenticated servers a handle "is a name, not a capability." Your ticket IDs and customer IDs are the same.
+
+Here is what that looks like in the task-shaped tool set from earlier. Priya, a support rep, is signed in to tenant t_8841. A ticket she pastes into the console names T-90112, which belongs to another tenant, t_9020. The model calls `desk_get_ticket_context` with T-90112. The server takes the tenant from Priya's session, looks the ticket up under t_8841, finds nothing, and returns status failed: "No ticket T-90112 in your workspace." Nothing about the model's reading of the description mattered. Now run the same request against the copied set. The model supplies `tenant_id` on every call, the server's credential is scoped `tenant:*`, and if the model passes t_9020, picked up from the pasted text, the API returns the other tenant's ticket.
+
+Credentials follow the same rule. A tool server that talks to its backend with one service account scoped to everything turns every authorization decision into the tool's own logic, and a single bug into a cross-tenant breach. Scope the credential to what the tool set needs, and where you can, act in the user's context rather than as a generic high-privilege identity, as OWASP recommends. MCP's guidance on scopes lists the mistakes to avoid, verbatim: "Publishing all possible scopes in `scopes_supported`", "Using wildcard or omnibus scopes (`*`, `all`, `full-access`)", and "Bundling unrelated privileges to preempt future prompts." It also forbids token passthrough outright: "MCP servers MUST NOT accept any tokens that were not explicitly issued for the MCP server."
+
+#### The model may recommend; code decides
+
+None of this means a model has no role in approval. Devin's Smart mode is a model making a safety judgment, and it is a reasonable design. A model can read a command and flag that it looks destructive. A model can summarize an action for a human approver. A model can rank which actions deserve a second look.
+
+What a model's judgment cannot be is the last word. The talk's line from the start of this module holds: a recommendation is not permission. Smart mode's never-auto-approve list and its unoverridable organization rules are the pattern. Use the model where it helps. Put a floor under it that it cannot move.
+
+#### Two incidents, both starting with a read
+
+Two public cases show what this looks like when it fails. Both are researcher demonstrations, not reports of customers harmed, and both are worth reading in full.
+
+CamoLeak was published by Omer Mayraz of Legit Security on 2025-10-08 and rated CVSS 9.6. Instructions were hidden in a pull request description using invisible comments, which the author notes are an official feature. GitHub Copilot Chat, asked about the pull request by any user who viewed it, read the hidden instructions. Copilot "operates with the same permissions as the user making the request", so it could read that user's private repositories. The exfiltration channel used GitHub's own image proxy. GitHub's Camo image proxy rewrites external image URLs into signed proxy URLs, and signed URLs passed the content security policy. The researcher pre-generated signed URLs for every letter and symbol, then had Copilot render the stolen content as a sequence of tiny invisible images, each one a request the attacker's server could log. The demonstration leaked the description of a zero-day vulnerability from an issue in a private project, and the author also had Copilot search a codebase for "AWS_KEY". The researcher found it in June 2025 and reported it through HackerOne. GitHub fixed it by August 14, 2025, by disabling image rendering in Copilot Chat entirely.
+
+Look at it as a tool designer. Every capability involved was legitimate. Reading private repositories was in scope for the user. Rendering images was a feature. The failure was that untrusted text in a pull request could direct a read of private data and an outbound channel in the same session. The fix removed a capability.
+
+The second case is Invariant Labs' "GitHub MCP Exploited", by Marco Milanta and Luca Beurer-Kellner, dated 2025-05-26. An attacker opened an issue in a user's public repository containing a prompt injection. The user, working in an MCP client with the GitHub MCP server connected, asked the agent to "Have a look at the open issues" in that public repository. The injected issue coerced the agent into "pulling private repository data into context, and leaking it in an autonomously-created PR in the public repository." The authors are explicit about where the fault lies: "this is not a flaw in the GitHub MCP server code itself," but "a fundamental architectural issue that must be addressed at the agent system level." Their first mitigation is granular permission control, limiting the agent to "only the repositories it needs to interact with", for example one repository per session.
+
+Both cases are the same lesson from two sides. The tools did what they were permitted to do. The permission was broader than the task, and the caller could be steered. Scope is the control that still holds when the caller is wrong.
+
+### What a protocol does and does not guarantee
+
+The book's chapter asks you to explain what a protocol does and does not guarantee. For tools today, the protocol in question is usually the Model Context Protocol.
+
+#### What MCP standardizes
+
+The MCP specification, revision 2026-07-28, describes the protocol's job for tools in one sentence: it "allows servers to expose tools that can be invoked by language models." A server declares that it has tools. A client discovers them with a `tools/list` request and gets back definitions: name, description, input schema, optional output schema, optional annotations. The client calls one with `tools/call` and gets back a result, which may carry unstructured content, structured content that conforms to the output schema, or an execution error. Around that core, the specification defines pagination, change notifications, authorization flows, and transports.
+
+That is the reason "connect a tool server" became a one-line operation in your coding agent. One server works with many clients. One client works with many servers. Discovery, schemas, call format, and error channels are the same everywhere. Interface design at the protocol level, done once for everyone.
+
+The specification also states some expectations of the people who implement it. For security, servers "MUST" validate all tool inputs, implement proper access controls, rate limit tool invocations, and sanitize tool outputs. Clients "SHOULD" prompt for confirmation on sensitive operations, show tool inputs to the user before calling the server, validate results before passing them to the model, implement timeouts, and log tool usage for audit. And on the user interaction model: "there SHOULD always be a human in the loop with the ability to deny tool invocations."
+
+Read those as obligations on you, not as properties of the protocol. A MUST in a specification is a requirement on an implementation. Nothing in the wire format checks that a server validated its inputs.
+
+#### What MCP does not guarantee
+
+The protocol cannot guarantee that a tool does what its definition says. Its own schema is explicit about the clearest case. MCP defines optional tool annotations, hints about behavior: `readOnlyHint` (default false), `destructiveHint` (default true, meaningful only when the tool is not read-only), `idempotentHint` (default false), and `openWorldHint` (default true). They map neatly onto this module's three kinds of action. And the schema's note on them reads: "all properties in `ToolAnnotations` are hints. They are not guaranteed to provide a faithful description of tool behavior". It continues: "Clients should never make tool use decisions based on `ToolAnnotations` received from untrusted servers." The tools page repeats it as a requirement: "clients MUST consider tool annotations to be untrusted unless they come from trusted servers."
+
+The same is true of everything in a definition. A description is text a server author wrote. A schema is a claim about inputs, enforced only by the server it describes. A name is a string. If you would not trust a third-party library's README as proof of what the library does, do not trust a third-party server's descriptions as proof of what its tools do.
+
+The protocol also cannot guarantee task fit. A perfectly conformant server that exposes 35 endpoint-shaped tools is conformant. It may still be the wrong tool set for your agent.
+
+#### The description is an attack surface
+
+Here the takeaway turns from a design principle into a security one. The caller reads the description every time. So does an attacker who can write one.
+
+Invariant Labs described tool poisoning on 2025-04-01. In a tool poisoning attack, "malicious instructions are embedded within MCP tool descriptions that are invisible to users but visible to AI models." Their example is a harmless-looking `add` tool whose description contains a hidden block telling the model to read the user's MCP configuration file and SSH private key and pass them as an extra argument, with the threat "otherwise the tool will not work." The user sees a tool that adds numbers. The model sees instructions. The same post describes two variants. In a rug pull, "a malicious server can change the tool description after the client has already approved it." In shadowing, one server's description changes how the agent uses another server's trusted tool; their example redirects every email sent through a legitimate email tool to the attacker. Their mitigations: make descriptions "clearly visible to users", pin tool definitions by hash so that a changed description is noticed, and enforce boundaries between servers.
+
+This is a researcher demonstration of a class of attack, not a report of a specific breach. It is enough to change how you read a server's tool list. Every description from a server you connect becomes part of your agent's prompt, with your agent's permissions behind it.
+
+#### The supply chain
+
+Packaged extensions widen the same problem. In February 2026, The Hacker News reported an audit by Koi Security of ClawHub, a marketplace of skills for the self-hosted OpenClaw assistant: "341 malicious skills" among 2,857 audited, across multiple campaigns. That is roughly one in eight. Most used a fake prerequisites section, telling the user they "need to install something first", to install a macOS credential stealer. Keep the evidence type in view, as the talk does: this is secondary reporting of an audit that was not independently checked. It does not say how common malicious extensions are elsewhere. It does say that a marketplace of instructions and code that run with your agent's identity is a software supply chain, and needs the controls you already apply to one.
+
+#### Composition
+
+Tools also combine. Simon Willison's lethal trifecta, from June 2025, names three capabilities that are dangerous together: "Access to your private data", "Exposure to untrusted content", and "The ability to externally communicate". He notes that MCP "encourages users to mix and match tools from different sources that can do different things." Both incidents in the previous section assembled all three: private repositories, an attacker-written pull request or issue, and an outbound channel. No single tool was the problem. The combination was. The [Operating it](/modules/operating-it) module owns the trifecta as its pitfall. For tool design, the lesson is narrower. When you add a tool, you add its capabilities to every other tool's. Review the set, not the tool.
+
+#### The protocol floor
+
+The talk's user slide closes with what it calls the protocol floor: no token passthrough, minimal scopes, consent before local commands, and sandboxed execution. Each comes from the MCP security guidance for revision 2026-07-28.
+
+- **No token passthrough.** A server must not accept tokens that were not issued for it, and must not forward a client's token to a downstream API. The guidance calls passthrough "explicitly forbidden" because it bypasses the server's controls and breaks the audit trail.
+- **Minimal scopes.** Start with a minimal scope set, elevate when a privileged operation is first attempted, and avoid the omnibus scopes listed earlier.
+- **Consent before local commands.** A client that offers one-click setup of a local server "MUST implement proper consent mechanisms prior to executing commands", and must "Show the exact command that will be executed, without truncation".
+- **Sandboxed execution.** Clients should "Execute MCP server commands in a sandboxed environment with minimal default privileges."
+
+The talk's next sentence is the one that turns the floor into a job: "Next, the owner must enforce access for scoped reads, recovery for reversible changes, and authorization or approval for consequential actions." The protocol gets the pieces connected safely. What the tools may do is still yours.
+
+### The cost of connecting more tools
+
+Every tool definition is prompt text. More tools means more text, on every request.
+
+The talk uses one example and scopes it carefully. In Anthropic's November 2025 post on advanced tool use, a setup with five MCP servers, GitHub, Slack, Sentry, Grafana, and Splunk, exposes 58 tools "consuming approximately 55K tokens before the conversation even starts." Internally, Anthropic has "seen tool definitions consume 134K tokens before optimization." The talk's caution belongs next to the number: "The cost depends on the definitions, not just the server count." Five servers do not have a fixed token cost. The GitHub server alone accounted for about 26,000 of those tokens across 35 tools. The two-tool Splunk server took about 2,000.
+
+That cost is paid three ways. It is paid in money and latency on every call. It is paid in context, crowding out the conversation and retrieved knowledge, which is the budget the [Context and knowledge](/modules/context-and-knowledge) module asks you to manage. And it is paid in selection accuracy, because a caller choosing among fifty-eight tools has more ways to choose wrong than one choosing among eight. OpenAI's function-calling guide puts a soft number on it: "Aim for fewer than 20 functions available at the start of a turn", while calling this "just a soft suggestion." Anthropic's engineering post puts it without a number: "More tools don't always lead to better outcomes."
+
+Three responses are in use. Each is a design choice to evaluate on your tasks, not a default.
+
+**Load fewer definitions.** Anthropic's tool search lets an agent discover tools on demand instead of loading every definition up front. In Anthropic's measurements, that gave "an 85% reduction in token usage while maintaining access to your full tool library", and on its MCP evaluations "Opus 4 improved from 49% to 74%, and Opus 4.5 improved from 79.5% to 88.1%". Those are Anthropic's models on Anthropic's evaluations in November 2025. They show that definition overload costs accuracy as well as tokens. They do not predict your numbers.
+
+**Compose calls in code.** In code mode, the agent writes code that calls tools, loops, and filters results before anything returns to the model. Anthropic's post on code execution with MCP, from November 2025, describes it this way: "The agent can then write code to interact with MCP servers." Intermediate results can then "stay in the execution environment", which helps both the token bill and privacy. Its worked example drops from 150,000 tokens to 2,000. Its caveat matters as much: "code execution introduces its own complexity", including a secure sandbox, resource limits, and monitoring. A code-mode agent has, in effect, a general-purpose tool. Everything in the authorization section applies to the code it writes.
+
+**Use the commands that already exist.** An existing CLI, reached through a shell tool, can expose capabilities without new tool definitions at all. The talk's later revision lists it alongside MCP: "CLIs provide access through existing commands." The tradeoff is authority. A shell is the most open-ended extension there is, which is why OWASP's prevention list says "Avoid open-ended extensions", and why both coding agents in this module put their strictest controls on it.
+
+All three can work together. All three need the same execution controls. The talk's later slide puts that in one line: "Execution controls apply to every approach: permissions, input checks, and limits on execution."
+
+### When you are the owner
+
+The talk's owner slide is titled "You write the contract. You build the gate." Its first version of the slide lists the work in four items: the descriptions and their evals, the verbosity, the action categories, and the gate. Its spoken line: "You own descriptions and their evals, payloads, granularity, and the gate."
+
+When you were the user, a vendor did each of these for you, for the tools it shipped. As the owner, here is the checklist.
+
+- **The contract.** Collect representative tasks first, choose granularity by tracing them, expose only what they need, and take identity out of the arguments.
+- **The descriptions.** Write each one as a prompt, keep a task-based eval suite with outcomes checked in the system of record, and rerun it when a description, schema, behavior, or model changes.
+- **The results.** Return names beside stable IDs at the verbosity the task needs, write errors the caller can act on, and report confirmed, failed, and unknown, with an operation identifier on every mutation.
+- **The gate.** Classify every action, enforce the matching control in code outside the model, scope credentials to the tool set, and decide where approval is human, asynchronous, or a policy.
+- **The extensions.** Treat every third-party server and skill as a dependency: read its definitions, pin them, scope it, sandbox what runs locally, and review the combination.
+
+None of that list is new engineering. Contract design, least privilege, idempotency, audit logs, dependency review: you have done every item for a human caller. What is new is that the caller reads prose, decides at run time, and can be talked into things.
+
+#### The pitfall
+
+The area's pitfall, as the talk's slide states it: "Tools: copying the API surface without evaluating task fit."
+
+The talk's research gives the fuller sentence: "Evaluate granularity, descriptions, payloads, and safe boundaries against representative tasks." Each of those four words names a way a copied surface fails a model caller. The granularity is the API's, so tasks take many calls and carry IDs between them. The descriptions are the API's documentation summaries, written for a reader who had the rest of the docs. The payloads are the API's full records, sized for a caller with cheap memory. The safe boundaries are the API's, drawn for a developer who took identity from the session and knew which fields emailed a customer.
+
+Why is it a pitfall and not just a mediocre choice? Because it passes every check a team usually runs. Each tool is correct. Contract tests pass. A demo question works. The talk's diagnosis of all six pitfalls fits it exactly: "Every one is a symptom of the same thing: treating the demo as the product." A copied surface is works.any(). Task fit is works.all(), and only task evals measure it.
+
+The talk ends the area with the line every section of this module has been building toward.
 
 <Takeaway />
 
@@ -39,7 +779,25 @@ The module draws on talk beat 2.3 and on book chapter 15. Each concept arrives w
 
 <Workshop>
 
-The workshop will be an analysis exercise on provided artifacts. No code. It will state the task in one paragraph and give a rubric.
+Two artifacts. The first is the tool set from Topics, copied one tool per endpoint from a fictional helpdesk API. The second is a trace of one run of the AI support agent that uses it, followed by the helpdesk's audit log the next morning. Both are synthetic. The failures are planted.
+
+<Artifact id="tools-and-extensibility-mirrored-api" />
+
+<Artifact id="tools-and-extensibility-ambiguous-call-trace" />
+
+The task. Read the trace span by span, then the audit log, and write a short analysis, a few paragraphs, for the team that owns this agent. Say what happened to each of the two customers named Dana Whitfield, and trace every wrong outcome back to a specific part of the tool contract: a granularity choice, a description, a parameter or default, a result shape, an error, or the gate. Classify each action the agent took as a scoped read, a reversible change, or a consequential action, and say which control that category needed and whether it existed. Then propose the changes you would make, in prose, to the tools, the results, and the gate, and say how you would evaluate those changes on representative tasks before shipping them. Do not write code. Your response is saved to your account and is never graded.
+
+Check your response against this list.
+
+- It names the paged, truncated `customers_list` result as the reason the model saw only one Dana Whitfield, and connects that to a tool that returns every customer instead of searching.
+- It says that the result carried names and UUIDs but nothing that would tell two customers apart or warn that names are not unique.
+- It notices that the model picked T-47355, "Invoice address change", because the subject sounded like billing, and that nothing in the contract asked it to confirm with the user.
+- It identifies the timed-out comment as an unknown outcome reported as a plain error, explains why the retry posted the comment twice, and names an operation identifier or a check of state as the fix.
+- It notices that `public` defaults to true and that the description never says a public comment reaches the customer.
+- It flags the final message as wrong about the world: the ticket it closed is not Dana's billing ticket, T-48811 is still open, and nothing in the tool set could confirm the refund before the customer was told it happened.
+- It classifies solving a ticket and posting a public comment as consequential or close to it, and says that neither had approval.
+- It flags the `tenant:*` credential and the model-supplied `tenant_id` as authorization delegated to the caller, even though this run happened to pass the right tenant.
+- Its proposed evaluation uses realistic phrasings, includes shared-name cases, repeats trials, and checks outcomes in the helpdesk rather than in the transcript.
 
 </Workshop>
 
@@ -47,11 +805,23 @@ The workshop will be an analysis exercise on provided artifacts. No code. It wil
 
 <FailureExercise>
 
-The failure exercise will plant a failure in an artifact and ask you to find it and explain it.
+This pull request was reviewed by three teams and merged. Something in it will fail the support agent's users, and none of the reviewers caught it. Everything you need to find it is in the artifact.
+
+<Artifact id="tools-and-extensibility-generated-toolset-pr" />
+
+Find the problem the review missed. Explain it in a few sentences: what the pull request's evidence does establish, what it does not, and what you would have asked for before approving.
 
 <Fragment slot="explanation">
 
-The explanation appears here after a response is saved.
+The pull request copies the API surface without evaluating task fit. Every check in its test report is a check of the API, not of the agent's job. Contract tests show that 41 endpoints are callable. Schema tests show that 41 schemas are valid. The auth and approval checks show that writes need a scope and a click. Latency shows the tools are fast. None of these involves a support task.
+
+The one test that involves the model is a single question, "What is the total on invoice INV-1042?", with the invoice number supplied. It falls in none of the top five ticket types in the mix the author pasted into the same pull request. The most common task, at 31 percent, is a duplicate charge to refund. Try it on paper against the generated tools. The agent must find the customer, but `invoices_list` and `adjustments_create` take a "Customer identifier", `refunds_create` takes a payment identifier, and `credits_create` takes an invoice identifier, while users speak in names and companies. It must find the two charges, which means listing invoices or payments with up to 1,000 records and an `expand` option, sized for software, not for a context window. Then it must choose between `refunds_create`, `credits_create`, and `adjustments_create`, three similarly named tools whose descriptions are three or four words each and never say when to use one over another. The vendor guidance in this module names tools with similar names as the most common source of wrong selection and wrong parameters, and these three also have descriptions too thin to tell them apart. The proration task, at 22 percent, has no task-shaped tool at all.
+
+The other signals point the same way. The 41 definitions add 23,400 tokens to every request, recorded as "noted" with no judgment on it. Tools the support tasks never need, such as `customers_delete`, `invoices_void`, and `payments_capture`, are in the model's context and one approval click from running. The review comments approve the generator's fidelity to the API, which is the property that caused the problem: regenerating on every release keeps the tools true to the endpoints and guarantees they never become fit to the tasks.
+
+If you flagged the service account, you found a real second problem. The agent acts as a generic identity with `billing:write` instead of in the support rep's context, and a generic writes prompt treats a refund like any other write. That is the lesson of Authorization lives outside the model. The area pitfall is the one the whole review shares: no check in the report involves a support task.
+
+What to ask for before approving: a set of representative tasks drawn from the ticket mix, with realistic phrasings and shared-name cases; repeated runs against the tool set, recording tool selection, calls and tokens per task, tool errors, and whether the right refund request, credit, or reply exists in billing afterward; a tool inventory cut down to what those tasks need, with consolidated or task-shaped tools where the traces show coordination cost; descriptions that say when to use each money-moving tool and when not to; and a classification of every remaining action, with refunds behind a policy or approval gate rather than a generic writes prompt.
 
 </Fragment>
 

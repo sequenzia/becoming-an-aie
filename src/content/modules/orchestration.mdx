@@ -3,35 +3,661 @@ title: "Orchestration"
 kind: area
 area: orchestration
 order: 4
-summary: "One loop underneath everything: gather context, take action, verify. Workflows first, then the loop you own, with its limits."
-readingMinutes: 60
+summary: "One loop underneath everything: gather context, take action, verify. Workflows first, then the loop you own, with its stop conditions, budgets, and recovery, and the evidence that multiple agents must earn."
+readingMinutes: 50
 prerequisites: [foundations, tools-and-extensibility]
 talkBeats: ["2.4"]
 bookChapters: [16, 17, 18]
-draft: true
-updatedOn: 2026-09-16
-checkedOn: 2026-09-16
+draft: false
+updatedOn: 2026-10-09
+checkedOn: 2026-10-09
 staleAfterDays: 90
 takeaway: "The loop is where autonomy gets its limits. Start with the workflow."
 pitfall: "Multi-agent before a workflow was tried"
 transferRows: [decomposition]
-artifacts: []
-outcomes: []
-selfCheck: []
-sources: []
+artifacts: [orchestration-loop-trace, orchestration-progress-record, orchestration-multi-agent-design-doc]
+outcomes:
+  - id: workflow-or-agent
+    text: Distinguish a workflow from an agent in Anthropic's words, and decide which one a task needs.
+  - id: workflow-patterns
+    text: Choose among the five workflow patterns for a task and name what each one costs.
+  - id: loop-anatomy
+    text: Trace one run of the agent loop and name the decisions the harness makes around the model.
+  - id: stop-and-budget
+    text: Set stopping conditions and budgets for turns, tokens, actions, and latency, and enforce them in code.
+  - id: recover-safely
+    text: Recover from timeouts and partial completion with idempotency keys, checkpoints, and compensation, without duplicating side effects.
+  - id: long-running-state
+    text: Persist and reconcile progress for long-running work so a resumed run trusts the environment over its notes.
+  - id: delegate-on-evidence
+    text: Decide when multiple agents earn their cost, and diagnose the coordination failures they add.
+selfCheck:
+  - id: q1-definitions
+    outcome: workflow-or-agent
+    question: "Which description matches Anthropic's definition of a workflow?"
+    options:
+      - "A system where an LLM dynamically directs its own process and tool usage"
+      - "A system where LLMs and tools are orchestrated through predefined code paths"
+      - "Any system that calls more than one model"
+    correct: [1]
+    feedback:
+      - "Not yet. That is Anthropic's definition of an agent. Reread Workflows and agents."
+      - "Correct. In a workflow, code decides the path. The model works inside steps that code defined."
+      - "Not yet. The number of models does not decide it. Who controls the path does. Reread Workflows and agents."
+  - id: q2-which-design
+    outcome: workflow-or-agent
+    question: "Support emails arrive in four known categories. Each category has a fixed set of fields to extract and a fixed handler. What should you build first?"
+    options:
+      - "An agent with every handler as a tool, so it can choose"
+      - "A workflow: route by category, then a fixed extraction step and handler per route"
+      - "A supervisor agent with one worker agent per category"
+    correct: [1]
+    feedback:
+      - "Not yet. The path is known in advance, so model-selected control flow adds cost and variance and buys nothing. Reread Workflows and agents."
+      - "Correct. Routing plus prompt chaining covers it. The model's judgment goes into classification and extraction, and code owns the path."
+      - "Not yet. That is the pitfall: multiple agents before a workflow was tried. Reread The pitfall."
+  - id: q3-pattern
+    outcome: workflow-patterns
+    question: "A team has a model write SQL for an analyst's question, runs the query against a test schema with expected results, and feeds any error back for a revision, until the check passes or three rounds are used. Which pattern is that?"
+    options:
+      - "Routing"
+      - "Orchestrator and workers"
+      - "Evaluator and optimizer"
+      - "Parallelization by voting"
+    correct: [2]
+    feedback:
+      - "Not yet. Routing classifies an input and sends it to a specialized follow-up. Reread Five workflow patterns."
+      - "Not yet. Orchestrator and workers is for tasks whose subtasks you cannot predict. Reread Five workflow patterns."
+      - "Correct. One step generates, another evaluates against clear criteria, here a test run in code, in a loop with a round limit."
+      - "Not yet. Voting runs the same task several times and aggregates. Nothing here is aggregated. Reread Five workflow patterns."
+  - id: q4-parallel
+    outcome: workflow-patterns
+    question: "Which situations fit the parallelization pattern?"
+    options:
+      - "Independent subtasks that can run at the same time for speed"
+      - "Several attempts at the same task, aggregated for more confidence"
+      - "A guardrail check that screens input while another call answers it"
+      - "Steps where each one needs the previous step's output"
+    correct: [0, 1, 2]
+    feedback:
+      - "Correct. That is sectioning."
+      - "Correct. That is voting."
+      - "Correct. A screening call alongside the main call is sectioning applied to a guardrail."
+      - "Not yet. Dependent steps are a chain. Running them in parallel means some start without the input they need. Reread Five workflow patterns."
+  - id: q5-loop-decisions
+    outcome: loop-anatomy
+    question: "Which of these are the loop's decisions, in the talk's list of what someone engineered?"
+    options:
+      - "When to stop"
+      - "What carries between turns"
+      - "When to compact"
+      - "Which weights the model loads"
+      - "Where a hook fires"
+    correct: [0, 1, 2, 4]
+    feedback:
+      - "Correct. The stop condition is the first decision on the list."
+      - "Correct. State between turns is a harness decision."
+      - "Correct. The compaction trigger is a harness setting, not a model property."
+      - "Not yet. Weights belong to the model, not the harness around it. Reread What someone engineered."
+      - "Correct. A hook is a deterministic step inside the loop, and someone chose where it runs."
+  - id: q6-enforced
+    outcome: stop-and-budget
+    question: "A customer-facing agent's system prompt says 'Never take more than 10 steps.' Nothing else limits the loop. What is wrong?"
+    options:
+      - "Nothing. The model reads the instruction every turn."
+      - "The limit is a request to the model, not a limit. Enforce turns, tokens, actions, and deadline in the harness."
+      - "The limit should also be stated in every tool description, so the model sees it twice."
+    correct: [1]
+    feedback:
+      - "Not yet. A prompt is an input the model may weigh or ignore. Reread Stopping conditions and budgets."
+      - "Correct. Limits that matter are enforced in code, outside the model. An unbounded loop is an outage."
+      - "Not yet. Asking the model in more places is still asking. The limit needs a check in the harness. Reread Stopping conditions and budgets."
+  - id: q7-no-progress
+    outcome: stop-and-budget
+    question: "An agent calls the same search with the same arguments three turns in a row, getting the same results. Which stop condition should catch it first?"
+    options:
+      - "The maximum number of turns"
+      - "A no-progress rule that stops after turns that add no new evidence"
+      - "The token budget"
+    correct: [1]
+    feedback:
+      - "Not yet. The turn cap catches it eventually, after spending the whole budget on repetition. Reread Stopping conditions and budgets."
+      - "Correct. Detecting a lack of progress stops the loop when it stops learning, not when it runs out of money."
+      - "Not yet. The token budget is a backstop. It fires late and says nothing about why. Reread Stopping conditions and budgets."
+  - id: q8-timeout
+    outcome: recover-safely
+    question: "A tool call that creates a refund draft times out. What should the harness do first?"
+    options:
+      - "Retry the call immediately with the same arguments"
+      - "Mark the step failed and move on"
+      - "Look up the draft by the operation's idempotency key, and act on what it finds"
+    correct: [2]
+    feedback:
+      - "Not yet. A timeout does not establish failure. A blind retry can create a second draft. Reread Making a workflow reliable."
+      - "Not yet. The draft may exist. Marking it failed loses that, and a later run may draft it again. Reread Making a workflow reliable."
+      - "Correct. Establish the outcome first. Retry only a confirmed failure, and hand off if the outcome stays unknown."
+  - id: q12-order
+    outcome: recover-safely
+    question: "A refund workflow drafts the refund, emails the customer that the money is on its way, and then waits for a manager's approval. What is wrong with the order?"
+    options:
+      - "Nothing. If the manager refuses, a compensating step can delete the draft."
+      - "The irreversible step, the email, comes before the approval. Place it after every validation and the review."
+      - "The draft should come after the email, so the customer hears first."
+    correct: [1]
+    feedback:
+      - "Not yet. The draft can be compensated. The email cannot be unsent. Reread Making a workflow reliable, on points of no return."
+      - "Correct. Order the steps so validations and human review happen before the step that cannot be undone. Drafting is cheap to compensate. Sending is not."
+      - "Not yet. That still sends before anyone approves. Reread Making a workflow reliable, on points of no return."
+  - id: q9-resume
+    outcome: long-running-state
+    question: "A resumed session reads a progress note that says 'batch complete'. Its first check finds four items in the batch with no outcome in the system of record. What should it do?"
+    options:
+      - "Trust the note and start the next batch"
+      - "Trust the environment, mark the batch unverified, and reconcile the four items before new work"
+      - "Redo the whole batch from the start"
+    correct: [1]
+    feedback:
+      - "Not yet. That is premature completion carried across a session boundary. Reread Long-running work."
+      - "Correct. Notes are claims. The system of record is the state. Reconcile by key before redoing anything."
+      - "Not yet. Redoing work with side effects risks duplicates for the items that did complete. Reread Long-running work."
+  - id: q10-numbers
+    outcome: delegate-on-evidence
+    question: "Anthropic reported a 90.2% improvement for its multi-agent research system and, separately, about 15 times chat token use for multi-agent systems. What follows for your system?"
+    options:
+      - "Multi-agent will improve your task by about 90%."
+      - "The two figures come from different comparisons, and neither predicts your task. Measure against a simpler design under the same budget."
+      - "Use the 15x figure to estimate your cost and the 90.2% to estimate your gain."
+    correct: [1]
+    feedback:
+      - "Not yet. The 90.2% is an internal research eval against Anthropic's own single-agent system. Reread Multiple agents, honestly."
+      - "Correct. Keep each figure with its baseline, and measure your own task under comparable constraints."
+      - "Not yet. Both figures describe Anthropic's systems and comparisons, and they come from different comparisons. Neither estimates your cost or your gain. Reread Multiple agents, honestly."
+  - id: q11-fit
+    outcome: delegate-on-evidence
+    question: "Which tasks does Anthropic describe as a good fit for multi-agent systems?"
+    options:
+      - "Valuable tasks with heavy parallelization"
+      - "Tasks whose information exceeds a single context window"
+      - "Tasks that interface with numerous complex tools"
+      - "Tasks where every agent must share the same context and depends on the others"
+    correct: [0, 1, 2]
+    feedback:
+      - "Correct. Breadth-first research is the example."
+      - "Correct. Each subagent gets its own window."
+      - "Correct. Splitting tools across agents can help here."
+      - "Not yet. Anthropic names that as a poor fit, and most coding tasks as an example of it. Reread Multiple agents, honestly."
+sources:
+  - title: Beyond the Coding Agent, the talk repository
+    author: Stephen Sequenzia
+    date: "2026-09"
+    url: https://github.com/sequenzia/beyond-the-coding-agent
+    checkedOn: 2026-10-09
+    note: "Slides 14 and 15 and research section 4 as recorded in the program's talk knowledge base, plus research section 4 and orchestration slides 31 to 34 read at commit d90f230. The later slides add the decision questions and the timeout line used here. At d90f230 the talk words the pitfall 'Adding multiple agents before trying a workflow.' The module keeps the content map's wording, from slide 23 as the knowledge base records it."
+  - title: Becoming an AI Engineer, the book blueprint
+    date: "2026-09"
+    checkedOn: 2026-10-09
+    note: "Chapters 16, 17, and 18 of the blueprint, read from the local copy. The public link is pending."
+  - title: Building effective agents
+    org: Anthropic
+    author: Erik Schluntz and Barry Zhang
+    date: "2024-12-19"
+    url: https://www.anthropic.com/engineering/building-effective-agents
+    checkedOn: 2026-10-09
+    note: "The workflow and agent definitions, the five patterns, stopping conditions, and the framework warning. The page notes that much of the tooling it describes has changed since publication."
+  - title: How we built our multi-agent research system
+    org: Anthropic
+    date: "2025-06-13"
+    url: https://www.anthropic.com/engineering/multi-agent-research-system
+    checkedOn: 2026-10-09
+    note: "First-party production account. The 90.2% figure is an internal research eval against Anthropic's own single-agent system; the token figures are a separate comparison."
+  - title: Effective harnesses for long-running agents
+    org: Anthropic
+    author: Justin Young
+    date: "2025-11-26"
+    url: https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents
+    checkedOn: 2026-10-09
+    note: "A coding-focused first-hand account. The post itself leaves the single-agent versus multi-agent question open."
+  - title: Building agents with the Claude Agent SDK
+    org: Anthropic
+    author: Thariq Shihipar
+    date: "2025-09-29"
+    url: https://claude.com/blog/building-agents-with-the-claude-agent-sdk
+    checkedOn: 2026-10-09
+  - title: Agent Harness Engineering
+    author: Addy Osmani
+    date: "2026-04-19"
+    url: https://addyosmani.com/blog/agent-harness-engineering/
+    checkedOn: 2026-10-09
+  - title: "Codex as a platform: build on the open agent harness"
+    org: OpenAI Developers
+    date: "2026-08-19"
+    url: https://developers.openai.com/blog/codex-as-a-platform
+    checkedOn: 2026-10-09
+    note: "The page shows no publication date today; the date is the talk research's. The ARC-AGI-3 figures are the vendor's own, for one model."
+  - title: 12-Factor Agents
+    author: Dex Horthy, HumanLayer
+    date: "2025"
+    url: https://github.com/humanlayer/12-factor-agents
+    checkedOn: 2026-10-09
+    note: "A living repository with no publication date. The year is when it first circulated, from a screenshot dated 2025-04-03 in its README."
+  - title: Don't Build Multi-Agents
+    org: Cognition
+    author: Walden Yan
+    date: "2025-06-12"
+    url: https://cognition.com/blog/dont-build-multi-agents
+    checkedOn: 2026-10-09
+    note: "A vendor's argument from its own experience, written in mid-2025. Read it as a position, not a measurement."
+  - title: Why Do Multi-Agent LLM Systems Fail?
+    author: Mert Cemri, Melissa Z. Pan, Shuyi Yang, and colleagues
+    date: "2025-03-17"
+    url: https://arxiv.org/abs/2503.13657
+    checkedOn: 2026-10-09
+    note: "arXiv 2503.13657, figures from version 3 of 2025-10-26. A preprint. Its traces come from seven open multi-agent frameworks, not from production systems."
+  - title: A practical guide to building agents
+    org: OpenAI
+    date: "2025-04"
+    url: https://cdn.openai.com/business-guides-and-resources/a-practical-guide-to-building-agents.pdf
+    checkedOn: 2026-09-14
+    note: "Quoted from the talk research, which lists these quotes as still to be confirmed against the PDF. The PDF text could not be extracted on 2026-10-09, so the date checked is the talk research's."
+  - title: "Gartner Predicts Over 40% of Agentic AI Projects Will Be Canceled by End of 2027"
+    org: Gartner
+    date: "2025-06-25"
+    url: https://www.gartner.com/en/newsroom/press-releases/2025-06-25-gartner-predicts-over-40-percent-of-agentic-ai-projects-will-be-canceled-by-end-of-2027
+    checkedOn: 2026-09-14
+    note: "A forecast, not observed cancellations. The page refused automated fetching on 2026-10-09; the date checked is the talk research's browser read."
+  - title: Making retries safe with idempotent APIs
+    org: Amazon Builders' Library
+    author: Malcolm Featonby
+    date: "2021-01"
+    url: https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/
+    checkedOn: 2026-10-09
+    note: "The page states no date. The month is from AWS's announcement of the article, dated 2021-01-15."
+  - title: Compensating Transaction pattern
+    org: Microsoft, Azure Architecture Center
+    date: "2026-04-16"
+    url: https://learn.microsoft.com/en-us/azure/architecture/patterns/compensating-transaction
+    checkedOn: 2026-10-09
+  - title: Checkpointers, LangGraph documentation
+    org: LangChain
+    date: "2026"
+    url: https://docs.langchain.com/oss/python/langgraph/checkpointers
+    checkedOn: 2026-10-09
+    note: "Living documentation with no publication date. The year is the year read. Used as one concrete example of checkpointing, not as a recommendation of a framework."
+  - title: The Shift from Models to Compound AI Systems
+    author: Matei Zaharia, Omar Khattab, Lingjiao Chen, and colleagues
+    org: Berkeley AI Research
+    date: "2024-02-18"
+    url: https://bair.berkeley.edu/blog/2024/02/18/compound-ai-systems/
+    checkedOn: 2026-10-09
+  - title: Semantic Conventions for Generative AI
+    org: OpenTelemetry
+    date: "2026"
+    url: https://github.com/open-telemetry/semantic-conventions-genai
+    checkedOn: 2026-10-09
+    note: "The GenAI conventions moved here from the main OpenTelemetry site. On the day checked the repository showed no release, and its span documents carried the status Development. The year is the year read."
+  - title: Codex CLI documentation, slash commands, configuration reference, and hooks
+    org: OpenAI
+    date: "2026"
+    url: https://learn.chatgpt.com/docs/hooks
+    checkedOn: 2026-10-09
+    note: "Living documentation, read at learn.chatgpt.com/docs/cli/slash-commands, /docs/config-file/config-reference, and /docs/hooks. Tool facts are true on the date checked."
+  - title: Devin CLI documentation, commands, configuration file, and lifecycle hooks
+    org: Cognition
+    date: "2026"
+    url: https://docs.devin.ai/cli/extensibility/hooks/lifecycle-hooks
+    checkedOn: 2026-10-09
+    note: "Living documentation, read at docs.devin.ai/cli/reference/commands, /cli/reference/configuration/config-file, and /cli/extensibility/hooks/lifecycle-hooks. Tool facts are true on the date checked."
 ---
 
 ## Transfer connection
 
-This module is planned. It is not yet written. This page holds its place in the catalog until it is.
+This module expands one row of the talk's transfer table. You already do this: Decomposition and systems thinking. It becomes this: Harness design.
 
-It will expand one row of the talk's transfer table. You already do this: Decomposition and systems thinking. It becomes this: Harness design. The module will say what stays the same and what changes.
+You have decomposed systems for years. You split a checkout into services. You drew the order lifecycle as a state machine and argued about which transitions were legal. You put a queue between two components because one of them was slow and the other could not wait. You set a timeout on every network call, added retries with backoff, and then learned the hard way that a retry on a payment call needs an idempotency key. You wrote the runbook for the job that dies at 2 a.m. and has to resume without double-processing anything. That body of skill is the subject of this module, because orchestration is where it lands in an AI system.
+
+What stays the same: breaking work into steps with clear inputs and outputs. Choosing the simplest structure that meets the requirement. Deciding where state lives, how a step is retried, what happens when a call times out, and who gets paged when the process cannot finish on its own. Distributed-systems recovery transfers whole. A tool call that moves money is a network call that moves money. Every lesson you learned about at-least-once delivery, partial failure, and compensation still applies, and it applies more often, because the harness now issues those calls on a model's say-so.
+
+What changes: one component in the system now chooses its own next step. In a workflow, code decides the path and the model works inside steps you defined. In an agent loop, the model reads what happened and picks what to do next, within limits you enforce. That single change moves three things. First, decomposition gains a new question: which decisions should the model make at all, and which belong to code. Second, termination is no longer guaranteed by the structure of the program. A loop that a model drives ends when something stops it, and that something is yours to write. Third, the units of the budget change. You still budget latency and money, and you now budget turns, tool calls, and tokens, which are how a loop spends both.
+
+Context and knowledge expands the same row from another side: what goes into each model call. This module is about the control flow around the calls. The book frames chapter 16's transfer as "State machines and distributed-systems recovery provide explicit control over uncertain steps." Chapter 17 adds that "Runtime design expands to governing model-selected actions and resource consumption." Chapter 18 adds that "Checkpointing, concurrency, and ownership become essential for continuity and coordination." Read the three together and you have the module's arc: a reliable workflow first, then a bounded loop inside it, then work that outlives one context window and sometimes one agent.
 
 ## Topics and learning outcomes
 
 <Outcomes />
 
-The module draws on talk beat 2.4 and on book chapters 16, 17, 18. Each concept arrives with its outcome. Each gets a coding-agent worked example: what the user touched, what the vendor engineered. Each cites a public incident or a first-hand account, with its checked-on date.
+The talk gives this area two slides. The first shows what you touched as a user of a coding agent. The second shows what you own once the system is yours. This module follows the same order and goes much further on each side. It assumes the [Tools and extensibility](/modules/tools-and-extensibility) module, because a loop is mostly a sequence of tool calls, and every recovery question here turns on what a tool did or did not do.
+
+If you read in two sittings, stop after Tracing the loop. The first half covers workflows and the loop. The second covers long-running work, multiple agents, and the pitfall.
+
+A note on the artifacts. The workshop and the failure exercise use three synthetic artifacts written for this module: a loop trace, a progress record, and a design doc. They describe a fictional company and fictional models. None of their numbers is a measured result.
+
+### When you are the user
+
+Start with what you have already used. The talk names six features that both of its coding agents have: plan mode, subagents, hooks, compaction, resume, and fork. Here is what each one is in the two tools, from their own documentation as checked on 2026-10-09.
+
+**Plan mode.** In Codex CLI, `/plan` will "Switch to plan mode and optionally send a prompt." In Devin CLI, `/plan` will "Switch to Plan mode (read-only planning)". You ask for a plan, read it, and approve or redirect before anything changes. The talk's research notes that neither tool documents a todo list. The visible artifact is the plan.
+
+Subagents come next. Codex CLI has an `agents.enabled` setting whose reference entry reads "Enable or disable multi-agent tools (default: true)". Devin CLI has `subagents_enabled`, which will "Control whether the agent can delegate work to subagents," and it defaults to on. When you watched a coding agent send off a search and come back with a summary, that was a subagent.
+
+Hooks are the third feature, and the most important for this module. A hook is your code, run by the harness at a fixed point in the loop. Both tools fire hooks before and after each tool call, on permission requests, around compaction, and when the agent tries to stop. In both tools a PreToolUse hook can block a tool call, and a Stop hook can refuse to let the agent finish.
+
+Then come compaction, resume, and fork. Codex CLI's `/compact` will "Summarize the visible chat to free tokens", and its config has `model_auto_compact_token_limit`, the "Token threshold that triggers automatic history compaction". Devin CLI's `/compact` will "Force conversation compaction". Codex CLI's `/resume` will "Resume a saved chat from your session list" and `/fork` will "Fork the current chat into a new chat." Devin CLI's `/fork` can fork "from a specific step", and its `/handoff` continues a local session "in a cloud session."
+
+One dated fact makes a point of its own. On 2026-09-14 the talk's research recorded that Codex gated hooks behind a feature flag that defaulted to off, and the talk said "Codex ships hooks turned off. You turn them on." On 2026-10-09 the Codex hooks page says "Hooks are enabled by default." Three weeks apart, the same vendor fact changed. That is why every tool fact in this program carries the date it was checked, and why the owner of a system pins the harness behavior it depends on instead of assuming it.
+
+Here is the worked example in the talk's pairing. You touched plan mode, a subagent, a hook, and a compaction notice. You approved a plan. You saw a subagent's summary appear. You configured a hook that runs the formatter after every edit. You saw the session compact and keep going. Each of those surfaces is a decision someone made about the loop. The plan is a checkpoint where a human can redirect before any side effect. The subagent is a context boundary: a fresh window that does one job and returns only what the parent needs. The hook is a deterministic step inside a nondeterministic loop. In the talk's words: "a PostToolUse hook runs the formatter or the tests whether or not the model believes it did." The compaction notice is a state decision: what survives into the next turn when the window is full.
+
+Underneath all of it is one loop. Anthropic's Agent SDK post describes it for Claude Code: "gather context -> take action -> verify work -> repeat." The talk draws it as a ring of three: gather context, take action, verify. Every coding agent you have used runs some version of that ring. The six features are handles on it.
+
+### What someone engineered
+
+The talk lists the loop's decisions. "When to stop. What carries between turns. When to compact. When to spawn a subagent, and what to hand it. Where a hook fires." Each one is a design choice with a cost on both sides. Take them one at a time.
+
+When to stop. A coding agent stops when the model says it is done, when you interrupt it, or when a limit fires. The first is the dangerous one. Anthropic's long-running harness work, covered later in this module, names the failure: a later session sees that progress was made and decides the whole job is finished. Osmani's post makes the same observation from the other direction: models often quit early, so the harness is designed to counter it, for example with a hook that catches the attempt to exit and starts a fresh iteration that reads its state from files. Devin CLI's documentation shows the mechanism and its risk in two sentences. A Stop hook is used to "add follow-up instructions or prevent premature stopping", and the same page warns that Stop hooks "can cause the agent to loop if the condition isn't eventually satisfied." A stop rule that is too loose ships unfinished work. A stop rule that is too strict never stops. Both are engineering decisions.
+
+What carries between turns. A model call is stateless. The harness rebuilds the input every turn from the conversation so far, the tool results, and whatever it chooses to keep. The context module covers what to put in the window. The orchestration question is structural: which state lives in the transcript, which lives in files or a database, and which lives only in the systems the tools touched. Dex Horthy's 12-Factor Agents, a public set of principles for production agents, puts the principle as two factors: "Unify execution state and business state" and "Make your agent a stateless reducer". A reducer is a function where the next state is f(previous state, event). The next step is a function of the accumulated events. If you can rebuild the state from a log, you can pause, resume, fork, and debug.
+
+When to compact. Compaction trades detail for room. Codex's `model_auto_compact_token_limit` sets the threshold, and an unset value "uses model defaults". OpenAI's August 2026 post on the Codex harness reports loop-level evidence that this matters. ARC-AGI-3 is a reasoning benchmark, and retained reasoning means the harness carries the model's reasoning from one turn into the next. In the vendor's words, "on ARC-AGI-3, retained reasoning and context compaction raised GPT-5.6 Sol's score from 13.3% to 38.3% while reducing output tokens sixfold." Same model, different harness. Treat it as one vendor's result on one benchmark for one model. It is still the clearest public example of the talk's point that loop design moves results.
+
+When to spawn a subagent, and what to hand it. A subagent costs a new context and returns a summary. It pays off when the work is separable and the summary is enough. Anthropic's SDK post gives the two benefits: subagents "enable parallelization", and they "use their own isolated context windows, and only send relevant information back to the orchestrator." The cost is the information that does not come back. Later sections take this apart.
+
+Where a hook fires. A hook turns a hope into a guarantee. If the formatter must run after every edit, a PostToolUse hook runs it. If a shell command must never touch production, a PreToolUse hook blocks it. Codex's documentation is honest about the limit of a post-hook: it "can't undo side effects from a tool that already ran." A check that must prevent an action belongs before the action.
+
+Osmani's line, which the talk says "applies most sharply here": "A decent model with a great harness beats a great model with a bad harness." His definition of the harness is the one this program uses: "every piece of code, configuration, and execution logic that isn't the model itself." The orchestration box is the part of the harness that runs the other parts. Instructions, context, tools, guardrails, and verification each have their own module. This one is about the code that decides the order they run in and when the run ends.
+
+### Workflows and agents
+
+The talk takes its vocabulary from Anthropic's "Building effective agents", published 2024-12-19. Anthropic uses "agentic systems" as the umbrella term and then draws one architectural line through it. Here are the two definitions, verbatim.
+
+> Workflows are systems where LLMs and tools are orchestrated through predefined code paths.
+>
+> Agents, on the other hand, are systems where LLMs dynamically direct their own processes and tool usage, maintaining control over how they accomplish tasks.
+
+The line is about control flow, not about intelligence. A workflow can call a model at every step and still be a workflow, because code decides which step comes next. An agent can be small and simple and still be an agent, because the model decides. The talk compresses it: "An agent adds model-selected actions to control flow. Ordinary code can still enforce permissions, limits, and other guarantees." The second sentence matters as much as the first. Handing the model the choice of the next action does not hand it the permission system, the budget, or the stop condition. Those stay in code in both designs.
+
+The talk's later slides add two questions to ask before choosing either design. The first: "Is intelligence needed for this task?" If explicit rules produce an acceptable result, write the rules. A model call is a dependency with a cost, a latency, a failure rate, and an expiry date. The second: does the model need to choose the next action? In the talk's example, a workflow can collect failed test logs, ask a model to summarize them, and check the summary in code. The model's judgment is used. Its control is not. An agent investigating the same failure might choose which file to open or which test to run next, based on what it found. That flexibility helps when the next step depends on evidence you cannot predict.
+
+So the real choice is not binary. Think of it as a ladder with four rungs.
+
+1. Code only. Rules, lookups, and templates. No model.
+2. A single model call, with retrieval and examples. Anthropic's advice for many applications: "optimizing single LLM calls with retrieval and in-context examples is usually enough."
+3. A workflow. Several calls on a path code defines, with checks between them.
+4. An agent loop. The model chooses actions from observed results, inside limits code enforces. Often this is a bounded loop inside one stage of a workflow, not the whole system.
+
+The fourth rung is the important design shape for this module. The talk's slide draws it: stage one, then a bounded agent loop inside stage two, then a required check that sits outside the loop. The loop gets the part of the task that needs judgment about what to do next. The workflow keeps everything that has a known order: intake, validation, approval, notification. The loop trace in this module's workshop has exactly that shape. The billing assistant is a four-stage workflow, and only the investigate stage runs a loop.
+
+Anthropic's guidance is to climb only as far as you must: "we recommend finding the simplest solution possible, and only increasing complexity when needed." And: "Agentic systems often trade latency and cost for better task performance, and you should consider when this tradeoff makes sense." The book's chapter 16 turns that into an outcome you can check: select model-driven decisions only where they provide measurable value. Measurable is the key word. The comparison is the simpler design against the more autonomous one, on representative cases, counting quality, completion time, total cost, retries, and the human review each one needs.
+
+There is a systems view of the same idea, older than the agent vocabulary. In February 2024, Berkeley AI Research defined a compound AI system as "a system that tackles AI tasks using multiple interacting components, including multiple calls to models, retrievers, or external tools." The authors observed that "state-of-the-art AI results are increasingly obtained by compound systems with multiple components, not just monolithic models", and they named the design question directly: should the control logic "be written in traditional code (e.g., Python code that calls an LLM), or should it be driven by an AI model (e.g. LLM agents that call external tools)?" That is the workflow and agent distinction, asked as an architecture question. Your answer can differ per stage.
+
+Practitioners who ship agents report the same shape from the field. Horthy's 12-Factor Agents opens by asking "What are the principles we can use to build LLM-powered software that is actually good enough to put in the hands of production customers?" His observation is that many products billed as AI agents are "mostly deterministic code, with LLM steps sprinkled in at just the right points". That is not a criticism of those products. It is a description of what works.
+
+Why does this matter for an engineer with production experience? Because a workflow keeps the properties you already know how to operate. You can draw its states. You can test each step with fixtures. You can put a breakpoint between steps. You can say what happens when step three fails, because step three is a function you wrote. An agent loop gives up some of that for flexibility. Sometimes the trade is worth it. The point of the ladder is that you make the trade on purpose, with evidence, one rung at a time.
+
+### Five workflow patterns
+
+Anthropic's post names five workflow patterns. The talk lists them on the owner slide: chaining, routing, parallelization, orchestrator and workers, evaluator and optimizer. Each has a familiar ancestor in ordinary systems design. Each has a cost. Here they are with Anthropic's own description, when to use each, and what it buys and costs.
+
+**Prompt chaining.** "Prompt chaining decomposes a task into a sequence of steps, where each LLM call processes the output of the previous one." Anthropic's guidance on when to use it: "This workflow is ideal for situations where the task can be easily and cleanly decomposed into fixed subtasks." Its ancestor is the pipeline. The key engineering detail is the gate: a check in code between steps that validates the intermediate output before the next call runs. A chain that extracts fields, then drafts a letter from them, should validate the fields against a schema and the system of record before drafting. A chain trades latency for accuracy, because each call does an easier job. It also makes failures local. When the letter is wrong, you can see whether the extraction or the drafting failed.
+
+**Routing.** "Routing classifies an input and directs it to a specialized followup task." Use it when there are "distinct categories that are better handled separately". Its ancestor is the dispatcher, or a switch statement over a classifier. Routing lets each downstream path have its own prompt, tools, and even its own model, so easy categories can go to a smaller, cheaper model while hard ones go to a larger one. The cost is the classifier's error rate. A misrouted input gets a confident answer from the wrong specialist. Measure the router on its own, with a confusion matrix over representative inputs, and give it an explicit "none of these" route that goes to a human or a general path.
+
+**Parallelization.** "LLMs can sometimes work simultaneously on a task and have their outputs aggregated programmatically." Anthropic gives two variants. Sectioning is "Breaking a task into independent subtasks run in parallel." Voting is "Running the same task multiple times to get diverse outputs." Its ancestors are scatter-gather and redundant execution. Sectioning buys speed and focus. A common use is a guardrail: one call answers the user while another screens the input or the answer, and code decides what to do when the screen objects. Voting buys confidence, for example several independent reviews of a risky change, flagged when any one objects. The cost is tokens, multiplied, and an aggregation rule you must write. The precondition is independence. Subtasks that need each other's output are a chain, and running them in parallel means some of them start without what they need.
+
+**Orchestrator and workers.** In this pattern "a central LLM dynamically breaks down tasks, delegates them to worker LLMs, and synthesizes their results." Anthropic says it is "well-suited for complex tasks where you can't predict the subtasks needed". It looks like parallelization, but the subtasks are chosen at run time by a model rather than fixed in code. That makes it the bridge between workflows and agents, and the place where multi-agent systems start. Its ancestor is a work queue whose jobs are generated dynamically. The cost is everything that comes with dynamic decomposition: the orchestrator can split badly, hand a worker too little context, or synthesize conflicting results. The later section on multiple agents covers those failures. Reach for this pattern only when you genuinely cannot list the subtasks ahead of time. If the runbook lists them, use a chain or sectioning.
+
+**Evaluator and optimizer.** "One LLM call generates a response while another provides evaluation and feedback in a loop." Anthropic says it is "particularly effective when we have clear evaluation criteria". Its ancestor is generate-and-test, or a compile-fix cycle. Translation against a style guide is the classic case: write, check against written criteria, revise. Two engineering details decide whether it works. The first is the criteria. If the evaluator has no clear rubric, the loop optimizes toward the evaluator's taste, which is a model's taste. Prefer checks in code where they exist: a schema, a linter, a test, a length limit. The second is the bound. Every evaluator loop needs a maximum number of rounds and a rule for what happens when the rounds run out. A writer and critic that never agree is an unbounded loop with two models in it.
+
+The patterns combine. A real system might route by category, run a chain inside each route, parallelize a guardrail beside the main call, and put an evaluator loop around the final draft. Anthropic's post says these building blocks "aren't prescriptive"; the point is to shape and combine them to fit the task and to measure the result. Notice what every combination shares: code still decides the shape. The model makes judgments inside steps. The patterns are how you get most of the value of model judgment without giving up the control flow.
+
+A worked example shows the difference. A team wants to handle warranty claims for a line of appliances. The service runbook lists six steps in a fixed order, with one branch: approve or deny. That is a chain with a router. Intake parses the claim form. A code lookup maps the product model and purchase date to its warranty terms, because a terms table does not need a model. A tool call fetches the purchase and repair history for the serial number that intake extracted, and a schema check confirms the records belong to that unit. A model call compares the reported fault with the list of covered defects and the history, and recommends approve or deny. A model call drafts the reply from a template. A code check confirms that every required field, such as the return authorization number, is present. A human reviews and sends. The model makes three judgments. Code owns the path, the lookups, and the checks.
+
+### Making a workflow reliable
+
+A workflow is predictable in shape. It is not automatically reliable. Every step that calls a model or a service can be slow, can fail, and can succeed without telling you. The book's chapter 16 asks you to handle "retries, idempotency, timeouts, partial completion, and compensation" and to "Place human review at defined decision points." None of that is new to you. What is new is how often it comes up, because a model-driven system issues more calls, with more side effects, on more paths than the hand-written flows you are used to.
+
+Start with state. Draw the workflow as a state machine. Each run has an id. Each step has a status: pending, running, succeeded, failed, or unknown. Persist the status after every transition, in storage that survives a process restart. That last clause is not decoration. LangGraph's documentation is a useful concrete example: a checkpointer saves a snapshot of the graph's state after each step, organized into threads. The same documentation describes an in-memory checkpointer meant for experimentation, and a database-backed one described as "Ideal for using in production". It also describes a durability setting under which intermediate state is not saved, so a crash in the middle cannot be recovered. An in-memory snapshot does not survive the process that held it. Whatever framework or hand-written table you use, ask the same question: if the host dies between step four and step five, what does the next process find?
+
+Next, validation. Put a gate after every model step whose output feeds something else. The gate is code: a schema check, a lookup against the system of record, a range check, a test. When the gate fails, the workflow decides, not the model. It can retry the step with the validation error in the input, route to a fallback, or stop and hand off. 12-Factor Agents calls the retry variant "Compact Errors into Context Window": feed the model a short, specific error rather than the raw stack trace, and cap how many times you do it.
+
+Now the hard part: timeouts. The talk's later slides put it in one line: "A timeout does not establish failure." Malcolm Featonby's article in the Amazon Builders' Library explains why with a provisioning example. The caller asks for a workload and gets no response, perhaps because of a network timeout. In Featonby's words, "It's not clear whether the singleton workload is running or not." A blind retry might create a second one. The same is true of a refund draft, an email, a ticket update, or an export. When a side-effecting call times out, the honest status is unknown.
+
+The fix has two parts, and both are yours. The first is idempotency. Featonby defines it: "An idempotent operation is one where a request can be retransmitted or retried with no additional side effects". Amazon's approach is "a unique caller-provided client request identifier" in the API contract. The service treats two requests with the same identifier as the same request, and when the parameters differ it returns "a validation error indicating a parameter mismatch between idempotent requests." The harness, not the model, should build that identifier from stable facts: the ticket, the operation, the target. If the model invents a new key on every attempt, you have the bug the workshop trace describes in its turn 3: a client that retried with a fresh key, so the payment gateway charged the customer twice.
+
+The second part is reconciliation. Before retrying an unknown outcome, look. Ask the service whether an operation with that key exists. If it does, record success and move on. If it does not, and the service's contract makes a retry safe, retry within the budget. If you cannot establish what happened, stop and hand off with the uncertainty stated. Do not mark it failed, because a later run will do it again. Do not mark it succeeded, because nobody checked. The book's chapter 16 failure exercise is exactly this: "A service commits an action but the response times out; blindly retrying would duplicate the action." Its completion evidence asks you to demonstrate "stable operation identifiers, and verified outcomes without duplicated side effects."
+
+Here is the recovery rule as a compact sketch. It is not code to copy. It is the shape the workshop trace follows.
+
+```text
+on side-effecting step S with key K:
+  call S(K, params) with timeout T
+  if response ok           -> record succeeded, continue
+  if response error, known -> record failed; retry only if policy allows and budget remains
+  if timeout or no answer  -> record unknown
+                              look up K in the target system
+                              found and matches params -> record succeeded, continue
+                              found, params differ     -> stop, hand off (conflict)
+                              not found, retry safe    -> retry with the same K, within budget
+                              cannot tell              -> stop, hand off with "outcome unknown"
+```
+
+Partial completion is the next case. A workflow that books a flight, a hotel, and a car can succeed at two and fail at the third. Microsoft's Compensating Transaction pattern describes the response: "Implement a compensating transaction that undoes the effects of completed steps in the original operation." The page is careful about what that means. Compensation "doesn't necessarily return the system data to its state at the start of the original operation", because other work may have happened in between. Compensating steps can fail too, so the page says to design them as idempotent commands and to record progress so compensation can resume. And it says to "Define clear points of no return and irreversible steps", and to place irreversible steps "only after all critical validations succeed." For an AI workflow, that last rule is the important one. Order your steps so that the model's judgments, the validations, and the human approval all happen before the step that cannot be undone. Drafting is cheap to compensate. Sending is not.
+
+Human review is a step, not an afterthought. Put it at defined decision points: before an irreversible action, when a value crosses a threshold, when the model's confidence or a validator says the case is unusual, and when the workflow cannot establish an outcome. Make review a state in the machine, with its own timeout and its own escalation path. Microsoft's page gives the travel example: when a hotel booking fails, offering another hotel is better than cancelling the flights, and the customer should make that decision, not the system. "When decisions are high impact or hard to automate reliably, include a human in the decision-making process."
+
+None of this needs an agent. It is the reliability work that makes a workflow worth shipping. It is also the floor for everything that follows. An agent loop inherits every one of these problems and adds its own.
+
+### Owning the loop
+
+When a stage really does need the model to choose its next action, you write a loop. The book's chapter 17 names the parts that interact: "model, tools, observations, state, and stopping conditions." It names the harness's job: "execution, permissions, resources, and recovery." Here is the smallest honest version of the loop, written as a sketch so the parts are visible. Every line outside the model call is yours.
+
+```python
+def run_stage(goal, tools, limits, store):
+    state = store.load_or_start(goal)              # durable, keyed by run id
+    while True:
+        stop = limits.check(state)                 # turns, tool calls, tokens, deadline, no progress
+        if stop:
+            return escalate(state, reason=stop)    # a limit is an outcome, never a silent success
+        action = model.next_action(build_context(state), tools.schemas())
+        if action.kind == "finish":
+            check = verify(state)                  # check the result, not the claim
+            if check.ok:
+                return succeed(state)
+            state.add_observation("finish rejected: " + check.reason)
+            continue
+        if action.kind == "escalate":
+            return escalate(state, reason=action.args)   # the model's own way out
+        if not tools.permitted(action, state.identity):
+            state.add_observation("denied: " + action.name)
+            continue
+        result = tools.execute(action, key=idempotency_key(state, action))
+        state.record(action, result)               # includes outcome: ok, error, or unknown
+        store.save(state)                          # checkpoint after every step
+```
+
+Read it as a list of responsibilities. The model chooses the action. Code checks the limits before every model call. Code decides whether the action is permitted, with an identity the model did not supply. Code builds the idempotency key. Code records the outcome, including unknown, and saves the state before the next turn. Code verifies the result when the model says it is done, and refuses the finish if the check fails. Anthropic's post on agents makes the environment the source of truth: "it's crucial for the agents to gain 'ground truth' from the environment at each step". The loop is how that ground truth gets back to the model, and how the harness checks it independently.
+
+Five parts deserve a closer look.
+
+Planning and replanning. Many agents write a plan before acting and revise it as evidence arrives. A plan is useful twice. It gives a human a place to redirect before any side effect, which is what plan mode does in a coding agent. It also gives the harness something to compare progress against. But a plan is a claim about future work, not a control. The talk's later slides say it plainly: "A proposed plan does not enforce required checks." If a check is required, it runs in code whether the plan mentions it or not.
+
+Bounded exploration. Investigation is where loops earn their place: the next step depends on what the last step found. Bound it anyway. Limit the tools to the ones the stage needs. Limit the scope of each tool to the data the stage may see. Limit the number of exploratory calls. Anthropic's research system embeds effort guidance in its prompts for the same reason: "Simple fact-finding requires just 1 agent with 3-10 tool calls". A loop with no bound on exploration will explore.
+
+Escalation as a tool call. 12-Factor Agents' seventh factor is "Contact humans with tool calls". Give the model an explicit way to stop and ask: an `escalate_to_human` tool with a structured payload that names the question, the evidence gathered, and what the model could not reach. Then make the harness use the same path when a limit fires. Escalation becomes a normal, typed outcome of the loop instead of an exception. The workshop trace ends this way: the model escalates because a customer mentions a card it is not permitted to see.
+
+Errors as observations. When a tool call fails, the loop does not crash. It records the failure as an observation and lets the model react. That is powerful and dangerous. A permission denial should teach the model that the path is closed. A transient error might deserve one retry. A validation error should come back short and specific. Count errors toward the budget. A loop that retries a failing call forever is a loop with no stop condition.
+
+Verification before success. The loop above refuses a "finish" until a check passes. That check is the boundary with the [Verification and evals](/modules/verification-and-evals) module. Orchestration's job is to make sure the check runs, every time, before the run reports success, and that a run which cannot pass the check ends in escalation rather than in a confident summary.
+
+Then compare. The book's chapter 17 ends with an outcome that keeps the whole area honest: "Compare a bounded agent with the existing explicit workflow." Its completion evidence asks you to "measure whether flexibility improves completion under comparable constraints." Comparable is the operative word. Give the loop and the workflow the same cases, the same tools, the same latency budget, and the same token budget, and count completed tasks, escalations, cost per completed task, and the human review each one needed. If the loop wins, you have evidence for its autonomy. If it ties, keep the workflow. You can operate it better.
+
+### Stopping conditions and budgets
+
+Anthropic's post says it in passing: "it's also common to include stopping conditions (such as a maximum number of iterations) to maintain control." The talk's owner slide makes it a requirement. For a customer-facing system: "A human is waiting. Latency is a product requirement. An unbounded loop is an outage." A loop that never stops does not fail loudly. It holds a request open, spends tokens, retries tools, and keeps a person waiting at the other end. From the outside that looks like an outage, and the bill looks like one too.
+
+Stop conditions come in three kinds. Design all three.
+
+Success conditions say when the work is done. They should be checks on the environment, not the model's opinion. A draft exists with the right key and amount. The tests pass. The record in the system of record matches the request. Anthropic's long-running harness work, in the section on long-running work below, shows why the model's opinion is not enough.
+
+Limit conditions say when to stop regardless. Five are worth enforcing for almost every loop.
+
+- A maximum number of turns, which is the classic iteration cap.
+- A maximum number of tool calls, and a separate, smaller cap on side-effecting calls.
+- A token budget for the run, input and output together, which is how the loop spends money.
+- A wall-clock deadline, set from the product's latency requirement, checked before every model call and every slow tool call.
+- A spend cap in currency, where a run can trigger paid services beyond tokens.
+
+Progress conditions say when the loop has stopped learning. These are the ones teams forget. A loop can stay well inside every limit while doing nothing useful: calling the same search with the same arguments, re-reading the same file, asking the same question in new words. The book's chapter 17 failure exercise is exactly this case: "The agent loops after receiving no useful new evidence or attempts to act after exhausting its budget." Detect it in code. The workshop trace shows one way: each tool result carries the ids of the evidence it added, and the harness stops after two turns that add none. Other signals work too: repeated identical calls, a plan that has not changed in several turns, or a verifier score that has not improved.
+
+Research on multi-agent frameworks shows how common these failures are. Cemri and colleagues annotated more than 1,600 execution traces from seven open multi-agent frameworks and built a taxonomy of fourteen failure modes. In their version 3 figures, step repetition was the most prevalent single mode at 15.7 percent, and being unaware of termination conditions was 12.4 percent. The traces come from research frameworks, not production systems, and the paper does not say whether the percentages are shares of traces or of failures. The direction is still clear. Loops that repeat themselves and do not know when they are done are not rare edge cases. They are the main event.
+
+Where each limit lives matters as much as its value. A limit written in the system prompt is a request to the model. A limit checked in the harness is a limit. The two are not alternatives. Tell the model about its budget, because a model that knows it has three tool calls left can plan better. Enforce the budget in code, because the model may not plan well. When a limit fires, the harness ends the run through the escalation path, with the limit named as the reason. A run that hits its deadline does not get to report success.
+
+Set the numbers from evidence. The deadline comes from the product: how long the person on the other end can wait. The token budget comes from cost per completed task, measured on representative cases. The turn and tool-call caps come from the distribution of real runs: look at how many turns successful runs take, and set the cap above the high end of that range. If successful runs need 4 to 9 turns, a cap of 10 or 12 catches runaway loops without cutting off real work. With no runs, you have no distribution to set caps from. Run the workflow first and measure it.
+
+Budgets also flow down. When a stage spawns a subagent, the subagent's budget comes out of the parent's. When a workflow has a 45-second deadline and the investigate stage is the second of four, the loop's deadline is what remains, minus what the later steps need. The workshop trace sets 38 seconds for that reason. Decide, too, what counts against each cap. In the workshop trace, every tool call the model requests counts toward the tool-call cap, denied ones included, and the harness's own reconcile calls are counted separately, so a slow service cannot quietly use up the model's budget. The talk spreads cost and latency across four areas. This area owns the budgets that a loop spends: tokens, actions, and latency.
+
+Finally, decide what a limit means to the user. The run that hits its cap still owes the user something: the evidence it gathered, the question it could not answer, and a handoff to someone who can. The workshop trace's escalation payload is the pattern: what was established, what was drafted, and what remains open. That turns a limit from an outage into a degraded but honest result.
+
+### Tracing the loop
+
+A workflow's path is in its code. A loop's path is in its trace. When a loop misbehaves, the question is never only "what did the model say". It is "what did the run do, in what order, why did it stop, and what did it spend". Anthropic's research team learned this in production: "Adding full production tracing let us diagnose why agents failed and fix issues systematically." Build the trace before the loop reaches customers. A loop you cannot trace, you cannot debug.
+
+A useful loop trace has four layers, and the workshop trace shows each one.
+
+1. One root span per run. It carries the run's identity, the limits that applied, the final counters for turns, tool calls, tokens, and elapsed time, and the stop reason. If you read only one span, this is the one that tells you whether the run ended by success, by escalation, or by a limit.
+2. One span per turn. It carries the model call's token usage and what the model asked for. A run whose turn spans keep growing in input tokens without new tool results is a run that is re-reading itself.
+3. One span per tool call. It carries the tool name, the arguments, the outcome, which is ok, error, or unknown, and the idempotency key for anything with a side effect. Add the evidence the call contributed, as ids. That one attribute makes progress measurable.
+4. Spans for the harness's own actions, marked as code. Guards that allowed or blocked a call. Reconciliations after a timeout. Checks before a finish. Permission denials. These spans answer the question every review asks: which decisions did the model make, and which did we.
+
+Subagents get their own subtree under the parent's span, with their own limits and counters. A multi-agent run whose trace is a set of unconnected logs cannot be debugged, because the interesting failures are in the handoffs.
+
+From those spans you can read five questions for any single run. Why did it stop? What did it spend, against which budget? Which steps did the model choose and which did code impose? Which side effects happened, under which keys, with which outcomes? Where did it repeat itself?
+
+Across runs, the same spans become the metrics that set your limits and tell you when they are wrong. The distribution of stop reasons, with escalations and limit hits broken out. Turns and tool calls per successful run, which is where caps come from. The rate of unknown outcomes per side-effecting tool, which tells you about the services you call. Cost per completed task, not per call. Latency at the 95th percentile per stage, against the product's deadline. When a model or prompt change ships, compare these before and after. A change that raises the share of runs ending on the turn cap is a regression even if every finished run looks fine.
+
+The attribute names in the workshop trace follow the style of OpenTelemetry's GenAI semantic conventions. On 2026-10-09 those conventions had moved to their own repository, "Semantic Conventions for Generative AI (GenAI), including spans, metrics, and events for GenAI clients", which showed no release yet. Names like these will move. Use the conventions where they exist, keep your own harness attributes under your own prefix, and expect to migrate. Tool arguments and results can carry personal data, so the trace is also a data store with retention and access rules. The [Operating it](/modules/operating-it) module covers that side.
+
+### Long-running work
+
+Some work does not fit in one context window or one session. A migration across hundreds of files. A backlog of tickets processed overnight. An application built feature by feature over days. The book's chapter 18 names the responsibilities: "Persist goals, progress, artifacts, and checkpoints across sessions" and "Reconstruct context and reconcile recorded progress with actual environment state."
+
+The clearest public first-hand account is Anthropic's "Effective harnesses for long-running agents", by Justin Young, published 2025-11-26. The team asked an agent to build a web application across many context windows and watched it fail in two ways. The talk names them. Over-ambition: "The agent tended to try to do too much at once", essentially attempting to one-shot the app, running out of context in the middle of a feature and leaving the next session to guess what had happened. Premature completion: "a later agent instance would look around, see that progress had been made, and declare the job done."
+
+The fix was engineering, not prompting. A first session, the initializer, sets up the environment. It writes an `init.sh` script that starts the application, a progress file named `claude-progress.txt`, and an initial git commit. It writes a JSON feature list, with "over 200 features" for the application in the post, each marked as not yet passing. Every later session, the coding agent, follows a fixed startup routine. The post lists it: "Run pwd to see the directory you're working in." "Read the git logs and progress files to get up to speed on what was recently worked on." "Read the features list file and choose the highest-priority feature that's not yet done to work on." Then the session works on one feature, tests it end to end, commits, and updates the progress file.
+
+Three details in that account are worth more than the overall shape.
+
+The first is the format choice. The team kept the feature list in JSON because "the model is less likely to inappropriately change or overwrite JSON files compared to Markdown files." That is a harness decision based on observed model behavior. It is not a law. It is the kind of small, evidence-driven choice that separates a working harness from a plausible one.
+
+The second is the protection of acceptance criteria. The post's instruction to the agent is blunt: "It is unacceptable to remove or edit tests because this could lead to missing or buggy functionality." The talk interprets it with a qualification: "Protect the acceptance criteria. Do not weaken tests merely to get a pass. Faulty or obsolete tests may change through review." The general rule is that the thing a loop is measured against must not be editable by the loop. If the agent can change the test, the test measures nothing. Put acceptance criteria where the agent cannot write, or where every write goes through review.
+
+The third is verification. The post reports that the agent "mostly did well at verifying features end-to-end once explicitly prompted to use browser automation tools", and it names the limit: the agent could not see browser-native alert modals through its browser tool, so features that relied on them tended to be buggier. A verification step has blind spots. Know them.
+
+The post is also honest about what it did not settle. It says it is "still unclear whether a single, general-purpose coding agent performs best across contexts", or whether specialized testing or cleanup agents would do better. The authors leave the multi-agent question open. So does this module, until the next section.
+
+Now generalize. Long-running work needs four things the harness owns.
+
+A goal record. What the job is for, written once, with the acceptance criteria next to it and locked against edits from the job itself. Every session starts by reading it.
+
+A progress record. What has been done and what is next. It is a handoff note to a reader with no memory. Write it for that reader. Keep it structured, keep it short, and keep it next to the evidence it summarizes.
+
+Checkpoints. Durable state that lets a run resume where it stopped instead of starting over. LangGraph's documentation describes the property worth wanting: when a step fails partway through, it keeps the writes from the nodes that completed, so resuming does not run them again. Whether you use a framework or a table, the question is the same as for a workflow: what does the next process find after a crash?
+
+A start-of-session check. This is the one that prevents premature completion, and it is the one the book's chapter 18 failure exercise targets: "a resumed agent trusts a progress note that conflicts with the actual ticket state." The rule is simple to state. A progress note is a claim written by a previous session. The systems the tools touched hold the state. Before a resumed session acts, it compares the two. Where they disagree, the environment wins, the note is marked unverified, and the discrepancy becomes the first piece of work.
+
+Resuming saved computation and establishing what an external action did are different responsibilities. The talk's research draws that line: a checkpoint lets you skip work you already did, but it cannot tell you whether the export you started before the crash went through. Only the target system can tell you that, by key. That is why the idempotency keys from the workflow section matter even more here. A session that crashed with four draft calls in flight leaves four unknowns. The next session reconciles each one by key before doing anything new.
+
+Compaction, resume, and fork are the coding-agent versions of these decisions. Compaction keeps a session going by summarizing it, at the cost of detail. A reset starts a new session that reads the progress record, at the cost of the conversation. Resume continues a saved session. Fork copies one so you can try something without losing the original. Each is a different answer to the question "what carries between turns", and a long-running system usually needs more than one of them.
+
+The workshop's progress record is a long-running job in this shape. Read its notes against its run record, and its progress file against its start-of-session check. The book's completion evidence for chapter 18 is the standard to hold it to: "Recover coherently, resolve conflicting work, and report both task outcomes and coordination overhead without assuming delegation is superior."
+
+### Multiple agents, honestly
+
+The talk covers multi-agent systems in a few lines of one slide, introduced as "Multi-agent, honestly." The evidence points in two directions, and both are real.
+
+Start with the strongest positive account. In June 2025, Anthropic described the multi-agent research system behind its research feature. A lead agent plans the research and spawns subagents that search in parallel, each in its own context window, and the lead synthesizes what they return. On Anthropic's internal research eval, the system with a lead agent and subagents "outperformed single-agent Claude Opus 4 by 90.2%". That is a large improvement, on Anthropic's own eval, against Anthropic's own single-agent system, for breadth-first research.
+
+Now the cost. In the same post, Anthropic reports that agents "use about 4× more tokens than chat interactions," and "multi-agent systems use about 15× more tokens than chats." On BrowseComp, a web-browsing research benchmark, "three factors explained 95% of the performance variance", and "token usage by itself explains 80% of the variance". The talk keeps the two headline numbers apart. Its notes for that slide give each figure its own baseline, with the source and date beside it, and never combine them into one implied experiment. Do the same when you cite them. The 90.2% compares two research systems. The 15 times compares multi-agent systems to chat. Neither tells you what multiple agents will do for your task, and the 80% finding suggests that much of the gain comes from spending more tokens, which multiple context windows let a system do.
+
+Anthropic is specific about fit. Multi-agent systems suit "valuable tasks that involve heavy parallelization, information that exceeds single context windows, and interfacing with numerous complex tools." They are a poor fit for domains that "require all agents to share the same context or involve many dependencies between agents." The post names an example: "most coding tasks involve fewer truly parallelizable tasks than research."
+
+The post's account of early failures is as useful as its success. Early versions were "spawning 50 subagents for simple queries," "scouring the web endlessly for nonexistent sources," and "distracting each other with excessive updates." Vague delegation caused duplicated work: one subagent explored the 2021 automotive chip crisis while "2 others duplicated work investigating current 2025 supply chains." The fixes were orchestration. The lead agent now gives each subagent "an objective, an output format, guidance on the tools and sources to use, and clear task boundaries." Effort is scaled in the prompt: one agent for simple fact-finding, "2-4 subagents with 10-15 calls each" for direct comparisons, and "more than 10 subagents with clearly divided responsibilities" only for complex research. The system runs subagents synchronously, which the authors say "creates bottlenecks in the information flow between agents."
+
+Production made it harder again. In Anthropic's words, "Agents are stateful and errors compound," and "minor system failures can be catastrophic for agents." The team built "systems that can resume from where the agent was when the errors occurred," used "rainbow deployments to avoid disrupting running agents," which means running old and new versions side by side until in-flight runs finish, and found that "Adding full production tracing let us diagnose why agents failed and fix issues systematically." Every one of those is a long-running-work responsibility from the previous section, multiplied by the number of agents.
+
+Now the counterpoint. One day before the research post, on 2025-06-12, Walden Yan of Cognition published "Don't Build Multi-Agents". His claim was that "running multiple agents in collaboration only results in fragile systems." His two principles: "Share context, and share full agent traces, not just individual messages" and "Actions carry implicit decisions, and conflicting decisions carry bad results." His example is memorable. Split "build a Flappy Bird clone" into two subtasks for two subagents. One, asked for a background with green pipes, builds one that looks like Super Mario Bros. The other builds a bird that does not look like a game asset and does not move like the one in Flappy Bird. Each filled the gaps in its subtask with its own decisions. The final agent must now merge two incompatible pieces. Neither subagent saw the decisions the other made.
+
+Read the two posts side by side and they agree more than their titles suggest. Anthropic's system works because research decomposes into independent searches whose results can be summarized without losing what matters, and it is a poor fit, in Anthropic's own words, for work with shared context and dependencies. Cognition's warning is about exactly that kind of work: tasks where every piece carries decisions the other pieces depend on. The question is not whether multiple agents are good. It is whether your task is separable, whether a summary is enough to pass between the parts, and whether the gain pays for the tokens.
+
+The research literature adds a third view. Cemri and colleagues' abstract observes that for multi-agent systems, "their performance gains on popular benchmarks are often minimal." Their fourteen failure modes fall into three groups: system design issues, inter-agent misalignment, and task verification. Two of them appeared in the section on stopping conditions: step repetition and being unaware of termination conditions. In two case studies, on AG2 and ChatDev, better prompts and role specifications and a changed agent topology raised task success on some benchmarks, without changing the model. The authors call the gains modest and not universal, and say more comprehensive fixes are needed. Many of the failures sit in the system's design, not the model.
+
+OpenAI's guide to building agents, from April 2025, gives the same advice from the other big vendor. As quoted in the talk's research, and not yet confirmed against the PDF: "Our general recommendation is to maximize a single agent's capabilities first. More agents can provide intuitive separation of concepts, but can introduce additional complexity and overhead, so often a single agent with tools is sufficient."
+
+So when do multiple agents earn their cost? Ask these questions in order, and keep the answers in the design doc.
+
+1. Has a workflow been tried on this task, with measured results? If not, stop here and build it.
+2. Has a single agent with well-designed tools been tried, and where does it fail? Name the failures from traces, not impressions.
+3. Do those failures come from context limits or genuinely parallel, independent subtasks? If they come from wrong lookups, missing validation, or bad tool design, fix those instead. Delegation does not fix them.
+4. Can the subtasks be specified with an objective, an output format, tools, and boundaries, and is a summary enough to pass back?
+5. Under the same total budget of tokens, time, and human review, does the multi-agent design complete more tasks? The book's chapter 18 workshop asks for exactly this comparison: "compare a single investigator with bounded delegated research under the same total resource budget."
+
+If the answers hold up, delegate, and carry over everything from the earlier sections. Each subagent gets its own limits drawn from the parent's budget. Each returns evidence and uncertainty, not just conclusions. Subagents that should not take actions get read-only tools. Conflicting results go back to the evidence, not to a vote. The trace covers every agent in one tree.
+
+Shared state needs the same care you give it in any concurrent system. Each work item has one owner at a time. Record the claim in the system of record as a lease: which worker holds the item, and when the claim expires if the worker dies. A worker checks the claim before acting and skips an item someone else holds. Side effects carry the item's idempotency key, so a second worker that reaches the same item anyway finds the first one's result instead of duplicating it. When two workers produce conflicting results for one item, the item's owner resolves them against the evidence. Anthropic's duplicated chip-crisis research is the mild version of this failure. Two workers drafting refunds for the same ticket is the expensive one.
+
+### A worked design, from workflow to loop
+
+Put the pieces together on one system. The billing assistant from the workshop artifacts is fictional, and the numbers below are invented for teaching. They are not measurements. The reasoning is the point.
+
+Version one is a workflow. Intake reads the ticket. A router classifies it into four routes: duplicate charge, failed refund, subscription change, and other. Each route is a short chain with a gate after every model step. The duplicate-charge route fetches the customer's charges, asks a model whether two of them are duplicates under policy, drafts a refund proposal with an idempotency key built by code, and stops at a human approval state. The other route goes straight to a person. Every side-effecting call has a timeout, a reconcile-by-key step, and a handoff when the outcome stays unknown.
+
+The team measures version one on two hundred representative past tickets. Suppose the duplicate-charge route resolves 71 percent of its tickets without rework and escalates 22 percent. They read the escalated traces. Most escalations share a shape: the cause of the duplicate varies. Sometimes the checkout client retried with a fresh key. Sometimes the gateway captured twice. Sometimes a partial refund already happened. The right next step depends on what the last lookup found. That is the signal that one stage might earn a loop: not that the model is capable, but that the path through the evidence cannot be written down in advance.
+
+Version two keeps the workflow and replaces one stage. The investigate step of the duplicate-charge route becomes a bounded loop with read-only tools, one side-effecting tool behind a guard, and an escalation tool. The limits come from the escalated traces: successful manual investigations took four to nine lookups, so the turn cap is ten and the tool-call cap is sixteen. The deadline comes from the support console, where a person is watching: forty-five seconds for the whole run. A no-progress rule stops the loop after two turns that add no evidence. Everything else in the workflow stays as it was.
+
+Then the comparison, on the same two hundred tickets, with the same tools and the same deadline.
+
+| Design, duplicate-charge route | Resolved without rework | Escalated | Median latency | Tokens per ticket |
+|---|---|---|---|---|
+| Version one, workflow | 71% | 22% | 6 s | 5k |
+| Version two, workflow with a bounded loop in one stage | 84% | 11% | 24 s | 38k |
+
+Read the table the way an owner would. The loop resolves thirteen more tickets in every hundred and halves the escalations. It costs about seven times the tokens and four times the latency, still inside the deadline. Per resolved ticket, tokens rise from about 7k to about 45k. Whether that is worth it depends on what an escalation costs in a person's time, which the team can price. Suppose it is. The decision is narrow: keep the loop for this route only. The failed-refund and subscription routes stay chains, because their traces show no such variation. The other route stays with people.
+
+Notice what the team did not do. It did not add a planner agent, a researcher agent, and a critic agent. Nothing in the traces showed independent subtasks that could run in parallel, or evidence too large for one context window. Those are the conditions under which delegation earns its cost, and this task does not have them. If it ever does, the same comparison decides: the multi-agent design against version two, under the same total budget.
+
+Finally, the overnight backfill reuses the same stage in batches. It inherits the loop's limits and adds what long-running work needs: a locked goal and acceptance file, a progress record, a checkpoint per ticket, and a start-of-session check that reconciles every unknown outcome by key before new work. The workshop's progress record shows that job on a bad night.
+
+### When you are the owner
+
+The talk's owner slide has a title that is also an instruction: "Start with the workflow. Own the loop."
+
+It lists what you now own. The loop. Stopping conditions. State and resume. Retries. Escalation as a tool call. Planner-to-worker routing. The compaction trigger. Budgets: tokens, actions, latency. Each item on that list has a section above. None of them is a model property. All of them are decisions a vendor made for you while you were the user of a coding agent, and all of them are yours when the system is.
+
+The slide quotes 12-Factor Agents in four lines: "Own your prompts. Own your context window. Own your control flow. Contact humans with tool calls." The third line is this module. Owning your control flow means you can say, for any run, which code decided each step, why the loop stopped, what it spent, and what it left behind. If a framework makes those answers hard to get, that is a cost of the framework, and the reason for the seventh pitfall in [orientation's list](/modules/orientation#the-seven-pitfalls).
+
+For a customer-facing system, the slide adds the three requirements quoted in Stopping conditions and budgets. The deadline is set by the product, not by the model's pace. The loop has limits in code. When a limit fires, the user gets an honest partial result and a handoff, not a spinner.
+
+Ownership also means the operating view. The talk's research summarizes what the owner of a running loop must watch: whether new branches preserve required controls and acceptance criteria; whether handoffs retain evidence, uncertainty, and clear ownership; whether retries account for an action that might already have succeeded. Those are the questions to ask in every design review of an orchestration change. The [Operating it](/modules/operating-it) module covers the tracing and incident response that let you answer them in production.
+
+### The pitfall
+
+The talk's pitfall for this area, as the talk's pitfall slide recorded it: "Multi-agent before a workflow was tried."
+
+It is easy to see why teams fall into it. A multi-agent design demos beautifully. The diagram has boxes with job titles: planner, researcher, writer, critic. It feels like decomposition, which is a skill experienced engineers trust. It borrows prestige from the most visible public results. And on a handful of hand-picked cases, it works. That is works.any(). The question the design has to answer is works.all(), and most multi-agent proposals have never been compared with the simpler design that would have answered it.
+
+The pitfall has recognizable symptoms in a design doc. Three are general.
+
+- The steps of the task are known in advance, yet an agent is asked to plan them at run time.
+- A workflow is missing from the alternatives considered.
+- The evidence cited comes from someone else's task, with a different shape and a different baseline.
+
+The talk adds one data point with a strict label. In June 2025 Gartner forecast that "Over 40% of agentic AI projects will be canceled by the end of 2027, due to escalating costs, unclear business value or inadequate risk controls". Gartner's Anushree Verma said that most agentic AI projects "are early stage experiments or proof of concepts that are mostly driven by hype and are often misapplied." This is a forecast, not observed cancellations. The talk is explicit: "That forecast does not establish that multi-agent architecture causes cancellations." What the forecast does show is that the three risks it names, cost, unclear value, and inadequate controls, are the three things a workflow-first approach measures before it adds autonomy.
+
+The fix is the ladder from earlier in the module, applied as a rule. Build the workflow. Measure it on representative cases. Where it falls short, find out why from traces. Add a bounded loop to the stage that needs judgment about what to do next, and compare under the same budget. Add a second agent only when the comparison says so, and say in the design doc which comparison it was. The same mistake can start with one unnecessary agent. In the talk's later words, "Added autonomy needs demonstrated value."
+
+The talk's takeaway for this area joins the two halves of the module: the limits you write, and the order you build in.
 
 <Takeaway />
 
@@ -39,7 +665,22 @@ The module draws on talk beat 2.4 and on book chapters 16, 17, 18. Each concept 
 
 <Workshop>
 
-The workshop will be an analysis exercise on provided artifacts. No code. It will state the task in one paragraph and give a rubric.
+<Artifact id="orchestration-loop-trace" />
+
+<Artifact id="orchestration-progress-record" />
+
+You are the new owner of the fictional billing assistant's investigate stage and the overnight backfill that runs it in batches. Read the loop trace with its config, then the progress record. In a few paragraphs, answer as a reviewer would. Name each limit on the loop, say where it is enforced, and say which stop condition ended the traced run and what the support rep watching the console received. Say which decisions in the trace the model made and which the harness made, including the guard and reconcile spans under turn 5 and the denied call in turn 6. Say whether the handling of the draft timeout is safe, and why. Then turn to the backfill: say what session 09 should believe about batch 8, what it must do before starting batch 9, and what in the record shows that the session 08 note was written too early. Say what happened when session 07 tried to change the acceptance criteria, and why it matters. Close with one change you would make to either design and the evidence you would collect before making it.
+
+Apply this rubric to your own response.
+
+- Names at least four of the loop's limits and says each is enforced in the harness config, not the prompt.
+- Identifies the stop reason as an escalation by the model after a turn that added no evidence, and says what the escalation payload gives the human.
+- Separates the model's choices (which tool next, the draft amount, the escalation) from the harness's (the idempotency key, the guard, the reconciliation, the permission denial).
+- Explains that the timeout left the outcome unknown, that the harness looked up the draft by key before any retry, and that this avoided a duplicate draft.
+- Says session 09 must trust the start-of-session check over the progress note, mark batch 8 unverified, and reconcile the four tickets by key before any new work.
+- Points to the evidence of premature completion: the 23:41 "complete" note, the run that continued until the window closed, and 31 claimed drafts against 27 in the store.
+- Notices that the acceptance criteria held when session 07 tried to change them, and says why that protection matters.
+- Proposes a change tied to a measurement, not a preference.
 
 </Workshop>
 
@@ -47,11 +688,35 @@ The workshop will be an analysis exercise on provided artifacts. No code. It wil
 
 <FailureExercise>
 
-The failure exercise will plant a failure in an artifact and ask you to find it and explain it.
+<Artifact id="orchestration-multi-agent-design-doc" />
+
+This design doc is about to be approved. As a reviewer, find the orchestration decision that should not be approved yet. Say what in the doc itself shows the problem, using at least three separate sections of it as evidence. Then say what the team should build and measure first, and what result would justify going further.
 
 <Fragment slot="explanation">
 
-The explanation appears here after a response is saved.
+The planted failure is the area's pitfall: a multi-agent design chosen before a workflow was tried. The doc's own sections show it.
+
+Section 2 is a workflow already. The analyst runbook lists seven steps in a fixed order with one branch, accept or contest. Step 3 is a lookup in a twelve-row table. A path you can write down in advance is a chain with a router, not a job for a supervisor agent that plans at run time.
+
+Section 6 contradicts section 4. Section 4 claims the evidence researcher and the policy analyst can work in parallel. Section 6 says the researcher needs the requirements checklist "to know which records to fetch", so it waits for the policy analyst. Every agent in the table needs the previous agent's output and the same dispute context. That is the shape Anthropic names as a poor fit: tasks that "require all agents to share the same context or involve many dependencies between agents." Passing summaries between agents, as section 3 proposes, is where the details get lost, and section 8 already lists "Details lost between agents" as a risk with no real mitigation.
+
+Section 5 skipped the rung that matters. The alternatives are one agent with all fourteen tools, and the status quo. No workflow was tried. Look at the prototype's seven failures: wrong requirements for the reason code (4), records from the wrong order (2), and a missing tracking number (1). A code lookup of the reason-code table fixes the first group. Fetching records by the order id that intake extracted, with a check that they belong to that order, fixes the second. A required-field check on the letter fixes the third. None of these needs another agent, and a six-agent crew does not fix any of them reliably.
+
+Section 4's evidence is borrowed. The 90.2% figure comes from Anthropic's breadth-first research system, compared against Anthropic's own single agent on an internal eval. Disputes are not breadth-first research. The same source reports that multi-agent systems use about 15 times the tokens of chat, and section 7 shows the cost: 160k to 220k tokens per dispute against 24k for the prototype.
+
+Section 9 cannot detect the problem. The pilot metric is the critic agent's own score, so the system grades itself, and nothing compares the crew with a simpler design. Section 8 defers tracing to phase 2, so when the crew fails nobody can see why.
+
+Those findings are the pitfall's full set of symptoms, and they make a checklist for the next design review.
+
+- The steps of the task are known in advance and listed in the doc, yet a supervisor agent is asked to plan them at run time.
+- The agents depend on each other in sequence, yet the doc claims parallelism.
+- The alternatives considered are "one agent with every tool" and "the status quo". A workflow is missing.
+- The failures that motivated the design are wrong lookups, mixed-up records, and missing fields: problems that code lookups and validation fix.
+- The evidence cited comes from someone else's task, usually a research system with a different shape and a separate token cost.
+- The cost estimate grows by an order of magnitude, and the evaluation plan does not compare against anything simpler.
+- Debuggability is deferred: tracing arrives in phase 2.
+
+What to build first: a workflow with the same shape as the warranty-claim example in Five workflow patterns. Intake parses the notice. Code looks up the requirements. A tool fetches the records by order id and a check confirms the match. A model call compares requirements with records and recommends accept or contest. A model call drafts the letter, with an evaluator loop capped at a few rounds if the letter needs it, and a code check for required fields. An analyst reviews and submits. Measure it on the same twenty disputes, then on a larger representative set, counting acceptable packets, analyst minutes, tokens, and wall clock. Go further only where traces show a failure that the workflow cannot fix, such as a reason code whose evidence search genuinely cannot be predicted. Then add a bounded loop to that one stage, and compare under the same budget.
 
 </Fragment>
 

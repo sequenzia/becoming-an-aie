@@ -68,7 +68,7 @@ An `Optional lab` section may appear only between Failure exercise and Completio
 
 Orientation and closing must not have Workshop, Failure exercise, or Optional lab headings, and the check rejects the matching components there too. The closing module has no Completion evidence and no self-check.
 
-Subsections are `h3`. Never write an `h1` in a body; the layout renders the page title. Artifact titles and self-check questions render as `h3` too, so keep your own subsections at `h3`. An artifact placed inside an `h3` subsection takes `level={4}` (`<Artifact id="x" level={4} />`), so the prose after the card stays under the subsection in the document outline; orientation's transfer table is the one case today.
+Subsections are `h3`. Never write an `h1` in a body; the layout renders the page title. Artifact titles and self-check questions render as `h3` too, so keep your own subsections at `h3`. An artifact placed inside an `h3` subsection takes `level={4}` (`<Artifact id="x" level={4} />`), so the prose after the card stays under the subsection in the document outline; orientation's transfer table was the first case, and foundations, models, tools-and-extensibility, and operating-it do the same.
 
 What each section holds:
 
@@ -81,7 +81,7 @@ What each section holds:
 
 Orientation is the one module whose beats are fixed by the spec (5.3): the thesis and the definition of owner with the three-row table under Transfer connection, then, as `h3` subsections under Topics and learning outcomes, the prototype commitments, the map with `<AnatomyMap />`, what transfers with the `orientation-transfer-table` artifact, what is new with the ladder and the seven competencies (introduced as unranked), the seven pitfalls, the roadmap, and the book's "look before you build". A summary list sits before the first `h2`. Its reading time is 25 to 40 minutes including the self-check, which has 6 to 10 questions. The check does not estimate orientation's reading time; the author keeps `readingMinutes` honest by hand. Every quote in orientation is verbatim from the talk or the book blueprint, and every fact traces to a source in `sources`.
 
-The Phase 1 fixture, `models.mdx`, is a draft whose prose says so in its first sentence. It is complete under `--drafts-as-published` (frontmatter from the content map, four outcomes, six questions, one synthetic artifact placed in the Workshop and the Failure exercise, an explanation slot, a dated source) so the layout, the forms, the island, the artifact card, and the prerequisite notice can be exercised before Phase 2 writes the real module. Its reading-time estimate warns until then.
+Phase 1 used `models.mdx` as a fixture: a draft complete enough under `--drafts-as-published` to exercise the layout, the forms, the island, the artifact card, and the prerequisite notice. Phase 2 (2026-10-09) replaced it with the real Models module, published with foundations and the other five area modules. The fixture's six self-check questions kept their ids, and its artifact, `models-fixture-trace`, was deleted because no module placed it. `/modules/models` is still the area page the axe spec drives through the self-check states. The script tests keep their own copy of the trace under `test/fixtures/content`.
 
 ## Components
 

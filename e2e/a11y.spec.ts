@@ -5,7 +5,7 @@
 // scheme media query, and the data-theme attribute that the inline head script in src/layouts/Base.astro
 // sets from the aie-theme localStorage key (section 14.6), so the forced token sets are what axe measures.
 // Phase 0 pages: /, /privacy, /map, /modules, /notify/thanks, a not-found path. Phase 1 adds /sign-in,
-// /modules/orientation, and /modules/models (the fixture module, visible in the PREVIEW_DRAFTS=true build),
+// /modules/orientation, and /modules/models (the Phase 1 fixture, published as the real Models module in Phase 2),
 // the self-check on /modules/models in its three states driven by keyboard, and the two-map check on /map.
 // axe cannot judge text inside an inline SVG; docs/gates.md carries the manual contrast row.
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -29,9 +29,9 @@ const PAGES: ReadonlyArray<{ name: string; path: string; status: number }> = [
   { name: 'sign-in', path: '/sign-in', status: 200 },
   { name: 'module-orientation', path: '/modules/orientation', status: 200 },
   { name: 'module-models', path: '/modules/models', status: 200 },
-  // A draft, rendered under PREVIEW_DRAFTS, whose prerequisite notice names Models: the notice's edge takes the
-  // area color and the name is small bold text, which the fixture's own prerequisite (Foundations, no area)
-  // never exercises. Phase 2 content keeps the page in the list.
+  // An area module whose prerequisite notice names Models: the notice's edge takes the area color and the name
+  // is small bold text, which the Models page's own prerequisite (Foundations, no area) never exercises.
+  // Added in Phase 1 as a draft rendered under PREVIEW_DRAFTS; published with the Phase 2 content.
   { name: 'module-verification-and-evals', path: '/modules/verification-and-evals', status: 200 },
 ];
 
@@ -95,7 +95,7 @@ for (const theme of THEMES) {
       const questions = readSelfCheck(resolve(testInfo.config.rootDir, '..'), 'models');
       expect(questions.length).toBeGreaterThan(0);
       const [first] = questions;
-      if (!first) throw new Error('the models fixture needs at least one self-check question');
+      if (!first) throw new Error('the models module needs at least one self-check question');
 
       await page.goto('/modules/models');
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);

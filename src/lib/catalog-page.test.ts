@@ -70,6 +70,9 @@ function entryOf(html: string, slug: string): string {
   return html.slice(li, html.indexOf('</li>', start));
 }
 
+/** Published since Phase 2: orientation, foundations, and the six area modules. The rest are Phase 3 drafts. */
+const PUBLISHED: readonly string[] = ['orientation', 'foundations', 'models', 'context-and-knowledge', 'tools-and-extensibility', 'orchestration', 'verification-and-evals', 'operating-it'];
+
 const chip = (word: string) => new RegExp(`<span class="chip chip-status-[a-z-]+">${word}</span>`);
 const count = (html: string, needle: RegExp) => (html.match(new RegExp(needle.source, 'g')) ?? []).length;
 
@@ -88,9 +91,10 @@ describe('/modules with every module published (PREVIEW_DRAFTS, the e2e and dev 
     expect(count(html, chip('Complete'))).toBe(1);
     expect(count(html, chip('In progress'))).toBe(1);
     expect(count(html, chip('Not started'))).toBe(MODULE_SLUGS.length - 2);
-    // Thirteen drafts carry the Draft chip beside their status; orientation does not.
-    expect(count(html, chip('Draft'))).toBe(MODULE_SLUGS.length - 1);
-    expect(entryOf(html, 'orientation')).not.toMatch(chip('Draft'));
+    // The six Phase 3 drafts carry the Draft chip beside their status; the eight published modules do not.
+    expect(count(html, chip('Draft'))).toBe(MODULE_SLUGS.length - PUBLISHED.length);
+    for (const slug of PUBLISHED) expect(entryOf(html, slug), slug).not.toMatch(chip('Draft'));
+    expect(entryOf(html, 'inference-and-hosting')).toMatch(chip('Draft'));
     expect(html).not.toContain('Planned:');
   });
 
@@ -108,33 +112,35 @@ describe('/modules with every module published (PREVIEW_DRAFTS, the e2e and dev 
 });
 
 describe('/modules in an image build (no PREVIEW_DRAFTS): drafts are excluded (EC-5.2.2)', () => {
-  test('anonymous: orientation is the one entry and every other module is a name on its group\'s Planned line', async () => {
+  test('anonymous: the eight published modules are entries and every draft is a name on its group\'s Planned line', async () => {
     flags.previewDrafts = false;
     const html = await text(await respond());
     expect(html).toContain('<a href="/modules/orientation">Orientation</a>');
-    expect(count(html, /<li class="card catalog-entry">/)).toBe(1);
-    for (const slug of MODULE_SLUGS) if (slug !== 'orientation') expect(html).not.toContain(`href="/modules/${slug}"`);
-    // One Planned line per group that has an unpublished module, by name only.
+    expect(count(html, /<li class="card catalog-entry">/)).toBe(PUBLISHED.length);
+    for (const slug of PUBLISHED) expect(html).toContain(`<a href="/modules/${slug}">`);
+    for (const slug of MODULE_SLUGS) if (!PUBLISHED.includes(slug)) expect(html).not.toContain(`href="/modules/${slug}"`);
+    // One Planned line per group that has an unpublished module, by name only: the closing module and the electives.
     const planned = html.match(/<p class="compact secondary catalog-planned">\s*Planned: ([^<]+)\.\s*<\/p>/g) ?? [];
-    expect(planned).toHaveLength(4);
+    expect(planned).toHaveLength(2);
     const names = planned.map((p) => p.replace(/<[^>]+>/g, '').trim());
-    expect(names.some((p) => p.startsWith('Planned: Foundations.'))).toBe(true);
-    expect(names.some((p) => p.includes('Models, Context and knowledge, Tools and extensibility, Orchestration, Verification and evals, Operating it'))).toBe(true);
     expect(names.some((p) => p.startsWith('Planned: Self-assessment.'))).toBe(true);
     expect(names.some((p) => p.includes('Inference and hosting'))).toBe(true);
+    expect(names.some((p) => p.includes('Models') || p.includes('Foundations'))).toBe(false);
     // No chip of any kind, no summary or reading time for a planned module, and the intro counts them.
     expect(html).not.toContain('chip-status-planned');
     expect(html).not.toContain('chip-status-draft');
-    expect(html).toContain('13 modules are planned and have no page yet.');
+    expect(html).toContain('6 modules are planned and have no page yet.');
     expect(html).not.toContain('Nothing here yet.');
   });
 
-  test('signed in: the status chip sits on the published entry only', async () => {
+  test('signed in: the status chips sit on the published entries only', async () => {
     flags.previewDrafts = false;
     const html = await text(await respond({ user: USER }));
     expect(entryOf(html, 'orientation')).toMatch(chip('Complete'));
+    expect(entryOf(html, 'models')).toMatch(chip('In progress'));
+    expect(entryOf(html, 'foundations')).toMatch(chip('Not started'));
     expect(count(html, chip('Complete'))).toBe(1);
-    expect(html).not.toMatch(chip('In progress'));
-    expect(html).not.toMatch(chip('Not started'));
+    expect(count(html, chip('In progress'))).toBe(1);
+    expect(count(html, chip('Not started'))).toBe(PUBLISHED.length - 2);
   });
 });

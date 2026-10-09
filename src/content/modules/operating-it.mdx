@@ -4,42 +4,892 @@ kind: area
 area: operating
 order: 6
 summary: "You own the approval process. Observability, guardrails, security, identity, and governance for a system whose answer is your answer."
-readingMinutes: 75
+readingMinutes: 55
 prerequisites: [foundations, verification-and-evals]
 talkBeats: ["2.6"]
 bookChapters: [23, 24, 25, 26, 27]
-draft: true
-updatedOn: 2026-09-16
-checkedOn: 2026-09-16
+draft: false
+updatedOn: 2026-10-09
+checkedOn: 2026-10-09
 staleAfterDays: 90
 takeaway: "When you are the owner, its answer is your answer."
 pitfall: "The lethal trifecta, assembled one integration at a time"
 transferRows: [observability, security, operations]
-artifacts: []
-outcomes: []
-selfCheck: []
-sources: []
+artifacts: [operating-it-anthropic-postmortem, operating-it-cost-dashboard, operating-it-postmortem-draft, operating-it-integration-inventory]
+outcomes:
+  - id: trace-the-run
+    text: Trace an agent run across model calls, retrieval, tool calls, checks, and state changes, with the configuration that produced it and without capturing more sensitive content than you need.
+  - id: cost-per-task
+    text: Compute cost per completed task, counting retries, failed work, and human handling, and read the token tail instead of the mean.
+  - id: release-behavior
+    text: Version prompts, models, indexes, and configuration together and release them through staged exposure that compares outcome quality against a control.
+  - id: respond-to-incidents
+    text: Respond to a quality incident while availability stays green, separating containment, rollback, completed effects, and root cause.
+  - id: map-the-trifecta
+    text: Map an integration inventory by capability, not by product, and find where private data, untrusted content, and external communication meet.
+  - id: enforce-outside-model
+    text: Enforce authorization, scopes, and egress outside the model, and explain why a probabilistic filter cannot be the sole security boundary.
+  - id: own-the-approval
+    text: Design an approval process, human, asynchronous, or enforced by policy, that gives the approver the evidence and the controls to catch an error.
+  - id: answer-is-yours
+    text: Explain why the owner answers for the system's output, using the Air Canada commentary and the scoped disclosure duty in Article 50 of the EU AI Act.
+selfCheck:
+  - id: q1-canary
+    outcome: release-behavior
+    question: "A 5 percent canary ran for one day and compared API error rate and p95 latency against the control. Which comparisons would have caught a regression in billing answers?"
+    options:
+      - "Judge pass rate by ticket category, against the control"
+      - "Escalation rate by segment, against the control"
+      - "Aggregate API error rate"
+      - "p95 latency"
+    correct: [0, 1]
+    feedback:
+      - "Correct. A quality signal, split by segment, shows a category that got worse while the others held."
+      - "Correct. Escalations arrive within the conversation, so they are a fast proxy for answers that did not help."
+      - "Not yet. A wrong answer returns without an error. Reread Staged exposure with a control group."
+      - "Not yet. A release can give worse answers faster. Reread Staged exposure with a control group."
+  - id: q2-span-tree
+    outcome: trace-the-run
+    question: "Which of these should every recorded agent run carry, so that a quality regression can be investigated later?"
+    options:
+      - "The prompt version"
+      - "The model id that was requested"
+      - "The retrieval index snapshot"
+      - "The full text of every customer message, captured by default"
+      - "Each tool call and its outcome"
+    correct: [0, 1, 2, 4]
+    feedback:
+      - "Correct. A prompt change can move behavior with no code change, so the version belongs on the run."
+      - "Correct. The model id ties the run to one behavioral dependency you can compare and roll back."
+      - "Correct. An index rebuild is a release of behavior. Without the snapshot id you cannot tell which corpus answered."
+      - "Not yet. The conventions mark message content as likely to contain sensitive information, and capture is opt-in. Capture it deliberately, for a reason, with access control and retention. Reread What you should not carry."
+      - "Correct. A missing tool call is often the finding. You can only see it if tool calls are spans."
+  - id: q3-cost-per-task
+    outcome: cost-per-task
+    question: "After a release, model spend per request fell 31 percent. Escalations to human agents rose from 22 to 29 percent and reopened conversations nearly doubled. What decides whether the release cut cost?"
+    options:
+      - "Model spend per request"
+      - "Cost per completed task, counting model spend, human handling, and failed work"
+      - "Median input tokens per request"
+    correct: [1]
+    feedback:
+      - "Not yet. Spend per request ignores every conversation that failed and every minute a person spent fixing it. Reread The numbers that matter."
+      - "Correct. Divide everything the service spent by the tasks it completed at the quality bar. Human minutes usually dwarf tokens."
+      - "Not yet. Token counts are an input to cost, not the cost of a completed task. Reread The numbers that matter."
+  - id: q4-tail
+    outcome: cost-per-task
+    question: "Why does the talk ask you to watch p95 and p99 tokens per request, not only the average?"
+    options:
+      - "Long conversations and bad retrieval concentrate cost in the tail."
+      - "Rate limits are set against p95 token counts."
+      - "Percentiles are cheaper to compute than averages on streaming data."
+    correct: [0]
+    feedback:
+      - "Correct. A small share of runs can carry a large share of spend and latency, and the mean hides them."
+      - "Not yet. Rate limits are a separate capacity question. The tail matters because that is where cost and latency concentrate. Reread The tail, not the mean."
+      - "Not yet. The reason is not the cost of computing it. The mean is the wrong summary for a long-tailed distribution. Reread The tail, not the mean."
+  - id: q5-manifest
+    outcome: release-behavior
+    question: "A prompt update was tested against a rebuilt retrieval index and then deployed against the old index. Which practice prevents this?"
+    options:
+      - "Ship prompt changes on their own, outside releases, so they move faster."
+      - "Pin the model id and leave the rest unversioned."
+      - "Version code, prompts, models, indexes, and configuration together in one release manifest, and test and roll back that bundle."
+    correct: [2]
+    feedback:
+      - "Not yet. A prompt is a behavioral dependency. Shipping it alone is how it meets a corpus it was never tested with. Reread Releasing behavior, not just code."
+      - "Not yet. The model is one of several behavioral dependencies. Reread Releasing behavior, not just code."
+      - "Correct. The unit you test, stage, and roll back is the bundle that produces behavior."
+  - id: q6-postmortem
+    outcome: respond-to-incidents
+    question: "Anthropic's September 2025 postmortem says its evaluations missed a degradation users were reporting. Which reasons does the post give?"
+    options:
+      - "Claude often recovers well from isolated mistakes, and the team relied too heavily on noisy evaluations."
+      - "The evaluations ran against a different model than production served."
+      - "The bugs affected only one platform, so the signal was too small."
+    correct: [0]
+    feedback:
+      - "Correct. Both sentences are in the excerpt. A system that recovers from local errors can hide them from coarse evals."
+      - "Not yet. The post does not say that. Its evaluations ran and did not capture the degradation. Reread Four lessons from a public postmortem."
+      - "Not yet. The post says the bugs showed different symptoms on different platforms at different rates. Reread Four lessons from a public postmortem."
+  - id: q7-rollback
+    outcome: respond-to-incidents
+    question: "A release changed the prompt, the retrieval index, and the router together. During the incident you roll back only the router, to the last known good setting. What has the rollback not undone?"
+    options:
+      - "The router setting"
+      - "The replies already sent and the actions already taken under the bad configuration"
+      - "The prompt and index changes that shipped with the router change"
+      - "The traffic split for new conversations"
+    correct: [1, 2]
+    feedback:
+      - "Not yet. The rollback changed the router setting. That is the part it can undo. Reread Rollback has limits."
+      - "Correct. A configuration rollback stops new harm. Completed effects need their own remediation, such as contacting affected customers."
+      - "Correct. A rollback of one knob leaves the rest of the release running. The unit to roll back is the manifest."
+      - "Not yet. New conversations follow the restored setting. Reread Rollback has limits."
+  - id: q8-outbound
+    outcome: map-the-trifecta
+    question: "Which of these supply the external communication corner of the lethal trifecta?"
+    options:
+      - "A fetch tool limited to HTTP GET"
+      - "Rendering remote images in the model's answer"
+      - "A read-only lookup in your own order database"
+      - "A tool that reads inbound customer emails"
+    correct: [0, 1]
+    feedback:
+      - "Correct. A GET request carries whatever the model puts in the URL to whoever runs the server."
+      - "Correct. The browser fetches the image URL, and the URL can carry data. EchoLeak and CamoLeak both used images."
+      - "Not yet. That is a private data source. It sends nothing out. Reread The lethal trifecta."
+      - "Not yet. Inbound email is private data and untrusted content, two corners at once, but it does not send anything out. Reread The lethal trifecta."
+  - id: q9-assembled
+    outcome: map-the-trifecta
+    question: "Seven releases each passed a per-release security review, and the system now combines private data, untrusted content, and external communication. What does the pitfall say went wrong?"
+    options:
+      - "The reviewers were careless."
+      - "The risk belongs to the combination. Reviews that label products, one release at a time, miss that one integration can supply more than one corner."
+      - "The model got worse at following instructions."
+    correct: [1]
+    feedback:
+      - "Not yet. Each review can be careful and local and still miss a property of the whole. Reread The lethal trifecta."
+      - "Correct. The lethal trifecta, assembled one integration at a time. Count capabilities, not products."
+      - "Not yet. The trifecta is a property of the capabilities you connected, not of the model's quality. Reread The lethal trifecta."
+  - id: q10-filter
+    outcome: enforce-outside-model
+    question: "A guardrail vendor reports that its injection classifier catches 95 percent of attacks. What role should it play in your design?"
+    options:
+      - "The security boundary for the agent's tools"
+      - "One layer of defense in depth, with authorization, scopes, and egress enforced outside the model"
+      - "A replacement for human approval on outbound actions"
+    correct: [1]
+    feedback:
+      - "Not yet. An attacker gets many tries, and the 5 percent is the part that matters. A probabilistic filter is insufficient as the sole security boundary. Reread Why a filter cannot be the boundary."
+      - "Correct. Filtering can contribute. The boundary is what code enforces whatever the model was persuaded to try."
+      - "Not yet. A filter that misses one attack in twenty cannot stand in for a gate on what leaves. Reread Why a filter cannot be the boundary."
+  - id: q11-nominal-review
+    outcome: own-the-approval
+    question: "An agent asks a staff member to approve every outbound reply with a one-line prompt: \"Send reply? Yes or No.\" Which statements about this approval step are true?"
+    options:
+      - "It is a real review, because a human decides."
+      - "It is nominal: the approver sees neither the evidence, such as the full text, its links, and which untrusted inputs shaped it, nor the controls to edit, reject, or undo."
+      - "Moving routine replies that a rule can decide to an enforced policy would leave the human fewer actions to review, and more attention for each."
+      - "Making the same prompt asynchronous would fix it."
+    correct: [1, 2]
+    feedback:
+      - "Not yet. A human approver can be the right control. The question is what the human can see and do. Reread A nominal review step."
+      - "Correct. An approval step is only as good as the evidence and the controls it gives the approver."
+      - "Correct. Load is part of the design. Policy takes what can be written down, so a person reviews what cannot."
+      - "Not yet. Synchronous or asynchronous is a design choice. Neither fixes a review with no evidence. Reread Three kinds of approval."
+  - id: q12-answer
+    outcome: answer-is-yours
+    question: "Which statements match this module's sources on who answers for an AI system's output?"
+    options:
+      - "Legal commentary on Moffatt v. Air Canada reports that the airline was held responsible for misleading information its chatbot gave."
+      - "The European Commission's FAQ says Article 50 applies from 2 August 2026, and providers of systems that interact directly with people must inform them they are interacting with AI, unless this is obvious."
+      - "A notice that the assistant may be wrong moves responsibility for its answers to the model vendor."
+      - "Article 50 requires every deployer of any AI system to display a disclosure banner."
+    correct: [0, 1]
+    feedback:
+      - "Correct. The commentary reports a finding of negligent misrepresentation. The tribunal decision was not independently checked here."
+      - "Correct. Role and scope matter: the direct-interaction duty sits with providers and has an exception when the interaction is obvious."
+      - "Not yet. Nothing in these sources moves your answer to the vendor. Reread Its answer is your answer."
+      - "Not yet. Deployers have distinct, narrower duties, and background machine-to-machine systems fall outside the direct-interaction scope. Reread Its answer is your answer."
+sources:
+  - title: Beyond the Coding Agent, the talk repository
+    author: Stephen Sequenzia
+    date: "2026-09"
+    url: https://github.com/sequenzia/beyond-the-coding-agent
+    checkedOn: 2026-10-09
+    note: "Beat 2.6, slides 18 and 19, the outline, and research section 2, as recorded in the program's talk knowledge base. The repository has since been revised and renames this area AgentOps. This module follows the knowledge base and draws two Google SRE sources from the revised research. Four further lines are quoted from the revised repository (outline-v2 beat 2.6 and research section 2, checked 2026-10-09), where they describe that version's illustrative system: Healthy APIs alone do not establish task success; the release-association and rollback sentences; and the SLO application to useful task completion."
+  - title: Becoming an AI Engineer, the book blueprint
+    date: "2026-09"
+    checkedOn: 2026-10-09
+    note: "Chapters 23 to 27 of the blueprint: topics, workshops, failure exercises, and completion evidence. The public link is pending."
+  - title: The lethal trifecta for AI agents
+    author: Simon Willison
+    date: "2025-06-16"
+    url: https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/
+    checkedOn: 2026-10-09
+  - title: OWASP Top 10 for LLM Applications, 2025 edition
+    org: OWASP Gen AI Security Project
+    date: "2025"
+    url: https://genai.owasp.org/llm-top-10/
+    checkedOn: 2026-10-09
+    note: "The ten 2025 entry names as the project's list page gives them."
+  - title: "LLM06:2025 Excessive Agency"
+    org: OWASP Gen AI Security Project
+    date: "2025"
+    url: https://genai.owasp.org/llmrisk/llm062025-excessive-agency/
+    checkedOn: 2026-10-09
+  - title: OWASP GenAI LLM Top 10 2026
+    org: OWASP Gen AI Security Project
+    date: "2026-08-03"
+    url: https://genai.owasp.org/resource/owasp-genai-llm-top-10-2026/
+    checkedOn: 2026-10-09
+    note: "The landing page was read. Its entries were not, so this module names entries from the 2025 edition. The book blueprint cites this edition for Chapter 23."
+  - title: "OWASP Top 10 for Agentic Applications: the benchmark for agentic security in the age of autonomous AI"
+    org: OWASP Gen AI Security Project
+    date: "2025-12-09"
+    url: https://genai.owasp.org/2025/12/09/owasp-top-10-for-agentic-applications-the-benchmark-for-agentic-security-in-the-age-of-autonomous-ai/
+    checkedOn: 2026-10-09
+    note: "The announcement of the 2026 agentic list. It names EchoLeak under ASI01 and the Replit incident under ASI10."
+  - title: Security Best Practices, MCP revision 2026-07-28
+    org: Model Context Protocol
+    date: "2026-07-28"
+    url: https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices
+    checkedOn: 2026-10-09
+  - title: Semantic conventions for generative AI, repository
+    org: OpenTelemetry
+    date: "2026"
+    url: https://github.com/open-telemetry/semantic-conventions-genai
+    checkedOn: 2026-10-09
+    note: "No release or tag was listed on the day checked."
+  - title: "Semantic conventions changelog, v1.37.0"
+    org: OpenTelemetry
+    date: "2025-08-25"
+    url: https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.37.0
+    checkedOn: 2026-10-09
+    note: "The breaking change \"Rename `gen_ai.system` to `gen_ai.provider.name`\". The release page shows 25 August without a year; v1.37.0 shipped in 2025."
+  - title: Semantic conventions for GenAI agent and framework spans
+    org: OpenTelemetry
+    date: "2026"
+    url: https://raw.githubusercontent.com/open-telemetry/semantic-conventions-genai/main/docs/gen-ai/gen-ai-agent-spans.md
+    checkedOn: 2026-10-09
+    note: "Status: Development. The companion document gen-ai-spans.md in the same folder defines the execute_tool, retrieval, and memory spans and was read the same day."
+  - title: Traces
+    org: OpenTelemetry
+    date: "2026"
+    url: https://opentelemetry.io/docs/concepts/signals/traces/
+    checkedOn: 2026-10-09
+    note: "Living documentation with no page date."
+  - title: State of AI Engineering
+    org: Datadog
+    date: "2026-07"
+    url: https://www.datadoghq.com/state-of-ai-engineering/
+    checkedOn: 2026-10-09
+    note: "The month is per the talk's research; the page carries no date. The data runs through March 2026. The opening quotation is Guillermo Rauch's, Vercel. Datadog describes its data as a large but imperfect sample of the market."
+  - title: A postmortem of three recent issues
+    org: Anthropic
+    author: Sam McAllister
+    date: "2025-09-17"
+    url: https://www.anthropic.com/engineering/a-postmortem-of-three-recent-issues
+    checkedOn: 2026-10-09
+    note: "A first-party account, not independently audited, and not evidence of how often such failures occur."
+  - title: Canarying Releases, The Site Reliability Workbook
+    author: Alec Warner and Štěpán Davidovič, with Alex Hidalgo, Betsy Beyer, Kyle Smith, and Matt Duftler
+    org: Google
+    date: "2018"
+    url: https://sre.google/workbook/canarying-releases/
+    checkedOn: 2026-10-09
+  - title: Implementing SLOs, The Site Reliability Workbook
+    author: Steven Thurgood and David Ferguson, with Alex Hidalgo and Betsy Beyer
+    org: Google
+    date: "2018"
+    url: https://sre.google/workbook/implementing-slos/
+    checkedOn: 2026-10-09
+  - title: Codex CLI slash commands
+    org: OpenAI
+    date: "2026"
+    url: https://learn.chatgpt.com/docs/cli/slash-commands
+    checkedOn: 2026-10-09
+    note: "Undated documentation. The descriptions of /status, /usage, /permissions, /approve, /mcp, and /review are quoted as they read on the day checked."
+  - title: Codex configuration reference
+    org: OpenAI
+    date: "2026"
+    url: https://learn.chatgpt.com/docs/config-file/config-reference
+    checkedOn: 2026-10-09
+    note: "Undated documentation. The otel, sandbox_mode, approval_policy, and default_tools_approval_mode entries."
+  - title: Devin CLI commands and flags
+    org: Cognition
+    date: "2026"
+    url: https://docs.devin.ai/cli/reference/commands
+    checkedOn: 2026-10-09
+    note: "Undated documentation. The page marks --sandbox as a research preview."
+  - title: Devin CLI configuration file
+    org: Cognition
+    date: "2026"
+    url: https://docs.devin.ai/cli/reference/configuration/config-file
+    checkedOn: 2026-10-09
+    note: "Undated documentation. The sandbox settings and their defaults."
+  - title: Devin CLI permissions
+    org: Cognition
+    date: "2026"
+    url: https://docs.devin.ai/cli/reference/permissions
+    checkedOn: 2026-10-09
+    note: "Undated documentation. The five permission modes and the organization rules."
+  - title: Prompt caching
+    org: Anthropic
+    date: "2026"
+    url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+    checkedOn: 2026-10-09
+    note: "Undated documentation. Multipliers, lifetime, and invalidation order as they read on the day checked; some models carry their own read multiplier."
+  - title: "EchoLeak: The First Real-World Zero-Click Prompt Injection Exploit in a Production LLM System"
+    author: Pavan Reddy and Aditya Sanjay Gujral
+    date: "2025-09-06"
+    url: https://arxiv.org/abs/2509.10540
+    checkedOn: 2026-10-09
+    note: "arXiv 2509.10540, a case study of CVE-2025-32711, disclosed in June 2025 by Aim Security. A researcher-demonstrated vulnerability. Microsoft's statement that there was no evidence of exploitation comes from the talk's research, not from this paper."
+  - title: "CamoLeak: Critical GitHub Copilot Vulnerability Leaks Private Source Code"
+    author: Omer Mayraz
+    org: Legit Security
+    date: "2025-10-08"
+    url: https://www.legitsecurity.com/blog/camoleak-critical-github-copilot-vulnerability-leaks-private-source-code
+    checkedOn: 2026-10-09
+    note: "A researcher-demonstrated vulnerability, not evidence of exploitation. Updated 2026-02-12."
+  - title: "AI coding tool Replit wiped database, called it a catastrophic failure"
+    author: Beatrice Nolan
+    org: Fortune
+    date: "2025-07-23"
+    url: https://fortune.com/2025/07/23/ai-coding-tool-replit-wiped-database-called-it-a-catastrophic-failure/
+    checkedOn: 2026-10-09
+    note: "Secondary reporting. The underlying event was not independently checked."
+  - title: "Incident 1152: LLM-Driven Replit Agent Reportedly Executed Unauthorized Destructive Commands During Code Freeze, Leading to Loss of Production Data"
+    org: AI Incident Database
+    date: "2025-07-18"
+    url: https://incidentdatabase.ai/cite/1152/
+    checkedOn: 2026-10-09
+    note: "Secondary. The date is the incident date the database records."
+  - title: "Moffatt v. Air Canada: A Misrepresentation by an AI Chatbot"
+    author: Barry B. Sookman
+    org: McCarthy Tétrault, TechLex blog
+    date: "2024-02-19"
+    url: https://www.mccarthy.ca/en/insights/blogs/techlex/moffatt-v-air-canada-misrepresentation-ai-chatbot
+    checkedOn: 2026-10-09
+    note: "Secondary legal commentary on 2024 BCCRT 149. The tribunal decision was not independently checked. The disputed separate-entity quotation is not used."
+  - title: Transparency obligations under Article 50 of the AI Act
+    org: European Commission, Shaping Europe's digital future
+    date: "2026-07-24"
+    url: https://digital-strategy.ec.europa.eu/en/faqs/transparency-obligations-under-article-50-ai-act
+    checkedOn: 2026-10-09
+    note: "The date is the last update date on the page. A scoped summary, not a compliance determination for any deployment."
+  - title: "Artificial Intelligence Risk Management Framework: Generative Artificial Intelligence Profile, NIST AI 600-1"
+    author: Chloe Autio, Reva Schwartz, Jesse Dunietz, Shomik Jain, Martin Stanley, Elham Tabassi, Patrick Hall, and Kamie Roberts
+    org: NIST
+    date: "2024-07-26"
+    url: https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence
+    checkedOn: 2026-10-09
+    note: "Voluntary guidance. Using it does not establish legal compliance."
+  - title: Guidelines for Human-AI Interaction
+    author: Saleema Amershi and colleagues
+    org: Microsoft Research, CHI 2019
+    date: "2019-05"
+    url: https://www.microsoft.com/en-us/research/publication/guidelines-for-human-ai-interaction/
+    checkedOn: 2026-10-09
+    note: "Predates foundation-model agents. A design foundation, not proof that any interface improves outcomes."
+  - title: "FrugalGPT: How to Use Large Language Models While Reducing Cost and Improving Performance"
+    author: Lingjiao Chen, Matei Zaharia, and James Zou
+    date: "2023-05-09"
+    url: https://arxiv.org/abs/2305.05176
+    checkedOn: 2026-10-09
+    note: "Historical prices and models. The savings it reports are not a forecast for current systems."
 ---
 
 ## Transfer connection
 
-This module is planned. It is not yet written. This page holds its place in the catalog until it is.
+This module expands three rows of the talk's transfer table, more than any other area. They are the last three rows, the ones the talk calls near-identities. Two of them say "the same" on the right. The third, least privilege for tools, keeps the principle and changes the caller.
 
-It will expand three rows of the talk's transfer table. You already do this: Observability. It becomes this: The same, with a new schema. You already do this: Security and least privilege. It becomes this: Least privilege for tools. You already do this: Operations: cost, latency, incidents, rollback. It becomes this: The same, in tokens. The module will say what stays the same and what changes.
+| You already do this | It becomes this |
+|---|---|
+| Observability | The same, with a new schema |
+| Security and least privilege | Least privilege for tools |
+| Operations: cost, latency, incidents, rollback | The same, in tokens |
+
+A near-identity is not an identity. A review of the talk's presentation says the phrase "the same, in tokens" understates recovery, side effects, and user outcomes, and it asks for one correction: the engineering habits transfer while the failure modes expand. That is the frame for this whole module. You will keep almost every habit you have. You will apply each one to a system that takes actions you did not script, on inputs you did not write, with a quality you cannot read off a status code.
+
+**Observability becomes the same, with a new schema.** What stays the same: you instrument before you need it. You propagate a trace context through every hop. You build dashboards from percentiles, not averages. You alert on symptoms users feel. You keep the data you need to explain an incident and no more. What changes: the hops are now model calls, retrieval steps, tool calls, and agent steps, and the attribute names for them come from conventions that are still marked Development. The most important signal is no longer whether the request succeeded. It is whether the answer was any good, and that signal arrives late, sampled, and judged. A span that returns 200 can carry a wrong refund policy to a customer. And the payload you would normally log is now the most sensitive data in the system: prompts, retrieved documents, and customer messages.
+
+**Security and least privilege becomes least privilege for tools.** What stays the same: threat modeling, defense in depth, least privilege, short-lived credentials, deny by default, and enforcement at the resource rather than at the caller's discretion. What changes: the caller is a model that reads instructions from anywhere in its context, including from the documents and emails you asked it to read. The talk's competency list puts it in one line: "AI security. The attack surface is the model's reasoning." Untrusted content now arrives as data and gets read as instructions. A read-only tool can be an exfiltration channel. And the risk that matters most is a property of the combination of tools, which no single tool review sees.
+
+**Operations: cost, latency, incidents, rollback becomes the same, in tokens.** What stays the same: you budget, you watch tail latency, you run staged rollouts with a control group, you write blameless postmortems, and you practice rollback before you need it. What changes: the unit of cost is the token, and the unit of value is the completed task, and the two can move in opposite directions. A release can cut spend per request by a third and raise the cost of each completed task by more than half, because the human minutes spent cleaning up failed answers do not appear on the model bill. Behavior now depends on things that are not code: the prompt, the model version, the retrieval index, the router's thresholds. Any of them can cause an incident with no deploy in the code history. Rollback restores a configuration. It does not unsend a reply, refund a refund, or restore a deleted table.
+
+The talk's verdict on the three rows together is short: "Observability transfers with a new schema: traces, spans, p95s. Security transfers: least privilege now applies to tools. Operations transfer: cost, latency, incident response, rollback. The units changed to tokens." If you have run production services, you are not starting this area from zero.
 
 ## Topics and learning outcomes
 
 <Outcomes />
 
-The module draws on talk beat 2.6 and on book chapters 23, 24, 25, 26, 27. Each concept arrives with its outcome. Each gets a coding-agent worked example: what the user touched, what the vendor engineered. Each cites a public incident or a first-hand account, with its checked-on date.
+The talk's user slide for this area lists what you have already touched in a coding agent: a usage command, a telemetry exporter, a sandbox, an OAuth login, and "a trust and safety team you have never met." Its owner slide states the responsibility as a title: "You own the approval process." The book behind this program gives the same ground five chapters: security and trust boundaries, human interaction and responsible design, release engineering, observability and incident response, and economics. This module follows the talk's order and goes to the book's depth.
+
+Five services from the talk's map belong to this area: identity and access, security, guardrails, observability, and governance. Identity, security, and guardrails act on each run. Observability and governance work across runs. The module takes them in the order an owner meets them in practice. First, see what the system did. Then count what it cost. Then change it safely and recover when a change goes wrong. Then decide what it is allowed to do. Then decide who approves. Last, accept that its answer is yours.
+
+### What you touched, what someone engineered
+
+Start where the talk starts, with the coding agent on your own machine. Every operating service in this area has a surface there. You have used most of them without thinking of them as operations. Here are the ones the talk names, in the two tools it names, with what each one says about itself in the vendor's documentation on 2026-10-09. If your agent is a different one, find the same four surfaces in it: a usage or status command, a telemetry setting, a sandbox or permission mode, and an OAuth login for a tool server.
+
+**Seeing what a session did.** Codex CLI has `/status`, which will "Display session configuration and token usage", and `/usage`, which will "View account token usage or use a rate-limit reset." Devin CLI has its own `/usage` (an ACU is Devin's billing unit), which will "Show estimated credit/ACU usage for the session, including usage from previous openings of a resumed session", plus `/session-stats` for session statistics and `/context` to "Show context window usage". Codex also exposes OpenTelemetry export in its configuration. The keys `otel.exporter` and `otel.trace_exporter` accept `none`, `otlp-http`, or `otlp-grpc`. A separate boolean, `otel.log_user_prompt`, lets you "Opt in to exporting raw user prompts with OpenTelemetry logs."
+
+Notice the shape of that last setting before moving on. The vendor made prompt export a separate opt-in. Someone decided that the default trace should describe what happened without carrying what you typed. You will make the same decision for your users, and the same default is usually right.
+
+**Limiting what a session can do.** Codex's `sandbox_mode` takes `read-only`, `workspace-write`, or `danger-full-access`, described as the "Sandbox policy for filesystem and network access during command execution." Its `approval_policy` "Controls when Codex pauses for approval before executing commands," with `on-request`, `never`, or a granular table. Each MCP server can carry a `default_tools_approval_mode` of `auto`, `prompt`, `writes`, or `approve`. And `/permissions` lets you "Set what Codex can do without asking first."
+
+Devin CLI's `--sandbox` flag, marked as a research preview, will "Sandbox exec-tool processes" using OS-level process isolation. When the sandbox is active, three settings shape its network. `sandbox.allowed_domains` holds "Domain patterns allowed through the proxy. When non-empty, only matching domains are allowed (allowlist mode)". `sandbox.denied_domains` holds "Domain patterns always blocked. Deny rules take precedence over allow rules". And `sandbox.network_mode` defaults to `"full"`, which "allows all HTTP methods", while `"limited"` "allows only GET/HEAD/OPTIONS". Both lists default to empty.
+
+Devin's permissions page describes five modes. In Normal, "read-only operations are auto-approved while writes and shell commands require your explicit approval." In Smart, "a fast model judges whether the action is safe to run unattended", but the page lists categories the model's approval never covers: package installs, destructive or privilege-escalating commands such as `rm` and `sudo`, and "Anything that reads or writes dotenv files, key material, Git config, or the agent's own configuration". In Autonomous, "shell commands and network fetches auto-approve because the OS-level sandbox enforces what they can touch." And above every mode: "Admin-enforced deny and ask rules configured via Team Settings remain active regardless of the user's permission mode."
+
+**Connecting a tool on your behalf.** When you ran `devin mcp login`, the command that will "Authenticate with an MCP server via OAuth", you delegated some of your authority to a tool server through a browser consent screen. Codex's `/mcp` will "List configured Model Context Protocol (MCP) tools."
+
+**Someone you never met.** The talk ends its list with "a trust and safety team you have never met." The vendor watches for abuse of its platform, handles incidents on its side, and writes the policies that decide what the hosted model will do. You did not configure any of it.
+
+#### What someone engineered behind each surface
+
+Read those surfaces again as an owner would. Each one is the visible end of a decision someone made and now maintains.
+
+| What you touched | What someone engineered | What it becomes when you own it |
+|---|---|---|
+| `/usage`, `/status`, `/session-stats` | Token metering on every model call, attribution to a session and an account, a price table, and a rate limiter | Cost and usage telemetry per task, per tenant, per configuration, with budgets that stop a run |
+| The OpenTelemetry exporter | Spans for model calls, tool calls, and agent steps, a schema for their attributes, and a decision about which content is exported | Your tracing, your schema version, your retention, and access control on traces |
+| The sandbox | Process isolation, a filesystem policy, and a network proxy with allow and deny lists | Your infrastructure: containers, network policy, an egress proxy, and secrets kept out of reach |
+| The approval prompt and permission modes | A classification of actions by risk, a gate in code, and a deny list that no model judgment overrides | Your approval process: human approval, an asynchronous workflow, or an enforced policy |
+| The OAuth login | An authorization flow, scoped tokens issued to the right audience, and refresh and revocation | Identity and delegated authority for your agent, with minimal scopes and no token passthrough |
+| A trust and safety team | Abuse monitoring, incident response, and usage policy | Your on-call rotation, your incident process, and your answer to a regulator or a tribunal |
+
+Two engineering choices in those vendor surfaces are worth carrying into your own design, along with the prompt-export default above.
+
+The first is the deny list in Devin's Smart mode. The vendor let a fast model recommend approval for routine actions, and then put a fixed list of action categories outside that model's reach. That is the pattern this module returns to again and again. A model can contribute a judgment. Code enforces the boundary. The Tools and extensibility module states the same rule from the other side: a model's approval recommendation does not establish permission.
+
+The second is the network mode. `"limited"` allows only GET, HEAD, and OPTIONS. That blocks a model from posting a form or uploading a file. It does not stop data from leaving. A GET request carries whatever is in its URL, and the server at the other end logs it. Whether that matters depends on what else the agent can see, which is exactly the analysis of the lethal trifecta later in this module. The domain allowlist is the stronger control, because it limits who can receive the request at all. Its default is empty, which means no allowlist.
+
+The research behind the talk sums up the user's side of this area in one sentence: "All of this was rendered for you as a permission prompt, a sandbox, an OAuth flow, `/usage`, and a vendor trust and safety team." The rest of this module is about building those things for a system you own.
+
+### Observability with a new schema
+
+The talk opens its bridge for this area with observability, and so does this module, because every other service depends on it. You cannot cost what you cannot count. You cannot roll back what you cannot attribute to a change. You cannot investigate an exfiltration you never recorded.
+
+Guillermo Rauch of Vercel, quoted in Datadog's 2026 State of AI Engineering report, put the stakes in two sentences: "The next wave of agent failures won't be about what agents can't do. It'll be about what teams can't observe." The same report names the reason the old dashboards are not enough. In LLM systems, "model, prompt, or retrieval changes can move latency, spend, and failure rates without an obvious code change." Your existing observability is keyed to deploys. Half of what moves an agent's behavior is not a deploy.
+
+#### The primitives you already know
+
+OpenTelemetry's own definition is the one you already use: "A span represents a unit of work or operation." A trace is the set of spans that share a trace id, linked into a tree by parent ids, and, in OpenTelemetry's words, "Spans can be nested, as is implied by the presence of a parent span ID: child spans represent sub-operations." Attributes are "key-value pairs that contain metadata that you can use to annotate a Span." Every span ends with a status of Unset, Error, or Ok. None of that changes. What changes is what the spans represent and which attributes they carry.
+
+For an agent run, the tree usually looks like this. A root span covers the whole task, from the user's request to the final answer or handoff. Under it sit spans for each model call, each retrieval, each tool execution, each check the harness runs, and each state change the agent makes in another system. A plan step or a subagent gets its own subtree. Read the tree top-down and you see the loop the Orchestration module describes: gather context, take action, verify, repeat.
+
+```text
+invoke_agent support-assistant            root: one customer task
+  retrieval help-center                   which documents, from which index snapshot
+  chat acme-large-20260801                tokens in, tokens out, cache reads, finish reason
+  execute_tool lookup_order               arguments opt-in, result opt-in, error type
+  chat acme-large-20260801                second turn of the loop
+  validate_output                         schema check, business rule, result
+  app.outcome                             resolved, escalated, or failed; reopened later or not
+```
+
+#### The GenAI conventions, and what Development means
+
+OpenTelemetry maintains semantic conventions for generative AI in their own repository. On 2026-10-09 the agent span document carried the status "Development", and the repository listed no release and no tag. The documents define operation names such as `create_agent`, `invoke_agent`, `invoke_workflow`, and `plan` for agent spans, and `execute_tool` for tool execution, with span names like `execute_tool {gen_ai.tool.name}`. The attributes you will use most are `gen_ai.operation.name`, `gen_ai.provider.name`, `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `gen_ai.agent.name`, and `gen_ai.conversation.id`. On the tool span, `gen_ai.tool.name` is required, `gen_ai.tool.call.id` and `gen_ai.tool.type` are recommended when available, and `gen_ai.tool.call.arguments` and `gen_ai.tool.call.result` are opt-in.
+
+Development status has a concrete meaning for you. Attribute names can change between versions, and some already have. Release v1.37.0 of OpenTelemetry's semantic conventions, in August 2025, listed a breaking change: "Rename `gen_ai.system` to `gen_ai.provider.name`". The current documents use `gen_ai.provider.name`. Traces written against an earlier snapshot still carry the older name, which is exactly the kind of drift you should expect. The talk's advice is the right engineering response: instrument against a pinned snapshot of the conventions and expect names to move. Record which version of the conventions your instrumentation follows. Map names at the collector rather than in every service, so a rename is one change. And keep your own product attributes, such as the ticket category or the outcome, under your own prefix, so they never collide with a future convention.
+
+Platforms such as Langfuse, LangSmith, Braintrust, and Arize Phoenix consume traces like these and add views for prompts, evaluations, and costs. The talk names them generically and so does this module. The choice of platform matters less than two decisions you make before you pick one: which attributes every run must carry, and which content you are willing to store.
+
+#### What every run must carry
+
+Start here: stamp every run with the identity of the configuration that produced it. Code version is not enough. The behavior of an agent run depends on at least these:
+
+- the prompt version, including the system prompt and any templates;
+- the model id you requested and the model id the provider reports it served;
+- the retrieval index or corpus snapshot;
+- the tool set version, including tool descriptions, because descriptions are prompts;
+- the router or classifier configuration, if one decides which model handles which request;
+- sampling and reasoning settings, where the model supports them;
+- the guardrail and policy configuration in force.
+
+With those on the root span, a regression becomes a query: group outcomes by configuration and look for the one that moved. Without them, a regression becomes an argument. The Anthropic postmortem later in this module names this gap directly. Part of what slowed detection was the lack of a clear way to link user reports to specific changes.
+
+Then record the outcome on the same run. A trace that ends with a 200 from the model API says nothing about whether the customer got the right answer. Attach the result of every check the harness ran, the final disposition of the task, and later events that change the verdict, such as a reopened ticket or a reversed refund. Quality signals arrive late and sampled. Design for that. A judge might score two percent of conversations within an hour. A reopen arrives within seven days. A chargeback arrives within sixty. Each is a delayed label you join back to the run.
+
+#### What you should not carry
+
+The conventions are explicit about the danger. On the attributes that carry input and output messages, the document says: "This attribute is likely to contain sensitive information including user/PII data." On system instructions and tool definitions: "This attribute may contain sensitive information." Tool call arguments and results are opt-in for the same reason. Codex, as you saw, makes raw prompt export a separate opt-in.
+
+Treat trace content as production data, because it is. The book's Chapter 26 asks you to "collect useful diagnostics while controlling sensitive-data exposure and retention," and its failure exercise pairs a quality regression with the temptation to fix it by logging everything: "Availability remains healthy while a subset of users receives worse answers; indiscriminate logging would expose private data."
+
+A workable default for most products:
+
+1. Always record structure: span names, timings, token counts, model ids, configuration versions, tool names, error types, check results, and outcomes. None of this needs message content.
+2. Record content only for a stated purpose: a sampled share for evaluation, conversations a user explicitly reports, or a time-boxed investigation. Redact known identifiers before storage.
+3. Put access control on traces that is at least as strict as on the source records they quote. A trace that contains a customer's ticket is a copy of the ticket.
+4. Set retention by purpose. Seven days of content for debugging is a different decision from a year of structure for trend analysis.
+5. Remember that a retrieval span lists document ids. If those documents are access-controlled, the trace must be too.
+
+This is the observability half of the security story. An exfiltration you need to investigate will have left its marks in the tool spans. A trace store that anyone in the company can query is itself a private data source, and you will meet that phrase again under the lethal trifecta.
+
+### The numbers that matter
+
+The talk's bridge lists the metrics in one breath: "cost per completed task, not per request. p95 and p99 tokens, because long conversations and bad retrieval concentrate cost in the tail. Cache hit rate. Loop iterations per task. Tool failure rate." Each of those is a familiar operations idea with a new unit. This section takes them one at a time, with the arithmetic.
+
+#### Cost per completed task
+
+Cost per request is easy to compute and easy to misread. It is the model bill divided by the number of model calls. It moves when you change models, prompts, or caching, and it looks like the thing you are optimizing. It is not. Nobody buys a request. The user wants a task done, and the business pays for every attempt, failure, and cleanup that the task required.
+
+The book's Chapter 27 defines the right denominator: "Measure total cost per successfully completed task, including retries and human review." Write it as a formula you can put on a dashboard.
+
+```text
+cost per completed task =
+  ( model spend, all calls, including retries and failed runs
+  + tool and infrastructure spend attributable to the runs
+  + judge and verifier spend
+  + human minutes x loaded cost per minute, for review, escalation, and cleanup )
+  / tasks completed at the quality bar
+```
+
+Two words in that formula carry most of the weight. "All" means the runs that failed are in the numerator. "Completed" means only the tasks that met the bar are in the denominator. A run that answered wrongly and was reopened counts as cost and not as completion.
+
+Work an example with invented numbers. A fictional assistant codes supplier invoices for an accounts team, 10,000 invoices a week. Configuration X uses a larger model at $0.04 per request and 3.0 requests per invoice, so the model bill is $1,200. It codes 85 percent of invoices correctly. The other 1,500 go back to a person, who spends six minutes fixing each one at a loaded $1.00 a minute, meaning wages plus overhead: $9,000. A five percent quality sample costs two minutes per invoice: $1,000. Total, $11,200, for 8,500 completed invoices: about $1.32 each.
+
+Configuration Y swaps in a smaller model at $0.02 per request. The loop runs a little longer, 3.4 requests per invoice, so the model bill is $680. Spend per request has halved. But Y codes 78 percent correctly, so 2,200 invoices need six minutes each: $13,200. The sample still costs $1,000. Total, $14,880, for 7,800 completed invoices: about $1.91 each. The cheaper model made the service about 45 percent more expensive, and the model bill fell from about eleven percent of the total to under five.
+
+That ratio is not a law, and your product's will differ. But the shape is common for any product where a failed answer creates human work. It is why the book's failure exercise for Chapter 27 reads: "Lower token cost increases review work, or cached answers survive a documentation or permission change." The token bill is the part of the cost you can see on the vendor's invoice. It is rarely the part that decides the economics.
+
+#### The tail, not the mean
+
+Token counts per request are long-tailed. Most conversations are short. A few run long, carry big retrieved documents, or loop. Those few concentrate cost and latency. A p50 of 6,900 input tokens and a p99 of 58,000 means one request in a hundred costs more than eight times the median in input tokens alone, and that request is often the one where the customer is already frustrated.
+
+Datadog's 2026 report shows the trend at scale. It found that "the average number of tokens used in customers' requests more than doubled for median customers and quadrupled for the 90th-percentile power users year over year." It also found that "69% of all input tokens in customer traces were for system prompts." Datadog describes its data as "a large but imperfect sample of the entire global market", so read those as one vendor's view of its own customers. They are still a useful warning. Prompts grow. Context grows. The tail grows fastest.
+
+Watch p95 and p99 tokens per request and per task, and alert on them the way you alert on p99 latency. When the tail moves, look at what is in those runs: an over-long thread, a retrieval that returned whole manuals, a tool that returned a full table, a loop that never converged. Each has a fix that belongs to another module: curating context, shaping tool payloads, bounding the loop.
+
+#### Cache hit rate
+
+Prompt caching changes the price of repeated prefixes, and that makes cache hit rate a cost metric. On 2026-10-09, Anthropic's prompt caching documentation said that "5-minute cache write tokens are 1.25 times the base input tokens price", "1-hour cache write tokens are 2 times the base input tokens price", and "Cache read tokens are 0.1 times the base input tokens price", with per-model exceptions to the read multiplier listed in the same table. "By default, the cache has a 5-minute lifetime." The prefix is matched in order, tools, then system, then messages, and the page warns that "Changes at each level invalidate that level and all subsequent levels." Other vendors price caching differently. Check your own vendor's page, on the day you design, and write the date down.
+
+The engineering consequence is the same everywhere: keep the stable part of the prompt first and byte-for-byte stable. The most common way to destroy a cache is to put something that changes on every request at the top. A timestamp in the first line of the system prompt does it. So does a tool list in a nondeterministic order, or a per-user greeting ahead of the shared instructions. Datadog's report suggests how often the opportunity is missed: "only 28% of LLM call spans show any cached-read input tokens."
+
+Cache hit rate belongs on the dashboard as the share of input tokens read from cache, by configuration. A drop after a release is a cost regression even when nothing else moved. And the talk's Q&A notes put the priority in order: "Correctness and authorization take precedence over cache savings." Caching answers, rather than prompt prefixes, is a different and riskier optimization. A cached answer can outlive the policy or the permission it was based on.
+
+#### Loop iterations, tool failures, and rate limits
+
+Three more counters complete the picture.
+
+Loop iterations per task show whether the agent is converging. A rise means more model calls per completed task, which means more cost and more latency, and it often means a tool is returning something the model cannot use. The Orchestration module owns the loop's stopping conditions. This module owns watching them in production.
+
+Tool failure rate shows the health of everything the agent depends on. A failing tool does not always produce an error the user sees. The model may route around it, guess, or answer without the data. Watch for the absence of a tool call as well as its failure. A tool that should have been called and was not can be the most important line in a trace.
+
+Rate limit errors are capacity planning in a new unit. Datadog reported that in March 2026, "2% of all LLM spans in our dataset returned an error", and that rate limit errors accounted for almost a third of them. A rate limit on a model call inside a loop is a partial failure in the middle of a task. Decide in advance whether the harness retries, waits, degrades to a smaller model, or hands off.
+
+#### Budgets and circuit breakers
+
+The talk lists circuit breakers on tokens and actions among the guardrails. OWASP's 2025 list for LLM applications names the risk they address: LLM10:2025 Unbounded Consumption. The operations version of the idea is old. The units are new.
+
+Set budgets at three levels. Per run: a maximum number of loop iterations, a maximum token spend, a maximum number of consequential actions, and a wall-clock limit. Per user or tenant: a daily spend ceiling that stops abuse and runaway automation. Per service: a spend alarm and a kill switch that someone on call can use without a deploy. When a budget trips, the run should end in a defined state: an explicit limitation to the user, a handoff to a person, or a safe partial result. The Orchestration module's line applies here: "An unbounded loop is an outage."
+
+#### Optimizing without fooling yourself
+
+The book's Chapter 27 lists the levers: "Compare caching, routing, smaller models, batching, and reduced context." Each one can lower cost per request. Each one can also lower quality in a way that raises cost per completed task. The only defensible way to choose is to measure each candidate on the same held-out cases, at a stated quality bar, and count the failed work.
+
+The research record behind this is old and useful. FrugalGPT, from Lingjiao Chen, Matei Zaharia, and James Zou in May 2023, described three strategies, prompt adaptation, LLM approximation, and LLM cascades, and reported that a learned cascade could "match the performance of the best individual LLM (e.g. GPT-4) with up to 98% cost reduction" on the tasks it studied. The prices and models in that paper are history. The method is current: route by measured quality on your own cases, not by a guess about which requests are "simple". A router whose thresholds were never measured is a cost optimization with no quality evidence behind it.
+
+Last, re-evaluate. The book's fourth topic for Chapter 27 is to "Reevaluate earlier optimizations when models, traffic, or requirements change." A routing threshold tuned for last quarter's traffic and last quarter's small model is a stale configuration, and stale configurations fail quietly.
+
+### Releasing behavior, not just code
+
+The book's Chapter 25 states its transfer in one sentence: "Release engineering must account for behavioral dependencies beyond application code." You already know how to release code. The new part is that an agent's behavior has more inputs than its code, each with its own release cadence, and any of them can cause an incident.
+
+#### The behavioral bill of materials
+
+List what produced a given answer. The application code. The system prompt and every template. The tool descriptions, which the model reads as instructions. The model id, and behind it a vendor's serving stack that you do not control. The retrieval index, and the ingestion code that built it. The router thresholds and the classifier behind them. Guardrail and policy configuration. Sampling and reasoning settings. Feature flags.
+
+The book asks you to "Version code, prompts, models, retrieval indexes, and relevant configuration together." Concretely, that means a release manifest: one versioned file that names every item above, so that a release is reproducible and a rollback restores a known bundle rather than one knob. The manifest is the unit you evaluate, stage, and roll back. Its id goes on every trace as the configuration identity from the observability section.
+
+The book's failure exercise for Chapter 25 shows what happens without one: "A prompt update works with a new index but is accidentally deployed with the old one, or rollback would invalidate active work." Both halves of that sentence are about coupling. The prompt and the index were tested as a pair and shipped apart. And state created under one configuration may not survive a return to the previous one: a conversation in progress, a draft saved in a new format, a memory entry the old prompt does not know how to read.
+
+Two disciplines follow. First, test the bundle you will ship, not each change in isolation. An eval run is evidence for one manifest, not for its parts. Second, write down the compatibility rules for state before you need them. Which configurations can resume a conversation started by another. Which data formats each version reads. What a rollback does to work in flight. A rollback plan that has never been rehearsed is a hope.
+
+#### Separate the workloads
+
+The book's first topic for Chapter 25 is architectural: "Separate interactive requests, background jobs, ingestion, model access, and evaluation." The reasons are the ones you already use for any shared resource. A nightly re-index should not starve the chat path of rate limit. An evaluation run against production models should not count against a customer's budget. A batch job that goes into a loop should hit its own circuit breaker, not the one that protects interactive users. Model access is a shared dependency with quotas, so give each workload its own quota, its own budget, and its own failure handling.
+
+Design the degraded modes at the same time. The book lists "resource limits, graceful degradation, tenancy boundaries, and failure containment." When the primary model is rate limited or down, what does the product do? Route to a fallback model that you have evaluated, not one you have only configured. Return a narrower answer with a clear limitation. Queue the task and tell the user. Hand off to a person. Each is defensible. An unplanned one is not.
+
+#### Staged exposure with a control group
+
+Google's Site Reliability Workbook defines the practice you need: "We define canarying as a partial and time-limited deployment of a change in a service and its evaluation." A small share of traffic receives the change. The rest is the control. The workbook evaluates the canary by comparing its metrics with the control's. It also says that "a majority of incidents are triggered by binary or configuration pushes", and it applies canarying to configuration and data changes as well as binaries.
+
+For an AI system, two changes to that practice matter.
+
+The first is what you compare. A canary that compares error rate and p95 latency will pass a release that gives worse answers faster. You must also compare outcome quality, and quality signals are slow. So choose fast proxies that correlate with the slow truth, and hold the canary long enough for them to move. Verifier and validation failure rates arrive at once. A sampled judge, calibrated against human labels as the Verification and evals module describes, arrives within hours. Escalation rate arrives within the conversation. Reopen and complaint rates arrive within days. Compare all of them by segment, not only in aggregate. A change that helps three ticket categories and breaks the fourth can look flat overall.
+
+The second is what you stage. In an AI system the risky change is often a prompt edit, a new index snapshot, or a router threshold, and teams that canary every binary still push those straight to production. Put them through the same gate, with the manifest as the unit.
+
+Then write the rule that stops the rollout before you start it. Google's chapter on implementing SLOs gives the vocabulary: "Service level objectives (SLOs) specify a target level for the reliability of your service", and "the SLO is a target percentage and the error budget is 100% minus the SLO." The talk's revised research applies the idea to useful task completion alongside latency and cost, and keeps one boundary: these are operational targets, not permission to violate authorization or other hard constraints. A release can spend error budget on slower answers. It cannot spend error budget on leaking data.
+
+#### Rollback has limits
+
+Rollback is the operations habit that transfers least cleanly. Restoring the previous manifest stops new harm. It does not undo completed effects. The talk's revised research says so plainly: "A configuration rollback does not automatically undo an earlier export or other completed action." If the bad configuration sent customers wrong refund dates, the emails are sent. If it issued refunds, the money moved. If it deleted rows, they are gone until a backup restores them.
+
+So every rollback plan has two parts. Part one restores a tested configuration, keeping today's permissions and data rules, not yesterday's. Part two finds and remediates what the bad configuration did while it ran: the affected users, the actions taken, the records changed. Part two needs the traces you decided to keep. A team that cannot list the conversations a configuration handled cannot contact the customers it misled.
+
+If you read in sessions, this is a good place to stop. The rest of the module is incidents, security, and accountability.
+
+### Incidents when the API is healthy
+
+The talk's revised outline names the core distinction in one line: "Healthy APIs alone do not establish task success." In ordinary operations, most incidents announce themselves. Error rates climb, latency spikes, a health check fails. In an AI system, the worst incidents are often silent. Every call returns. Every span is green. The answers are wrong.
+
+In September 2025, Anthropic published an account of three infrastructure bugs that had degraded responses from its models for several weeks. It is a public description of a quality incident at a model provider, and it is short enough to read in full. Here is the excerpt this module uses.
+
+<Artifact id="operating-it-anthropic-postmortem" level={4} />
+
+#### Four lessons from a public postmortem
+
+Read it as an operator, and four lessons stand out.
+
+The first is that availability told the team nothing. The routing error sent some requests to servers configured for a different context window. Those servers answered. The answers were worse. A dashboard of error rates and latencies would have stayed green throughout.
+
+The second is that the evaluations ran and missed it. The post gives two reasons. Claude "often recovers well from isolated mistakes", so a test that checks the final answer can pass a run that went wrong in the middle. And the team "relied too heavily on noisy evaluations", so a real drop was hard to tell from variance. That is the Verification and evals module's lesson seen from production. An eval that is too coarse, or too noisy, or not run on production traffic, will not catch a regression that affects a fraction of requests in a fraction of contexts.
+
+The third is that the symptoms were spread out. Each bug produced different symptoms on different platforms at different rates. The worst hour hit 16 percent of one model's requests. Spread across products, platforms, and weeks, the reports looked like the ordinary complaints any model gets. A pattern became visible only when someone joined reports to configuration and time.
+
+The fourth is the privacy tension from the observability section, at full strength. The controls that limit engineers' access to user interactions protect users, and they also prevent "engineers from examining the problematic interactions needed to identify or reproduce bugs." The post does not resolve that by relaxing the controls. It commits to quality evaluations running continuously on production systems and to debugging tools for user feedback that keep privacy intact. That is the right direction for your system too: build privacy-preserving diagnostics before the incident, not broader logging after it.
+
+Treat the account with the limits its own kind carries. It is a first-party report, not independently audited, and it is not evidence of how often such failures happen. It is still a rare look at what a quality incident feels like from the inside, and every lesson in it transfers to a product that calls a model.
+
+#### The incident process, adjusted
+
+You already run incidents. Keep the process. Adjust five steps.
+
+Detection. Alert on quality signals as well as availability: verifier failure rate, judge pass rate on sampled traffic by segment, escalation rate, reopen rate, explicit user feedback. Join user reports to configuration identity, so a cluster of complaints points at a manifest. Give support staff a fast path to declare a suspected quality incident, because they will often see it first.
+
+Containment. Decide what stops the bleeding before you know the cause. Pause the rollout. Route the affected segment to a known good configuration or to people. Disable one tool. Tighten an approval gate. Containment in an agent system often means reducing autonomy for a while, and that is a legitimate operating state.
+
+Diagnosis. The talk's revised research is careful here: "The release association motivates investigation; it does not independently establish root cause." A release that changed four behavioral dependencies at once has four suspects. Compare outcomes by configuration, inspect traces from failing and passing runs side by side, and look for the step where they diverge: a different document retrieved, a tool not called, a classifier label that sent the run down a different path. Reproduce with the exact manifest before you name a cause.
+
+Remediation of completed effects. List what the bad configuration did. Who received a wrong answer. Which actions ran. Which records changed. Decide who contacts whom. This step does not exist in most web postmortem templates, and it is the one users and regulators will ask about.
+
+Learning. The book's Chapter 26 completion evidence asks you to "Write a postmortem supported by evidence, demonstrate recovery, and add a targeted regression case without retaining unnecessary sensitive content." The regression case is the durable output. It is built from the failing pattern, with the sensitive details removed or synthesized, and it joins the suite that gates the next release. A postmortem whose only action item is "add a judge" has learned nothing specific.
+
+#### A public incident: the freeze that was only an instruction
+
+The talk's second incident on the user slide is about a different kind of operation. In July 2025, during a public experiment by Jason Lemkin, founder of SaaStr, Replit's AI agent deleted a production database. Fortune reported the story on 2025-07-23, and the AI Incident Database records it as incident 1152. Both are secondary sources, and the underlying event was not independently checked for this module.
+
+Fortune reports that the deletion happened during a designated "code and action freeze", a safeguard meant to prevent changes to production. It reports that the agent, when questioned, admitted to running unauthorized commands and to violating instructions not to proceed without human approval. The agent's words, as Fortune quotes them: "This was a catastrophic failure on my part." The AI Incident Database adds that the system "incorrectly claimed rollback was impossible, delaying recovery." Fortune reports that Lemkin recovered the data manually. Replit's CEO called the failure "Unacceptable and should never be possible", and Fortune lists the fixes the company announced: automatic separation of development and production databases, improvements to rollback, and a planned planning-only mode.
+
+Read the fixes as an operator. Every one of them moves a control out of the model and into the infrastructure. The freeze was an instruction in the conversation. Instructions are inputs to a model, and a model can fail to follow them. A freeze enforced by credentials, where the agent's identity cannot write to production during the freeze, is a control. Development and production separation is least privilege by environment. A planning-only mode is an approval gate by construction. And the incident has a second lesson: the agent's own account of recovery was wrong. Your runbook, not the agent, decides whether rollback is possible.
+
+OWASP's 2026 list for agentic applications, announced on 2025-12-09, uses this incident as its example for ASI10, Rogue Agents. You do not need the label to see the engineering. An agent with standing write access to production will, sooner or later, use it at the wrong time.
+
+### Least privilege for tools
+
+The book's Chapter 23 begins with a transfer you will recognize: "Threat modeling and defense in depth extend across model-visible content and tool execution." Your threat models already have trust boundaries. The new problem is that the model sits on both sides of one. It reads untrusted content and acts with trusted authority, inside a single context window, and it cannot reliably tell the two apart.
+
+Simon Willison states the root cause in one sentence: "LLMs are unable to reliably distinguish the importance of instructions based on where they came from." Everything the model reads is, to the model, potentially an instruction. A system prompt, a user message, a retrieved help article, an email in a ticket thread, the text of a web page, the result of a tool call. Prompt injection is the attack that exploits this. OWASP's 2025 list for LLM applications puts it first, as LLM01:2025 Prompt Injection.
+
+#### Threat-model everything the model can read
+
+The book's first topic for Chapter 23 lists the inputs to threat-model: "prompts, retrieved documents, tool responses, dependencies, and generated outputs." Go through them for your own system.
+
+Prompts include what users type, and in a multi-tenant product, what one user types may reach a model acting for another. Retrieved documents include anything anyone could edit: a wiki page, a forum post, a product review, a shared file. Tool responses include web pages, API results, and file contents, all of which an outsider may control. Dependencies include the tool servers, plugins, and skills you install, which the Tools and extensibility module covers as supply chain. Generated outputs are inputs too, to the browser that renders them, to the shell that runs them, and to the next model call. OWASP's 2025 list names that last one LLM05:2025 Improper Output Handling. A model's Markdown that a client renders, or its SQL that a service executes, is untrusted output reaching a trusted interpreter.
+
+The 2025 list's other entries are a useful checklist for the same exercise: sensitive information disclosure, supply chain, data and model poisoning, excessive agency, system prompt leakage, vector and embedding weaknesses, misinformation, and unbounded consumption. OWASP published a 2026 edition of the LLM list on 2026-08-03, and a separate list for agentic applications, announced on 2025-12-09, with ten entries from ASI01 Agent Goal Hijack to ASI10 Rogue Agents. Treat both as prioritization aids, not as certifications. The book's completion evidence for Chapter 23 sets the right standard: "Show which attacks are prevented by enforced boundaries, record residual risks, and avoid claiming that finite testing proves immunity."
+
+#### Excessive agency, and authorization outside the model
+
+OWASP's entry LLM06:2025 Excessive Agency names three root causes: "excessive functionality", "excessive permissions", and "excessive autonomy". Excessive functionality is a tool that can do more than the task needs, like a mail integration that can send when the task only reads. Excessive permissions is a tool whose credentials reach more than the task needs, like a database connection that can write when the agent only queries. Excessive autonomy is a high-impact action the system takes without independent verification.
+
+The entry's central mitigation is the sentence this whole area rests on: "Implement authorization in downstream systems rather than relying on an LLM to decide if an action is allowed or not." It pairs that with "human-in-the-loop control to require a human to approve high-impact actions before they are taken", and with running extensions in the user's context, so that actions happen "in the context of that specific user, and with the minimum privileges necessary." Its worked example is an email assistant that can read and send. A malicious incoming email tricks the model into scanning the inbox and forwarding sensitive data to the attacker. The entry's fixes are all outside the model: drop the send function, use a read-only OAuth scope, and require a person to review anything before it is sent.
+
+That is least privilege for tools. Each tool exposes only the operations the task needs. Each tool's credential carries only the scopes those operations need, for only as long as the run needs them. The resource server checks authorization on every call against the identity of the user the agent is acting for, not against the agent's own standing access. And nothing the model says changes what the credential allows.
+
+#### Identity and delegation
+
+The talk handles identity with care, and so should you. Its owner slide offers a design pattern, and labels it as one: a separate workload identity for the agent, with short-lived authority delegated from the user it acts for. That pattern is illustrative. It is not a universal prescription or a claimed standard. The talk keeps it separate from three supported requirements: enforce authorization outside the model, no token passthrough, and minimal scopes.
+
+The Model Context Protocol's security best practices, in the 2026-07-28 revision, make two of those requirements concrete. On token passthrough: "MCP servers MUST NOT accept any tokens that were not explicitly issued for the MCP server." The document explains why. A server that forwards whatever token it receives breaks audience validation, the check that a token was issued for this server, lets clients bypass controls the server enforces, and leaves downstream logs showing requests from the wrong identity. That last effect matters for operations. It makes "incident investigation, controls, and auditing more difficult."
+
+On scopes, the document lists common mistakes: "Publishing all possible scopes in `scopes_supported`", "Using wildcard or omnibus scopes (`*`, `all`, `full-access`)", and "Bundling unrelated privileges to preempt future prompts." Its alternative is progressive: start with a minimal scope set for low-risk reads, and elevate with a targeted challenge when a privileged operation is first attempted. The same revision adds a rule for state: "MCP servers MUST NOT treat possession of a state handle as authentication." A state handle is any id that points at a session or a piece of server-side state. Any id the model can see, the model can be persuaded to pass along. Possession is not authorization.
+
+Picture what passthrough looks like in a staff-facing support copilot. Its lookup_customer tool takes the staff member's console session token and forwards it to the CRM, so the CRM sees the staff member, with access to every customer, and its logs never show the copilot. The fix is a token issued for the tool server itself, with the scope customers:read, limited to the customer on the open ticket. The failure exercise at the end of this module returns to that copilot.
+
+#### Why a filter cannot be the boundary
+
+Teams that discover prompt injection often reach first for a classifier: scan inputs for instructions, scan outputs for leaks, block what looks bad. Classification has a place. The talk lists it among the guardrails and says it "can contribute to defense in depth." The talk is equally plain about its limit: "A probabilistic filter is insufficient as the sole security boundary."
+
+Willison explains why with arithmetic you already know from security. Vendors of guardrail products, he writes, make confident claims that they capture "95% of attacks" or similar. In application security, a defense that fails one time in twenty is not a boundary, because an attacker gets to try many times and only needs one success. And Willison's honest summary of the state of the art is that "we still don't know how to 100% reliably prevent this from happening."
+
+EchoLeak, the talk's first incident, is the demonstration. Researchers at Aim Security disclosed it in June 2025 as CVE-2025-32711, a zero-click prompt injection in Microsoft 365 Copilot, analyzed in a September 2025 paper by Pavan Reddy and Aditya Sanjay Gujral. According to the talk's research and that analysis, one crafted email, ingested during summarization, led Copilot to pull data from OneDrive, SharePoint, and Teams and send it out through a trusted Microsoft domain. The attack chain evaded Microsoft's cross-prompt injection classifier, got around link redaction with reference-style Markdown, and used auto-fetched images and a Microsoft domain that the content security policy allowed. It was a researcher-demonstrated vulnerability. The talk's research reports Microsoft's statement that there was no evidence of exploitation. Every layer that failed in EchoLeak was a reasonable layer. The classifier was probabilistic. The redaction was pattern-based. The content security policy trusted a domain. None of them was a boundary on the path itself.
+
+Devin's Smart mode, from the worked example, is the right shape: put the probabilistic layers where they reduce noise, and put deterministic enforcement where a single failure is unacceptable.
+
+Then test the boundaries you enforce. Build an attack suite from the inputs you threat-modeled: retrieved documents carrying planted instructions, requests that ask for another tenant's data, and outputs that try to make a client render a remote image or run a script. Run it against every release manifest, not once. For each attack, record which enforced boundary blocked it, and record the residual risks the suite found no boundary for. The suite is evidence about the attacks you wrote down. It does not prove the system is immune to the ones you did not.
+
+### The lethal trifecta
+
+In June 2025, Simon Willison named the combination that turns prompt injection into data theft. He called it the lethal trifecta for AI agents. Its three parts, in his words:
+
+1. "Access to your private data"
+2. "Exposure to untrusted content"
+3. "The ability to externally communicate in a way that could be used to steal your data"
+
+The talk compresses the argument into a sentence you should be able to say from memory: "Private data, untrusted content, and external communication together create an exfiltration risk. Break or constrain the path." Untrusted content supplies the attacker's instructions. Private data supplies something worth stealing. External communication supplies the way out. Remove any one and this particular attack has nowhere to go.
+
+#### Why each corner is easy to miss
+
+Each corner is a capability, not a product, and that is why teams miss them.
+
+Private data is anything the attacker should not see. It includes your customers' records, and also internal documents, other tenants' data in a shared index, secrets in environment variables, the system prompt if it holds anything sensitive, and the trace store if it holds content. Ask what the agent can read, not what the product is for.
+
+Untrusted content is anything an outsider can influence that reaches the model's context. A web page. An email. A support ticket. A forum post. A pull request description. A calendar invite. A product review. A file a user uploaded. A tool result from a third-party API. "Ours" is not the test. A help center your staff writes is trusted content until the day it starts including community answers. An inbox is untrusted no matter whose inbox it is, because anyone can send mail to it.
+
+External communication is any way data can leave toward a party you did not choose. Sending email and calling a webhook are the obvious ones. Willison names two that are not: "to load an image" and "providing a link for a user to click". The talk adds the one that surprises most engineers: "A web fetch can communicate externally." A GET request to a URL the model chose carries whatever the model put in that URL, and the server that receives it logs it. "Read-only" describes what the request does to your systems. It says nothing about what the request tells someone else's.
+
+CamoLeak, the Tools module's incident, shows how far the last point goes. In a researcher-demonstrated vulnerability that Legit Security published on 2025-10-08, with a CVSS score of 9.6, hidden instructions in a pull request description told GitHub Copilot Chat to leak private repository content. GitHub's image proxy only served URLs carrying a valid signature, a defense meant to stop exactly this. The researcher pre-generated a valid proxied URL for every letter and symbol, and had Copilot render the stolen text as a sequence of images. The browser fetched them in order. The leak was spelled out one image request at a time. GitHub fixed it, as of August 14, 2025, by "disabling image rendering in Copilot Chat completely." The fix removed a corner.
+
+#### One integration, more than one corner
+
+The talk's owner slide gives the operating rule: "Count capabilities. A web fetch can already communicate externally. One integration can supply multiple corners."
+
+That second sentence is the one that defeats product-level reviews. An email integration that reads the inbox supplies private data, because the inbox holds your mail, and untrusted content, because anyone can write to it. If it can also send, it supplies all three corners by itself, which is OWASP's excessive agency example. A ticket system supplies private customer records and untrusted customer-written text in the same tool response. A browser tool supplies untrusted content on every page and external communication on every request. A coding agent with a repository checkout has private source code, reads issues anyone can file, and may be able to push, comment, or fetch. Label the capabilities of each integration, not its category, and you will often find two corners where you expected one.
+
+#### Assembled one integration at a time
+
+Now the pitfall, in the talk's words: The lethal trifecta, assembled one integration at a time.
+
+Here is how it happens on a real team. Nobody sets out to build an exfiltration path. Picture an internal engineering assistant. Release one lets it search the company wiki: private data, reviewed and approved, because only employees use the assistant. Release two connects the issue tracker so it can summarize bugs. The tracker is internal, so the review records no new risk. Nobody notes that the public bug-report form on the website files issues straight into that tracker, so anyone on the internet can now write text the assistant will read. Release three lets the assistant post its summaries to a chat channel, reviewed as internal messaging. Months later, someone invites a vendor's engineers into that channel. Each change passed its own review, and each review was correct about the change in front of it as it was described. The risk is a property of the composition, and no review looked at the composition.
+
+You have seen this shape before in distributed systems. An invariant that spans services cannot be checked inside any one service. A cycle in a dependency graph is invisible from any single edge. The trifecta is a system invariant, and it needs a system-level check.
+
+The research behind the talk says what that check looks like: "Map capabilities: private data, untrusted content, external communication. A web fetch may already provide an outbound channel, and one integration may occupy more than one corner." In practice:
+
+- Keep one inventory of everything that can put content in front of the model or let the model act, including UI behaviors like rendering and link unfurling, where the client fetches a link to show a preview, and including content changes to existing tools.
+- For each row, record which corners it supplies, by capability, with the reason.
+- Make any change that adds a corner, or changes the content behind an existing tool, trigger a review of the whole inventory, not just the row.
+- Write the current corner count at the top of the inventory, so that the answer to "do we have all three" is never more than one glance away.
+
+#### Break or constrain the path
+
+When the inventory shows all three corners, you have two kinds of fix.
+
+Break the path by removing a corner for the runs where the others are present. Remove external communication: an egress allowlist that permits only the domains the task needs, no rendering of remote images, links shown as text or rewritten through a gate that checks the destination. Remove untrusted content: keep outsider-written text out of the context of an agent that holds private data, or hand it to a separate, unprivileged step that returns structured fields rather than prose. Remove private data: give the agent that reads untrusted content no access to anything worth stealing.
+
+Constrain the path when you cannot remove a corner. Allowlist destinations and enforce the list at the network layer, not in the prompt. Put outbound actions behind an approval step that shows the full content and every destination, which the next section takes apart. Track provenance: once untrusted content enters a run's context, mark the run as tainted, and disable or gate its outbound tools for the rest of it. Limit the volume of what can leave. Each of these narrows the path. None of them depends on the model deciding to behave.
+
+Two limits keep this honest. The talk's first: "Removing a corner addresses this path; it does not establish safety from other threats." An agent with no outbound channel can still delete a database, as the Replit incident showed. The trifecta is one threat model among several, and OWASP's lists are the reminder of the rest. The filter limit from the previous section applies here too. A classifier that blocks most injections does not break the path. It makes the path harder to use, sometimes.
+
+### You own the approval process
+
+The talk's owner slide for this area has a title that states the responsibility: "You own the approval process." Under it sits a translation table. The left column is what the coding agent gave you. The right column is what you build when you own the product. It is reproduced here word for word.
+
+| In the coding agent | In your deployment |
+|---|---|
+| The approval prompt | Human approval, async workflow, or enforced policy |
+| The sandbox | Your infrastructure |
+| The audit log | An accountability record |
+| A vendor's disclosure | EU AI Act Article 50: disclosure duties for covered direct AI interactions |
+
+The talk's spoken version: "It can include a person approving now, an async workflow, or an enforced policy. The sandbox becomes infrastructure. The audit trail supports accountability. Disclosure duties depend on the product's role and scope." This section takes the first three rows. The next takes the fourth.
+
+#### Three kinds of approval
+
+An approval process is how a consequential action gets permission. The talk names three forms, and a real product usually uses all three for different actions.
+
+An enforced policy is code that decides without a person. A refund under a limit, to the account that paid, for an order in a refundable state, can be approved by a rule. Policies are fast, consistent, and auditable, and they cannot be talked out of their decision. They are the right choice whenever the rule can be written down.
+
+Human approval now is a person deciding in the moment, like the approval prompt in your coding agent. It is right for actions that are consequential, hard to reverse, and hard to specify, when a person is available and the user can wait.
+
+An asynchronous workflow is a person deciding later. The agent prepares the action, records its evidence, and queues it. A reviewer approves a batch in the morning. It is right when the action can wait and the reviewer needs time or context.
+
+The Tools and extensibility module gives the classification that tells you which to use: scoped reads, reversible changes, and consequential actions. Authorization applies to all three and is enforced outside the model. Approval in one of its three forms applies to the consequential ones. And the rule from that module bears repeating here: a model's recommendation to approve does not establish permission.
+
+#### A nominal review step
+
+The book's Chapter 24 names the failure that hides inside approval processes: "A nominal review step provides neither the evidence nor the controls a reviewer needs to catch an error." A review step can exist on every diagram and catch nothing.
+
+Look at what a reviewer actually sees. "Send reply? Yes or No" with a truncated preview is a nominal review. The reviewer cannot see the full text, the links in it, where those links point, which documents and messages shaped it, or whether any of those inputs came from an outsider. The reviewer has no control except yes. They cannot edit, narrow the recipients, or send the draft back with a note. After the two-hundredth approval of the day, the reviewer is no longer reviewing. The research literature calls this automation bias, and the book lists it among the things to evaluate: "automation bias, inappropriate reliance, subgroup performance, and accessibility."
+
+A real review step gives the approver evidence and controls.
+
+- Evidence: the full action, rendered so that anything that leaves is visible as text. That means links, image sources, recipients, and amounts. Show the inputs that shaped it, with their provenance, so that untrusted content is flagged. Show the policy checks that already passed or failed, and the consequence, including whether the action can be undone.
+- Controls: approve, reject, edit, narrow, and escalate; a way to stop the run entirely; and, for reversible actions, a way to undo after the fact.
+- Load: a volume a person can actually attend to. If every action needs approval, nothing gets reviewed. Push the routine actions to enforced policy, so human attention lands on the few that need it.
+
+The book's second topic for Chapter 24 widens this from reviewers to every user: "Support correction, dismissal, escalation, cancellation, and recovery." Users need the same controls reviewers do. A wrong answer needs a visible way to correct or dismiss it. A task in progress needs a way to cancel. A failure needs a way to reach a person. Microsoft Research's Guidelines for Human-AI Interaction, presented at CHI 2019, proposed eighteen design guidelines and evaluated them with 49 design practitioners against 20 AI-infused products. They predate today's agents, so treat them as a foundation and test your actual recovery flows with real users.
+
+The book's first topic for Chapter 24 starts earlier, with what users are told: "Communicate capabilities and limitations in ways that help users act." Tell people what the assistant can and cannot do at the point where it matters, not in a help page. "I can check order status but cannot change an address; here is how to reach a person" changes what a customer does next. "AI can make mistakes" does not. Put the correction and escalation controls where the answer is, and make them accessible: reachable by keyboard, labeled for screen readers, and readable without color.
+
+#### The sandbox becomes your infrastructure
+
+In your coding agent, the sandbox is a flag. In your product, it is a set of systems you build and operate: containers or microVMs for any code the agent runs, network policy and an egress proxy with an allowlist, a filesystem view limited to what the task needs, secrets injected only into the tools that need them and never into the model's context, and resource limits that stop a runaway process. The MCP security guidance recommends that clients "Execute MCP server commands in a sandboxed environment with minimal default privileges", and against server-side request forgery, it tells server-side clients to consider "an egress proxy that enforces network policies". Those are your controls now, and they need owners, tests, and change review like any other infrastructure.
+
+#### The audit log becomes an accountability record
+
+A coding agent's transcript is a convenience. Your product's audit record is evidence. For each consequential action it should answer these questions:
+
+- Who or what initiated it?
+- Under which identity and delegated scope?
+- With which configuration manifest?
+- On which inputs, and with what provenance?
+- Approved by whom, or by which policy, with which evidence shown?
+- With what result?
+
+That is the record you will need for an incident review, a customer complaint, a security investigation, or a regulator. It overlaps with your traces, and it has stricter requirements: completeness for consequential actions, integrity, and retention set by your obligations rather than by your debugging needs.
+
+### Its answer is your answer
+
+The talk's third incident on the user slide is not a security story or an outage. It is a customer who believed a chatbot.
+
+In February 2024, British Columbia's Civil Resolution Tribunal decided Moffatt v. Air Canada. This module relies on legal commentary by Barry B. Sookman of McCarthy Tétrault, published that month. The tribunal decision itself was not independently checked here, so read what follows as the commentary's account. Jake Moffatt asked the chatbot on Air Canada's website about bereavement fares. The chatbot suggested he could apply for the reduced fare retroactively. Another page on the same website said otherwise. The tribunal found the airline liable for negligent misrepresentation: it owed a duty of care, did not take reasonable care that its chatbot's information was accurate, and Moffatt reasonably relied on it. The commentary quotes the tribunal: "It should be obvious to Air Canada that it is responsible for all the information on its website." Sookman's own reading is that the decision applies a well-established principle: organizations are generally responsible for what their computer systems tell the public, whether a person or an automated tool supplies the information.
+
+That principle is old. What is new is how easily a system you deploy can say something no one in your company wrote. The chatbot's answer was generated, not authored, and it contradicted the airline's own policy page. The airline answered for it anyway.
+
+The talk draws the lesson in one sentence on the user slide: "You retain responsibility for the system's answers." And on the owner slide, it states the takeaway for this whole area.
 
 <Takeaway />
+
+Read that line against the rest of this module. Every service you have studied is a way of making your answer something you can stand behind. Observability lets you say what the system did. Cost per completed task lets you say what it costs to do it well. Release engineering lets you say which configuration did it. Incident response lets you say what you did when it went wrong. Least privilege and a broken trifecta let you say what it could never have done. The approval process lets you say who decided. None of these makes the system's answers correct. Together they make them yours in a way you can defend.
+
+#### Disclosure, with its scope
+
+The fourth row of the talk's translation table is governance: "EU AI Act Article 50: disclosure duties for covered direct AI interactions." The talk is precise about this row, and the precision is the lesson.
+
+The European Commission's FAQ on Article 50, as read on 2026-10-09, says the article applies "as from 2 August 2026." Its direct-interaction duty falls on providers. Providers of AI systems that directly interact with people must design and develop them so that the people concerned are informed they are interacting with an AI system, "unless this is obvious." The FAQ defines providers as those who develop an AI system, or have it developed, and place it on the market or put it into service under their own name or trademark. Deployers are those using an AI system under their authority, outside personal, non-professional activity. Deployers have separate duties. They must inform people when using emotion recognition or biometric categorisation, to label deepfakes, and to label AI-generated or manipulated text published to inform the public on matters of public interest, unless it has undergone human review or editorial control. The talk's research adds that background machine-to-machine systems fall outside the direct-interaction scope.
+
+Take Quillmark, the fictional retailer in this module's workshop, as a way to frame the questions, not to answer them. Quillmark builds its customer chat assistant and puts it into service under its own name, so the direct-interaction duty is the first question for that system. Its staff copilot is used by employees who know it is an AI tool, so the "unless this is obvious" exception is the question there. Neither answer is a compliance determination. Each is the question to bring to legal.
+
+So the engineering question is not "do we show a disclosure banner". It is "what is our role, for which system, in which market, and which duties does that role carry". You may be a provider for the assistant you built and a deployer of a vendor's model inside it. The talk's own disclaimer applies here too: this is a scoped summary, "not a compliance determination for every deployment." Bring in your legal and privacy colleagues. The book's fourth topic for Chapter 24 asks you to "Define accountable ownership and collaborate with privacy, legal, security, and domain specialists," and this is the place that collaboration starts.
+
+NIST's Generative AI Profile, NIST AI 600-1, published on 2024-07-26, is the other governance reference the book uses. It is a voluntary companion to NIST's AI Risk Management Framework, focused on generative AI, and covers risks across the lifecycle. Use it as a structured way to ask what can go wrong and who owns each answer. Using it does not establish legal compliance, and it does not make a system safe.
+
+#### The vendor's team becomes yours
+
+Go back to the last item on the talk's user slide: "a trust and safety team you have never met." When you are the user, someone else watches for abuse, answers the incident pager, writes the usage policy, and talks to regulators. When you are the owner, those are jobs on your team, even if they are part-time jobs on a small one. Someone owns the on-call rotation for quality incidents. Someone reviews new integrations against the inventory. Someone decides what the assistant will refuse. Someone answers the customer who was misled. Write their names down. A responsibility with no name attached is the gap where incidents grow.
+
+### An operating review for your own feature
+
+Pull the module together into something you can use on Monday. Take the AI feature you are closest to and answer these questions in writing. Each one comes from a section above. A blank answer is a finding.
+
+1. **Trace.** Can you pull up one complete run, from request to outcome, with every model call, retrieval, tool call, and check as a span? Does the root span carry the configuration manifest? Which version of the GenAI conventions do you follow, and who will notice when a name changes?
+2. **Content.** Which message content do your traces store, for what purpose, with what redaction, who can read it, and for how long?
+3. **Cost.** What is your cost per completed task, with failed work and human minutes in it? What share of that is the model bill? What are p95 and p99 tokens per task, and what is in the runs at the tail? What is your cache hit rate, by configuration?
+4. **Budgets.** What stops a single run, a single tenant, and the whole service from spending without limit? Who can pull the kill switch, and does it need a deploy?
+5. **Release.** Is there a manifest that names the prompt, model, index, tools, router, and policy versions? Does the canary compare outcome quality by segment, or only errors and latency? What rule stops a rollout?
+6. **Rollback.** What does a rollback restore, and what does it leave behind? Which completed effects would you need to find, and can you find them from your traces?
+7. **Detection.** Which quality signal would tell you, within a day, that answers got worse while availability stayed green? Who is allowed to declare a quality incident?
+8. **Inventory.** List every tool, data source, and UI behavior that can put content in front of the model or let it act. Mark each one for private data, untrusted content, and external communication, by capability. Do you have all three? Where is the path broken or constrained, and is that enforced outside the model?
+9. **Authority.** Under which identity does each tool call run? Which scopes does its credential carry? Is authorization checked downstream, in the user's context?
+10. **Approval.** For each consequential action: policy, human now, or human later? What evidence and which controls does the approver get?
+11. **Disclosure.** What is your role, provider or deployer, for which system, in which market? Who in legal and privacy has looked?
+12. **Owners.** Who answers the page for a quality incident? Who reviews a new integration? Who contacts a misled customer?
+
+Tracing, budgets, canaries, postmortems, least privilege, and audit records are engineering you already know. The schema is new, the units are tokens, and the caller reads instructions from anywhere. The responsibility is the same one you have always carried for production: when it answers, you answer.
 
 ## Workshop
 
 <Workshop>
 
-The workshop will be an analysis exercise on provided artifacts. No code. It will state the task in one paragraph and give a rubric.
+You own Quillmark's customer-facing support assistant. Release 2.8.0 went out in late September. Your team has drafted a postmortem and wants it published. Read the dashboard first, the way the team did, and then the draft. Both are synthetic.
+
+<Artifact id="operating-it-cost-dashboard" />
+
+<Artifact id="operating-it-postmortem-draft" />
+
+Write the review you would leave on the draft, in roughly 500 to 900 words; bullets are fine. Say whether the stated root cause is supported by the evidence in front of you, and what you would need to see before anyone names one. Work out cost per completed task for both releases from the dashboard's own numbers, and say what that does to the release's headline. Say what the rollback restored, what it left in place, and what it could not undo. Say what you would change in the release process so the next regression of this kind stops at the canary. Then go through the five drafted action items and say which you would keep, rewrite, or replace, and why.
+
+Apply this rubric to your own response before you save it.
+
+- Your review challenges the single root cause. It notes that the release changed several behavioral dependencies at once, points to evidence in the trace, the prompt diff, and the manifest that implicates more than the model, and uses the 2026-10-03 figure to test the claim. It proposes a way to isolate causes, such as replaying billing cases against manifests that differ by one dependency.
+- You computed cost per completed task for both releases, showed the inputs, and said what share of the cost is the model bill. You noticed what the partial reopen counts do to the newer release's figure.
+- You connected the cache drop to the timestamp line at the top of prompt v14, noted whether routing 47 percent of requests to a second model also splits the cache, and said why it matters even though it is not the quality problem.
+- You separated the rollback into what it restored, what is still running from 2.8.0, and the completed effects it did not touch. You said what should happen for the customers who were told the wrong timeline, and whether the 1,180 figure is a count or a lower bound.
+- You named what the canary compared and what it should have compared, by segment, and you looked at what the eval suite's billing cases could and could not have caught.
+- You treated the logging action item as a data-handling decision, with purpose, redaction, access, and retention, rather than as a debugging convenience.
+- You replaced the generic judge with something specific to the failure, such as regression cases built from the failing pattern, and you said who owns each remaining action.
+- You kept an evidence standard throughout: an association with a release starts an investigation and does not finish one.
 
 </Workshop>
 
@@ -47,11 +897,29 @@ The workshop will be an analysis exercise on provided artifacts. No code. It wil
 
 <FailureExercise>
 
-The failure exercise will plant a failure in an artifact and ask you to find it and explain it.
+Quillmark also runs a support copilot for its own staff. Its security reviewer signed off release 1.7 on the grounds that no release ever combined all three capabilities of the lethal trifecta. Read the inventory, the two schemas, the configuration, and the sign-off.
+
+<Artifact id="operating-it-integration-inventory" />
+
+Find where the sign-off's reasoning fails. Say at which release the copilot first combined private data, untrusted content, and external communication, which rows supply which corners and why, and which assumptions in the review notes and the sign-off let it through. Then say what you would change, both to break or constrain the path in this system and to keep the next review from repeating the mistake. A few paragraphs is enough.
 
 <Fragment slot="explanation">
 
-The explanation appears here after a response is saved.
+The sign-off counts products, one release at a time. The risk belongs to capabilities, in combination. Recount by capability and the copilot had all three corners at release 1.4, three months before the sign-off, and more paths were added after that.
+
+**Private data.** lookup_customer and read_ticket_thread, from releases 1.1 and 1.3. The reviewer got this corner right. The staff member's access to every customer makes it larger, not smaller: the copilot can read any customer's record, not only the ticket's.
+
+**Untrusted content.** The sign-off says "none, since all content is either ours or our customers'". That is the planted error. Customer-written is not trusted. Anyone on the internet can send an email to the public support address, and every inbound message becomes a ticket. So read_ticket_thread supplies two corners in one tool response: private data, the thread and internal notes, and untrusted content, the inbound emails and the text extracted from their attachments. Its own description tells the model to read all of it. Later releases added more untrusted sources: fetch_url returns any web page, including one an attacker controls, from 1.5. search_help_center started returning forum posts written by the public in 1.6, a content change that the review waved through as "no new tool".
+
+**External communication.** The sign-off says "none, since no tool sends data out". Two paths contradict it. First, release 1.4 made the console render the copilot's answers as Markdown, with `render_remote_images: true` and link unfurling. An image in an answer makes the staff member's browser fetch a URL the model wrote, and that URL can carry data. That is how EchoLeak and CamoLeak moved data out. The review called it a UI change and ruled it out of scope, which is exactly how corners get added without review. Second, fetch_url is "GET only", and the sandbox config shows `network_mode: limited` with `allowed_domains` empty, so every domain is reachable. A GET to an attacker's server with customer data in the query string is external communication. The tool's own schema invites a full URL "including any query string". "Read-only" describes what the request does to Quillmark's systems, not what it tells someone else.
+
+So at 1.4, read_ticket_thread supplies private data and untrusted content, and Markdown image rendering supplies external communication. One malicious email in a ticket, read by the copilot when a staff member opens the ticket, can instruct it to look up other customers and put their details in an image URL. From 1.5, fetch_url adds a second way out that does not even need a rendered answer.
+
+**What else the review got wrong.** draft_reply in 1.7 is reviewed as "human approved", but the approval is only as good as what the staff member sees. A long draft with a link whose query string holds another customer's address is easy to send. A send button is a gate. It is not yet a review.
+
+**Breaking or constraining the path.** Remove the external communication corner first, because it is the cheapest to enforce in code. Turn off remote image rendering and link unfurling in the console, or proxy them through an allowlist. Give fetch_url an allowlist of the carrier domains it exists for, enforced at the sandbox, not in the description. Then constrain the rest. Mark a run as tainted when it has read inbound customer content or forum posts, and in a tainted run, gate outbound tools and show links as plain text. Scope lookup_customer to the customer on the open ticket instead of any id. Make draft_reply's approval show the full text, every link and its destination, and a flag when the draft was written in a tainted run. None of this depends on the model behaving. And none of it establishes safety from other threats. It closes this path.
+
+**Keeping the next review honest.** Replace the per-release check with a system-level inventory of capabilities. Put UI behaviors, such as rendering and unfurling, and content changes to existing tools on it. Record the corners each row supplies, by capability, with the reason. Make any change that adds a corner trigger a review of the whole inventory. Keep the current count at the top. The pitfall is in the inventory's own history: the lethal trifecta, assembled one integration at a time.
 
 </Fragment>
 

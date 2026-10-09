@@ -9,8 +9,8 @@ prerequisites: []
 talkBeats: ["1.3", "1.4", "3.1", "3.2", "3.3", "3.4"]
 bookChapters: [1, 2]
 draft: false
-updatedOn: 2026-10-03
-checkedOn: 2026-10-03
+updatedOn: 2026-10-09
+checkedOn: 2026-10-09
 staleAfterDays: 90
 artifacts: [orientation-transfer-table]
 outcomes:
@@ -253,7 +253,7 @@ The talk opens with two sentences and closes with the same two.
 
 Everything in this program hangs on the second sentence. You already use AI. Most readers have watched a coding agent do something impressive this week. That experience is the starting point, not the destination. The destination is a system other people depend on, whose behavior you answer for.
 
-The talk defines one word early and uses it the same way for the rest of its 35 minutes of content: "Owner means the engineer or team accountable for the delivered product's behavior and operating limits." Keep that definition. Every area module in this program has a section called "When you are the owner", and it means exactly this.
+The talk defines one word early and uses it the same way for the rest of its 35 minutes of content: "Owner means the engineer or team accountable for the delivered product's behavior and operating limits." Keep that definition. Every area module in this program has an owner section, most of them headed "When you are the owner", and the word means exactly this there.
 
 Your software engineering is not the thing that changes. In the talk's words: "Your software engineering skills are the foundation. The additional responsibility is measuring and controlling model-dependent behavior." The talk focuses on building products around foundation models. ML engineers typically focus on models and the pipelines that produce them. AI engineers typically focus on products around models. The roles overlap, including adaptation and fine-tuning. This program sits on the product side of that overlap.
 
@@ -363,12 +363,12 @@ The talk's takeaway: "You are not starting over. You are adding a layer."
 
 This program uses the table as its spine. Each area module opens with a Transfer connection section that expands one or more rows and says what stays the same and what changes. The assignment is the program's own, recorded in its decisions log, because six rows do not map one to one onto six areas:
 
-- Models expands testing discipline, because choosing and measuring a model is a testing problem.
-- Context and knowledge expands decomposition and systems thinking.
-- Tools and extensibility expands interface design.
-- Orchestration expands decomposition and systems thinking.
-- Verification and evals expands testing discipline.
-- Operating it expands observability, security and least privilege, and operations.
+- [Models](/modules/models) expands testing discipline, because choosing and measuring a model is a testing problem.
+- [Context and knowledge](/modules/context-and-knowledge) expands decomposition and systems thinking.
+- [Tools and extensibility](/modules/tools-and-extensibility) expands interface design.
+- [Orchestration](/modules/orchestration) expands decomposition and systems thinking.
+- [Verification and evals](/modules/verification-and-evals) expands testing discipline.
+- [Operating it](/modules/operating-it) expands observability, security and least privilege, and operations.
 
 ### What is new
 
@@ -398,14 +398,14 @@ Each competency has a home in this program. The closing self-assessment rates yo
 
 Each area module ends its owner section with one pitfall, and each failure exercise plants that pitfall in an artifact for you to find. The talk collects the six on one slide. Here they are, word for word.
 
-1. Models: a hardcoded model ID with no eval suite behind it.
-2. Context: adding instead of curating.
-3. Tools: copying the API surface without evaluating task fit.
-4. Orchestration: multi-agent before a workflow was tried.
-5. Evals: a generic judge instead of error analysis. Trusting the success claim without checking the result.
-6. Operating: the lethal trifecta, assembled one integration at a time.
+1. [Models](/modules/models#failure-exercise): a hardcoded model ID with no eval suite behind it.
+2. [Context](/modules/context-and-knowledge#failure-exercise): adding instead of curating.
+3. [Tools](/modules/tools-and-extensibility#failure-exercise): copying the API surface without evaluating task fit.
+4. [Orchestration](/modules/orchestration#failure-exercise): multi-agent before a workflow was tried.
+5. [Evals](/modules/verification-and-evals#failure-exercise): a generic judge instead of error analysis. Trusting the success claim without checking the result.
+6. [Operating](/modules/operating-it#failure-exercise): the lethal trifecta, assembled one integration at a time.
 
-Each line is the short form of a fuller sentence from the owner section of its area. Models: the deprecation notice arrives with a replacement you have never measured. Context: a big window is not permission to fill it. Tools: evaluate granularity, descriptions, payloads, and safe boundaries against representative tasks before you mirror an API. Orchestration: a human is waiting, latency is a product requirement, and "an unbounded loop is an outage". Evals: check the result and inspect the trace, because a success sentence in a transcript is not an outcome. Operating: count capabilities, not products, because a web fetch can already communicate externally and one integration can supply more than one corner of the trifecta.
+Each label links to the failure exercise where that area plants its pitfall. Each line is the short form of a fuller sentence from the owner section of its area. Models: the deprecation notice arrives with a replacement you have never measured. Context: a big window is not permission to fill it. Tools: evaluate granularity, descriptions, payloads, and safe boundaries against representative tasks before you mirror an API. Orchestration: a human is waiting, latency is a product requirement, and "an unbounded loop is an outage". Evals: check the result and inspect the trace, because a success sentence in a transcript is not an outcome. Operating: count capabilities, not products, because a web fetch can already communicate externally and one integration can supply more than one corner of the trifecta.
 
 The seventh is not on the map. In the talk's words: "One more that is not on the map: reaching for a framework before understanding the loop." Anthropic's warning is that frameworks "often create extra layers of abstraction that can obscure the underlying prompts and responses, making them harder to debug." Learn the loop first. A framework you adopt after that is a convenience you can evaluate. A framework you adopt before it is a black box you depend on.
 
@@ -477,7 +477,7 @@ Artifacts carry a label: captured from the author's own sessions, synthetic and 
 
 Reading never needs an account. Signing in adds three things: your workshop and failure responses are saved, your self-check results persist, and the catalog shows your status on each module. Orientation is the exception. Its self-check stays in your browser for everyone, and you mark it complete by hand with the control at the end of this page.
 
-Where to go next. Foundations is recommended before Verification and evals. The six areas follow the talk's order: Models, Context and knowledge, Tools and extensibility, Orchestration, Verification and evals, Operating it. The closing self-assessment and the electives come last. The <a href="/modules">catalog</a> lists every module with its reading time and prerequisites. Prerequisites are recommendations, never locks.
+Where to go next. [Foundations](/modules/foundations) comes next, and every area module lists it as a prerequisite. The six areas follow the talk's order: [Models](/modules/models), [Context and knowledge](/modules/context-and-knowledge), [Tools and extensibility](/modules/tools-and-extensibility), [Orchestration](/modules/orchestration), [Verification and evals](/modules/verification-and-evals), [Operating it](/modules/operating-it). The closing self-assessment and the electives come last. The <a href="/modules">catalog</a> lists every module with its reading time and prerequisites. Prerequisites are recommendations, never locks.
 
 ## Completion evidence
 

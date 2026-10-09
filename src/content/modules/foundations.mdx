@@ -9,33 +9,925 @@ prerequisites: [orientation]
 catalogNote: "Recommended before Verification and evals."
 talkBeats: []
 bookChapters: [4, 5, 6]
-draft: true
-updatedOn: 2026-09-16
-checkedOn: 2026-09-16
+draft: false
+updatedOn: 2026-10-09
+checkedOn: 2026-10-09
 staleAfterDays: 90
-artifacts: []
-outcomes: []
-selfCheck: []
-sources: []
+artifacts: [foundations-tokenization-trace, foundations-triage-reports, foundations-release-report]
+outcomes:
+  - id: rates-over-populations
+    text: Describe the quality of a model-dependent feature as a rate over a defined population, and name the unit of sampling.
+  - id: precision-recall-thresholds
+    text: Compute precision, recall, and F1 from a confusion matrix, and choose a threshold from what each kind of error costs.
+  - id: intervals-and-paired-comparison
+    text: Report an interval for a measured rate, and compare two systems on paired cases instead of two isolated averages.
+  - id: three-kinds-of-confidence
+    text: Distinguish token likelihood, expressed confidence, and empirical reliability, and say which one a decision needs.
+  - id: generalization-not-training-success
+    text: Explain why training success is not generalization, and detect leakage by checking the split against the grouping unit.
+  - id: how-models-compute
+    text: Explain tokens, embeddings, attention, and next-token prediction well enough to predict effects on cost, context, and position.
+  - id: decoding-and-training-stages
+    text: Say what decoding settings and each training stage change in a model's behavior, and what they cannot change.
+  - id: failures-to-mechanisms
+    text: Connect an observed failure to a plausible mechanism while keeping the uncertainty, without treating the model's own explanation as evidence.
+selfCheck:
+  - id: q1-five-tickets
+    outcome: rates-over-populations
+    question: 'A teammate changed a prompt, ran it on five tickets that used to fail, and all five now pass. What does that establish?'
+    options:
+      - 'The new prompt is better than the old one on the ticket population.'
+      - 'A useful path exists for those five inputs on those runs.'
+      - 'The prompt fixed the failure category those five tickets belong to.'
+    correct: [1]
+    feedback:
+      - 'Not yet. Five hand-picked cases say nothing about the population the feature will serve, or about the cases the old prompt got right. Reread the section "A test becomes a rate over a population".'
+      - 'Correct. Quality is a rate over a defined population, measured on a sample with a stated unit. Five cases are an anecdote, not that measurement.'
+      - 'Not yet. Five cases cannot stand for a whole category, and nobody measured the rest of it. Reread the section "A test becomes a rate over a population".'
+  - id: q2-precision-threshold
+    outcome: precision-recall-thresholds
+    question: 'On 600 tickets, a classifier flags 32 as account security. 27 of those are real security tickets, and it missed 13 others. A missed security ticket costs far more than a false escalation. Which statements are true?'
+    options:
+      - 'Precision is 0.844 and recall is 0.675.'
+      - 'Precision is 0.675 and recall is 0.844.'
+      - 'Accuracy, 97 percent here, is the best summary because it covers all 600 tickets.'
+      - 'Lowering the threshold would likely catch more of the 13 missed tickets at the cost of more false escalations, the right direction for these costs.'
+      - 'Raising the threshold would improve precision and recall together, because the remaining flags would be cleaner.'
+    correct: [0, 3]
+    feedback:
+      - 'Correct. Precision is 27 of 32 flags. Recall is 27 of the 40 real security tickets.'
+      - 'Not yet. The two are swapped. Precision divides by what was flagged, recall by what was real. Reread the section "Precision, recall, and thresholds".'
+      - 'Not yet. Accuracy is high because most tickets are not security tickets, and it hides the 13 misses. Reread the section "Precision, recall, and thresholds".'
+      - 'Correct. A lower threshold flags more tickets and trades precision for recall, which buys the cheaper error here.'
+      - 'Not yet. Raising a threshold flags fewer tickets, which usually lowers recall. Moving a threshold trades one error for the other. Reread the section "Precision, recall, and thresholds".'
+  - id: q3-interval
+    outcome: intervals-and-paired-comparison
+    question: 'On 600 paired tickets, v4 beats v3 by 0.3 points, with a 95 percent interval on the difference of -2.0 to +2.7. What can you conclude?'
+    options:
+      - 'v4 is better overall, because its point estimate is positive on the same 600 tickets.'
+      - 'The data fit v4 being somewhat worse, the same, or somewhat better overall, so the overall number does not settle the decision.'
+      - 'v4 is probably better overall, because more of the interval lies above zero than below it.'
+    correct: [1]
+    feedback:
+      - 'Not yet. A difference of 0.3 points sits well inside the noise. The interval includes zero and values on both sides of it. Reread the section "Intervals: how sure is the number".'
+      - 'Correct. The decision has to come from somewhere else, such as the categories whose errors cost the most.'
+      - 'Not yet. The interval is close to symmetric around a tiny difference and includes zero, so it does not favor either side enough to act on. Reread the section "Intervals: how sure is the number".'
+  - id: q4-valid-comparison
+    outcome: intervals-and-paired-comparison
+    question: 'Which practices make a comparison between two candidate prompts trustworthy?'
+    options:
+      - 'Run both prompts on the same frozen cases.'
+      - 'Report an interval on the difference.'
+      - 'Try twelve variants and report the winner''s score on the same set you used to pick it.'
+      - 'Compare the old prompt on July traffic with the new prompt on September traffic.'
+      - 'Define the unit of sampling before you run anything.'
+    correct: [0, 1, 4]
+    feedback:
+      - 'Correct. Pairing removes the difference in difficulty between two samples.'
+      - 'Correct. A difference without an interval cannot be weighed against noise.'
+      - 'Not yet. Selecting on the test set biases the reported score upward. Reread the section "Comparing two systems".'
+      - 'Not yet. A changed traffic mix can create an improvement that belongs to the traffic, not the prompt. Reread the section "Comparing two systems".'
+      - 'Correct. The unit decides what counts as one case and how to resample for an interval.'
+  - id: q5-every-run
+    outcome: rates-over-populations
+    question: 'A drafting feature succeeds on 90 percent of trials, and trials are independent. A customer relies on it ten times a week, and every run has to work. Which number describes their week?'
+    options:
+      - 'pass@10, close to 1.0: at least one of the ten runs succeeds.'
+      - 'pass^10, about 0.35: all ten runs succeed.'
+      - 'The per-trial rate, 0.9, because each run is independent of the others.'
+    correct: [1]
+    feedback:
+      - 'Not yet. pass@k fits a person who picks the best of several drafts. This customer needs every run to work. Reread the section "Expectation, variance, and sampling".'
+      - 'Correct. 0.9 to the tenth power is about 0.35, so in most weeks at least one run fails.'
+      - 'Not yet. The per-trial rate describes one run. Ten runs that must all succeed multiply. Reread the section "Expectation, variance, and sampling".'
+  - id: q6-confidence
+    outcome: three-kinds-of-confidence
+    question: 'You want the assistant to escalate when it is unsure. What should the escalation rule be validated against?'
+    options:
+      - 'The model''s stated confidence, such as "I am 95 percent sure".'
+      - 'The token probability of its answer, since it comes from the model''s own distribution rather than generated text.'
+      - 'How often answers in each band of the chosen signal turn out correct on cases you checked.'
+    correct: [2]
+    feedback:
+      - 'Not yet. Expressed confidence is generated text, and post-training can make it less calibrated. Reread the section "Token likelihood, expressed confidence, and empirical reliability".'
+      - 'Not yet. Token probability may be a useful signal, but only measurement on your cases shows whether it is calibrated, and post-training can weaken it. Reread the section "Token likelihood, expressed confidence, and empirical reliability".'
+      - 'Correct. That is empirical reliability. Whatever signal you use, its reliability is measured on your population.'
+  - id: q7-leakage
+    outcome: generalization-not-training-success
+    question: 'A report shows 99.4 percent training accuracy and 97.9 percent held-out accuracy. The split was random over messages, and each customer sends many templated messages. What does the held-out number mostly measure?'
+    options:
+      - 'Generalization to new customers, because the gap to training accuracy is only 1.5 points.'
+      - 'Performance on customers and templates the model has already seen.'
+      - 'Overfitting, because 99.4 percent training accuracy means the model memorized its training set.'
+    correct: [1]
+    feedback:
+      - 'Not yet. A small gap means little when the held-out set shares customers and templates with training. A random split over messages puts many customers on both sides. Reread the section "Splits, leakage, and the grouping unit".'
+      - 'Correct. The split ignored the grouping unit, so the held-out set rewards familiarity. Rebuild the split by customer.'
+      - 'Not yet. High training accuracy is normal. The problem is what the held-out set shares with training. Reread the section "Generalization is not training success".'
+  - id: q8-tokens
+    outcome: how-models-compute
+    question: 'Which statements about tokens are true?'
+    options:
+      - 'A context window is measured in tokens and covers input, output, and reasoning together.'
+      - 'One token is about 0.75 words, so a word count converts reliably to a token budget.'
+      - 'An order number such as A-77120 can be split into several tokens at places that mean nothing.'
+      - 'A prompt''s token count stays the same when you migrate to a newer model.'
+    correct: [0, 2]
+    feedback:
+      - 'Correct. The window is a shared budget, which is why output and reasoning need reserved room.'
+      - 'Not yet. That is a rough rule for English prose, and other languages can differ a great deal. Reread the section "Tokens".'
+      - 'Correct. Identifiers are fragmented, which is one reason to let code fill them in.'
+      - 'Not yet. A tokenizer belongs to a model family, so counts can change on migration. Reread the section "Tokens".'
+  - id: q9-embeddings
+    outcome: how-models-compute
+    question: 'Retrieval returns the warranty policy for SKU BX-4410 when the customer asked about BX-4401. Which explanation and fix fit best?'
+    options:
+      - 'Embeddings can place look-alike identifiers close together. Add lexical search that matches exact strings alongside the embedding search.'
+      - 'The embedding vectors are too short. An embedding model with more dimensions will separate the two SKUs.'
+      - 'The right passage was buried far from the question. Move it next to the question.'
+    correct: [0]
+    feedback:
+      - 'Correct. An identifier carries meaning only as an exact string, and lexical search matches exact strings.'
+      - 'Not yet. More dimensions do not change what training made the embeddings encode, and look-alike strings can still land close together. Reread the section "Vectors, dot products, and embeddings".'
+      - 'Not yet. The wrong passage was retrieved, so position is not the problem yet. Reread the section "Vectors, dot products, and embeddings".'
+  - id: q10-position
+    outcome: how-models-compute
+    question: 'A policy passage was retrieved and placed seventh of twelve passages in a 90,000-token input with a 200,000-token window, far from the question. The model answered from general knowledge instead. Which explanation and next step fit best?'
+    options:
+      - 'The model lacks the knowledge, so fine-tune it on the policy.'
+      - 'Position and distractors made the passage less likely to be used. Move it near the question or cut the other passages, then measure the rate again.'
+      - 'The context window was exceeded, so the passage was dropped before the model saw it.'
+    correct: [1]
+    feedback:
+      - 'Not yet. The fact was in the context. The problem is how the context was used. Reread the section "Context windows, position, and reasoning tokens".'
+      - 'Correct. Placement is an evaluation variable. Change one thing and measure.'
+      - 'Not yet. 90,000 tokens fits a 200,000-token window. Reread the section "Context windows, position, and reasoning tokens".'
+  - id: q11-decoding-and-stages
+    outcome: decoding-and-training-stages
+    question: 'The assistant states the wrong refund window about half the time. Which statements are true?'
+    options:
+      - 'Setting temperature to 0 makes the model pick its top candidate more consistently, and that candidate may be consistently wrong.'
+      - 'Setting temperature to 0 removes the sampling noise, so the runs that were wrong will now be right.'
+      - 'Your refund policy was never in the pretraining data, so the fix to test is supplying it in context where the model will use it.'
+      - 'More preference optimization would teach the model your policy, so a newer post-trained version is the fix.'
+    correct: [0, 2]
+    feedback:
+      - 'Correct. Lower temperature reduces variation, not error. Fix the input or the model, and measure.'
+      - 'Not yet. Temperature reshapes the distribution the model already has. If its top candidate is wrong, the wrong answer becomes more frequent. Reread the section "Next-token prediction and decoding".'
+      - 'Correct. Knowledge comes from pretraining data, and your private documents were never in it.'
+      - 'Not yet. Preference optimization shapes style and helpfulness, not your private facts. Reread the section "From pretraining to the assistant you call".'
+  - id: q12-explanation
+    outcome: failures-to-mechanisms
+    question: 'After a wrong answer, you ask the model why it missed the policy, and it says it overlooked the passage. How should you treat that explanation?'
+    options:
+      - 'As strong evidence, because the model had the passage in its context and can report what it attended to.'
+      - 'As a hypothesis at most. Test it by changing one thing and measuring the failure rate over repeated trials.'
+      - 'As settled once the model gives the same explanation on three separate runs.'
+    correct: [1]
+    feedback:
+      - 'Not yet. A generated explanation is not a readout of the computation, even when the passage was in context. Reread the section "How foundation models fail".'
+      - 'Correct. Connect the observation to a plausible mechanism, test it, and keep the uncertainty in the write-up.'
+      - 'Not yet. A consistent explanation is still generated text. Repetition makes it consistent, not true. Reread the section "How foundation models fail".'
+sources:
+  - title: Becoming an AI Engineer, the book blueprint
+    date: "2026-09"
+    checkedOn: 2026-10-09
+    note: "Chapters 4, 5, and 6 (transfer statements, topics, workshops, failure exercises, completion evidence) and the Mathematical reference appendix brief. Read from the local blueprint. The public link is pending."
+  - title: Beyond the Coding Agent, the talk repository
+    author: Stephen Sequenzia
+    date: "2026-09"
+    url: https://github.com/sequenzia/beyond-the-coding-agent
+    checkedOn: 2026-10-09
+    note: "The transfer table, the seven competencies, and the takeaways quoted here, with the Section 2 and Section 3 research files. Read from a local clone."
+  - title: AI Engineering in the real world
+    author: Gergely Orosz
+    date: "2025-03-25"
+    url: https://newsletter.pragmaticengineer.com/p/ai-engineering-in-the-real-world
+    checkedOn: 2026-09-15
+    note: "The Pragmatic Engineer. The Ross McNairn quote, as the talk uses it. Date checked is the talk research's check date."
+  - title: The Rise of the AI Engineer
+    author: Shawn Wang (swyx)
+    org: Latent Space
+    date: "2023-06-30"
+    url: https://www.latent.space/p/ai-engineer
+    checkedOn: 2026-10-09
+    note: "The Karpathy quote appears in the essay as a block quote."
+  - title: Prerequisites and prework, Machine Learning Crash Course
+    org: Google for Developers
+    date: "2025-08-25"
+    url: https://developers.google.com/machine-learning/crash-course/prereqs-and-prework
+    checkedOn: 2026-10-09
+    note: "Last updated date. The book's further reading for chapters 4 and 5."
+  - title: "Classification: Accuracy, recall, precision, and related metrics"
+    org: Google for Developers
+    date: "2026-01-12"
+    url: https://developers.google.com/machine-learning/crash-course/classification/accuracy-precision-recall
+    checkedOn: 2026-10-09
+    note: "Machine Learning Crash Course. Last updated date."
+  - title: "Datasets: Dividing the original dataset"
+    org: Google for Developers
+    date: "2025-12-03"
+    url: https://developers.google.com/machine-learning/crash-course/overfitting/dividing-datasets
+    checkedOn: 2026-10-09
+    note: "Machine Learning Crash Course. Last updated date."
+  - title: "Adding Error Bars to Evals: A Statistical Approach to Language Model Evaluations"
+    author: Evan Miller
+    date: "2024-11-01"
+    url: https://arxiv.org/abs/2411.00640
+    checkedOn: 2026-10-09
+    note: "arXiv 2411.00640. Quoted from the abstract."
+  - title: Demystifying evals for AI agents
+    org: Anthropic
+    author: Mikaela Grace, Jeremy Hadfield, Rodrigo Olivares, Jiri De Jonghe
+    date: "2026-01-09"
+    url: https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents
+    checkedOn: 2026-10-09
+  - title: "How Is ChatGPT's Behavior Changing over Time?"
+    author: Lingjiao Chen, Matei Zaharia, James Zou
+    date: "2023-07"
+    url: https://arxiv.org/html/2307.09009v3
+    checkedOn: 2026-10-09
+    note: "arXiv 2307.09009, version 3, revised 2023-10-31. The intervals in this module are calculated from the reported accuracies and the 1,000-question set. Task-specific evidence, not overall model quality."
+  - title: Language Models (Mostly) Know What They Know
+    author: Saurav Kadavath and colleagues
+    org: Anthropic
+    date: "2022-07-11"
+    url: https://arxiv.org/abs/2207.05221
+    checkedOn: 2026-10-09
+    note: "arXiv 2207.05221. Quoted from the abstract."
+  - title: GPT-4 Technical Report
+    org: OpenAI
+    date: "2023-03"
+    url: https://arxiv.org/html/2303.08774v6
+    checkedOn: 2026-10-09
+    note: "arXiv 2303.08774, version 6. The calibration passage and the Figure 8 caption, on a subset of MMLU."
+  - title: Why Language Models Hallucinate
+    author: Adam Tauman Kalai, Ofir Nachum, Santosh S. Vempala, Edwin Zhang
+    date: "2025-09-04"
+    url: https://arxiv.org/abs/2509.04664
+    checkedOn: 2026-10-09
+    note: "arXiv 2509.04664. Quoted from the abstract. OpenAI's companion blog post refused the fetch, so it is not cited."
+  - title: CS336 Language Modeling from Scratch
+    author: Tatsunori Hashimoto and Percy Liang
+    org: Stanford University
+    date: "2026"
+    url: https://cs336.stanford.edu/
+    checkedOn: 2026-10-09
+    note: "Spring 2026 course page. The book's further reading for chapters 5 and 6, for readers who want to build a model."
+  - title: LLM Bootcamp, Spring 2023
+    org: Full Stack Deep Learning
+    date: "2023"
+    url: https://fullstackdeeplearning.com/llm-bootcamp/spring-2023/
+    checkedOn: 2026-10-09
+    note: "The LLM Foundations lecture. The book's further reading for chapter 6. Tooling details are historical."
+  - title: Neural Machine Translation of Rare Words with Subword Units
+    author: Rico Sennrich, Barry Haddow, Alexandra Birch
+    date: "2015-08-31"
+    url: https://arxiv.org/abs/1508.07909
+    checkedOn: 2026-10-09
+    note: "arXiv 1508.07909, revised 2016. Quoted from the abstract."
+  - title: Language Model Tokenizers Introduce Unfairness Between Languages
+    author: Aleksandar Petrov, Emanuele La Malfa, Philip H.S. Torr, Adel Bibi
+    date: "2023-05-17"
+    url: https://arxiv.org/abs/2305.15425
+    checkedOn: 2026-10-09
+    note: "NeurIPS 2023. Quoted from the abstract."
+  - title: Key concepts, OpenAI API documentation
+    org: OpenAI
+    date: "2026"
+    url: https://developers.openai.com/api/docs/concepts
+    checkedOn: 2026-10-09
+    note: "The page states no publication date. Token and embedding definitions and the English rule of thumb."
+  - title: Conversation state, OpenAI API documentation
+    org: OpenAI
+    date: "2026"
+    url: https://developers.openai.com/api/docs/guides/conversation-state
+    checkedOn: 2026-10-09
+    note: "The page states no publication date. The context window definition and its accounting."
+  - title: Reasoning models, OpenAI API documentation
+    org: OpenAI
+    date: "2026"
+    url: https://developers.openai.com/api/docs/guides/reasoning
+    checkedOn: 2026-10-09
+    note: "The page states no publication date. Reasoning effort, reasoning tokens, and their billing."
+  - title: Attention Is All You Need
+    author: Ashish Vaswani and colleagues
+    date: "2017-06-12"
+    url: https://arxiv.org/abs/1706.03762
+    checkedOn: 2026-10-09
+    note: "arXiv 1706.03762. Quoted from the abstract."
+  - title: Effective context engineering for AI agents
+    org: Anthropic
+    author: Prithvi Rajasekaran, Ethan Dixon, Carly Ryan, Jeremy Hadfield
+    date: "2025-09-29"
+    url: https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents
+    checkedOn: 2026-10-09
+  - title: Introducing Contextual Retrieval
+    org: Anthropic
+    author: Daniel Ford
+    date: "2024-09-19"
+    url: https://www.anthropic.com/engineering/contextual-retrieval
+    checkedOn: 2026-10-09
+  - title: The Curious Case of Neural Text Degeneration
+    author: Ari Holtzman, Jan Buys, Li Du, Maxwell Forbes, Yejin Choi
+    date: "2019-04-22"
+    url: https://arxiv.org/abs/1904.09751
+    checkedOn: 2026-10-09
+    note: "arXiv 1904.09751, revised 2020. Quoted from the abstract."
+  - title: Defeating Nondeterminism in LLM Inference
+    author: Horace He
+    org: Thinking Machines Lab
+    date: "2025-09-10"
+    url: https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/
+    checkedOn: 2026-10-09
+  - title: Model deprecations
+    org: Anthropic
+    date: "2026"
+    url: https://platform.claude.com/docs/en/about-claude/model-deprecations
+    checkedOn: 2026-10-09
+    note: "The API parameter deprecations table: temperature, top_p, and top_k on Claude 4.7 and later models. True on the day checked."
+  - title: A postmortem of three recent issues
+    org: Anthropic
+    author: Sam McAllister
+    date: "2025-09-17"
+    url: https://www.anthropic.com/engineering/a-postmortem-of-three-recent-issues
+    checkedOn: 2026-10-09
+    note: "First-party incident account. Not independently audited, and not evidence of how often such failures occur."
+  - title: "Training language models to follow instructions with human feedback"
+    author: Long Ouyang and colleagues
+    date: "2022-03-04"
+    url: https://arxiv.org/abs/2203.02155
+    checkedOn: 2026-10-09
+    note: "arXiv 2203.02155. Quoted from the abstract."
+  - title: "Lost in the Middle: How Language Models Use Long Contexts"
+    author: Nelson F. Liu, Kevin Lin, John Hewitt, Ashwin Paranjape, Michele Bevilacqua, Fabio Petroni, Percy Liang
+    date: "2024"
+    url: https://aclanthology.org/2024.tacl-1.9/
+    checkedOn: 2026-10-09
+    note: "Transactions of the Association for Computational Linguistics, volume 12, pages 157 to 173. Results hold for the models and tasks studied."
+  - title: "Context Rot: How Increasing Input Tokens Impacts LLM Performance"
+    org: Chroma
+    author: Kelly Hong, Anton Troynikov, Jeff Huber
+    date: "2025-07-14"
+    url: https://www.trychroma.com/research/context-rot
+    checkedOn: 2026-10-09
+  - title: Slash commands, Codex CLI
+    org: OpenAI
+    date: "2026"
+    url: https://learn.chatgpt.com/docs/cli/slash-commands
+    checkedOn: 2026-10-09
+    note: "/status, /compact, and /model. True on the day checked."
+  - title: Configuration reference, Codex
+    org: OpenAI
+    date: "2026"
+    url: https://learn.chatgpt.com/docs/config-file/config-reference
+    checkedOn: 2026-10-09
+    note: "model_reasoning_effort, plan_mode_reasoning_effort, and model_auto_compact_token_limit. True on the day checked."
+  - title: Commands and flags, Devin CLI
+    org: Cognition
+    date: "2026"
+    url: https://docs.devin.ai/cli/reference/commands
+    checkedOn: 2026-10-09
+    note: "/context, /compact, and /model. True on the day checked."
+  - title: Tracing the thoughts of a large language model
+    org: Anthropic
+    date: "2025-03-27"
+    url: https://www.anthropic.com/research/tracing-thoughts-language-model
+    checkedOn: 2026-10-09
+  - title: "Moffatt v. Air Canada: A Misrepresentation by an AI Chatbot"
+    author: Barry B. Sookman
+    org: McCarthy Tétrault
+    date: "2024-02-19"
+    url: https://www.mccarthy.ca/en/insights/blogs/techlex/moffatt-v-air-canada-misrepresentation-ai-chatbot
+    checkedOn: 2026-10-09
+    note: "Legal commentary on Moffatt v. Air Canada, 2024 BCCRT 149. Secondary evidence: the tribunal decision itself was not read."
 ---
+
+Foundations is the module for the parts of AI engineering that are not engineering you already do. It covers three chapters of the book: experimental thinking and uncertainty, what a model learns, and how foundation models work and fail. It does not ask you to train a model or write code. It asks you to read numbers, traces, and reports the way an owner has to. With a machine learning background, skim the headings and try the self-check. Without one, read it top to bottom. Reading takes about an hour. The workshop, failure exercise, and self-check take about another hour.
 
 ## Transfer connection
 
-This module is planned. It is not yet written. This page holds its place in the catalog until it is.
+You already know how to decide whether code works. You write a test. It passes or it fails. When it fails, you read the stack trace, form a hypothesis, change one thing, and run it again. The same input gives the same output, so one run is evidence and two identical runs are redundant.
 
-Testing discipline expands into statistical judgment about populations and repeated measurements. Debugging and data modeling become tools for understanding what a model learns. The module will say what stays the same and what changes.
+The book states this module's starting point in one sentence for each chapter. Chapter 4: "Testing discipline expands into statistical judgment about populations and repeated measurements." Chapter 5: "Debugging and data modeling become tools for understanding what a model learns." Chapter 6: "Mechanistic debugging becomes more effective when the reader understands the model's computational ingredients."
+
+This module expands one row of the talk's transfer table: **Testing discipline** becomes Eval discipline. The same row anchors the Models and the Verification and evals modules. The orientation shows the full table under [What transfers](/modules/orientation#what-transfers).
+
+What stays the same: the refusal to accept a claim you have not checked. The habit of writing down what "correct" means before you look at the result. Reproducing a failure before you fix it. Changing one variable at a time. Keeping a regression suite so that a fix for one case does not silently break another. Reading the trace instead of the summary. Every one of those habits survives the move to model-dependent systems.
+
+What changes is the object you are checking. A unit test checks one path you wrote, and that path is deterministic. A model-dependent feature has no single path. The same request can produce different outputs on different runs. Inputs arrive from a population you do not control, in a mix that shifts from month to month. Success is a rate, not a boolean. So the question "does it work?" changes into three questions: works on what population, at what rate, and how sure are we of that rate? Debugging changes too. A stack trace points at a line. A wrong answer from a model points at behavior learned from data you never saw, a context you assembled, and a sampling procedure someone chose. Knowing those three ingredients lets you form a hypothesis instead of a guess.
+
+The talk names the competency this module feeds: "Model behavior intuition. Informed by reading outputs." Intuition here is a set of expectations about what tokens, context, training, and decoding do, checked against outputs you have read. The talk also names the part most engineers find hardest, in the words of Ross McNairn of Wordsmith: "Getting comfortable with evaluations and iterating on non-deterministic outputs is the biggest challenge most devs have." And it states the new skill as a takeaway: "The new skill is not prompting. It is being comfortable measuring a system you cannot fully specify." The orientation introduces both under [What is new](/modules/orientation#what-is-new). This module gives you the tools to do the measuring.
+
+One more framing, from the early days of the field. When Shawn Wang described the role of the AI engineer in June 2023, he quoted Andrej Karpathy: "One can be quite successful in this role without ever training anything." That is still true. You will rarely train a model. But you will constantly make decisions that depend on what training did, and on what it did not do. A training-free job still needs a training-literate engineer.
 
 ## Topics and learning outcomes
 
 <Outcomes />
 
-The module draws on book chapters 4, 5, and 6: experimental thinking and uncertainty, what a model learns and why generalization is not training success, and how foundation models work and fail. Each concept will be introduced with the decision it affects later and a link to the area module where it is used. A short mathematical reference will sit in a collapsible section. Learners with a machine learning background can skip this module. The catalog marks it as recommended before Verification and evals, not required.
+### How to read this module
+
+The module has three parts, one per book chapter.
+
+1. Experimental thinking (chapter 4), about 20 minutes. Rates, precision and recall, intervals, fair comparisons, and three kinds of confidence.
+2. What a model learns (chapter 5), about 10 minutes. Parameters and loss, generalization, leakage, shift, and embeddings.
+3. How foundation models work and fail (chapter 6), about 25 minutes. Tokens, attention, decoding, training stages, context windows, and failure modes tied to mechanisms.
+
+Each part is a good session. A short note marks the end of parts 1 and 2, so you know where to stop.
+
+Every concept opens with the decision it affects later and a link to the area module where that decision is made. You do not need to remember the math. You need to recognize the decision when it arrives. A collapsed mathematical reference sits at the end of this section.
+
+The examples use one running product: a support assistant for a fictional retailer. It classifies incoming tickets, answers customer questions from a policy knowledge base, and escalates what it cannot handle. Every number attached to that product is synthetic, written for teaching. Every number attached to a named paper, vendor, or incident comes from the source cited for it.
+
+### A test becomes a rate over a population
+
+**Decision it affects.** Whether a change is ready to ship, and what evidence that claim needs. Used in [Verification and evals](/modules/verification-and-evals) and [Models](/modules/models).
+
+Start with a common sentence in AI feature development: "I tried it and it works." Someone changed a prompt, ran it against five tickets that used to fail, and all five now pass. What does that establish?
+
+It establishes that a useful path exists for those five inputs on those runs. It does not establish that the feature works. The orientation calls this works.any() versus works.all(), and the talk's first commitment says "A compelling prototype is not evidence of production readiness." Here is the statistical reason. The feature will see thousands of tickets you did not pick. Its quality is a property of that whole population, not of the five you looked at. The honest claim about a model-dependent feature is a rate: on tickets like the ones customers send, the classifier routes about 87 percent correctly.
+
+That sentence has three parts, and each one is a decision you have to make on purpose.
+
+**The population.** "Tickets like the ones customers send" is vague until you define it. Which customers? Which channel? Which months? Does it include the spam that the upstream filter usually catches? A rate measured on one population says little about another. If you measured on English-language email tickets from July, you know about English-language email tickets from July.
+
+**The unit of sampling.** What is one case? A ticket, a conversation, a customer, a session, a day? This sounds pedantic until two cases share something. If one customer sends forty nearly identical tickets, and you count each ticket as an independent case, your sample looks forty times more informative about that customer than it is. The unit of sampling is the thing you would draw at random if you were drawing fairly. For a support classifier, a reasonable unit is often the conversation, with at most one case per conversation. For an agent that runs multi-step tasks, the unit is usually the task, with several trials per task.
+
+**The rate and its uncertainty.** "About 87 percent" is an estimate from a sample. A different sample of the same size would give a slightly different number. How different is the subject of the section on intervals below. For now, note that a rate without a sample size is not yet a measurement.
+
+Why not test every path, as you would for ordinary code? A test suite there is a sample too, but you choose its cases to cover branches you can see. A model's branches are not visible, and its input space is everything a customer can type. Sampling from the real population is how you cover the branches you cannot see.
+
+This is also why the evals area insists on representative cases. Anthropic's guide to agent evals defines the vocabulary you will use there: "A task (a.k.a problem or test case) is a single test with defined inputs and success criteria." "Each attempt at a task is a trial." The suite is a sample of tasks. Its pass rate estimates a population rate. Everything that makes a sample representative or unrepresentative applies to it.
+
+A practical rule follows. Before you look at any result, write down three lines: the population, the unit, and the metric. If you cannot write them, you are not ready to measure, and any number you produce will be argued about after the fact instead of before.
+
+### Probability, conditioning, and base rates
+
+**Decision it affects.** How to read a metric that looks high, and which slice of traffic a number describes. Used in [Verification and evals](/modules/verification-and-evals) and [Operating it](/modules/operating-it).
+
+A probability is a number between 0 and 1 attached to an event. "The probability that a ticket is about billing is 0.30" means that if you draw tickets at random from the population, about 30 percent of them will be about billing. A distribution is the full list of those probabilities across all the possible outcomes. The category mix of your ticket traffic is a distribution: password reset 0.18, billing 0.30, shipping 0.25, refund 0.20, account security 0.07. It sums to 1.
+
+A conditional probability restricts the population. "The probability that the classifier is correct, given that the ticket is about account security" is written `P(correct | security)`. The vertical bar reads as "given". Conditioning is the mathematical name for slicing. Every per-category metric, every per-customer-segment metric, and every per-language metric is a conditional probability.
+
+The most important habit conditioning teaches is to keep the overall rate and the slice rates apart. The overall rate is a weighted average of the slices, weighted by the mix. If your classifier is 98 percent correct on password resets and 70 percent correct on security tickets, its overall accuracy depends heavily on how many of each arrive. The section on comparing two systems shows how this misleads a comparison, and you will meet the trap in the Workshop.
+
+Base rates are the other half of the habit. A base rate is the probability of a class before you know anything else about the case. Suppose 2 percent of tickets are account-takeover reports. A detector that flags 90 percent of real takeovers and wrongly flags 5 percent of everything else sounds good. Run the arithmetic on 10,000 tickets. There are 200 real takeovers, and the detector flags 180 of them. There are 9,800 other tickets, and the detector wrongly flags 490 of them. Of the 670 flagged tickets, only 180 are real. A flag is right about 27 percent of the time. The detector did what its numbers said. The base rate decided how useful a flag would be.
+
+This is Bayes' rule in practice. Ask "out of how many?" whenever someone quotes a rate for a rare event. The same arithmetic governs a groundedness checker, a prompt-injection classifier, and an LLM judge that marks outputs as failing. When the event is rare, even a good detector produces mostly false alarms.
+
+Independence is the last term. Two events are independent when knowing one tells you nothing about the other. Repeated trials of the same agent on the same task are often treated as independent, and that is a modeling choice, not a fact. Two tickets from the same customer are usually not independent: they share writing style, product, and history. Independence is what licenses most of the simple interval formulas below, so when you doubt it, you need methods that respect the grouping. The [Verification and evals](/modules/verification-and-evals#topics-and-learning-outcomes) module returns to this when it discusses repeated trials.
+
+### Expectation, variance, and sampling
+
+**Decision it affects.** How many cases and trials an eval needs, and how to budget cost and latency. Used in [Verification and evals](/modules/verification-and-evals) and [Operating it](/modules/operating-it).
+
+The expectation of a quantity is its long-run average. If an agent run costs 0.04 dollars 70 percent of the time and 0.30 dollars 30 percent of the time, because some runs retry, the expected cost per run is 0.7 times 0.04 plus 0.3 times 0.30, which is 0.118 dollars. Expectation is how you plan a budget: multiply each outcome by its probability and add.
+
+Expectation is also how you price errors: the expected cost of a classifier is the sum, over error types, of each error's rate times its cost. Two classifiers with the same accuracy can have very different expected costs.
+
+Variance measures spread around the expectation. Two features with the same mean latency can have very different tails. The talk lists latency at p95, the value 95 percent of requests come in under. A tail percentile shows the spread that a mean hides.
+
+Sampling variability is the variance of an estimate. Draw 100 tickets, measure accuracy, and get 86 percent. Draw another 100 and get 89 percent. Neither number is wrong. Each is a noisy estimate of the population rate. The noise shrinks as the sample grows, but slowly: with the square root of the sample size. To halve the noise, you need four times as many cases. That one fact explains much of the economics of evals. Going from 50 cases to 200 halves your uncertainty. Going from 200 to 800 halves it again, at four times the labeling cost.
+
+Models add a second source of variability that ordinary software does not have: the output itself is sampled. Anthropic's eval guide states it directly: "Because model outputs vary between runs, we run multiple trials to produce more consistent results." So an eval of a model-dependent system has two kinds of noise stacked on each other. There is noise from which cases you drew, and noise from which output the model produced on each case. More cases reduce the first. More trials per case reduce the second. Neither substitutes for the other. A thousand trials on five tasks tells you a lot about those five tasks and little about the population.
+
+Repeated trials also let you ask a question ordinary tests cannot: how consistent is the behavior? The guide defines two quantities that answer different versions of it. pass@k "measures the likelihood that an agent gets at least one correct solution in k attempts." pass^k "measures the probability that all k trials succeed." "At k=1, they're identical (both equal the per-trial success rate)." With a per-trial success rate of 0.75, the guide's own example, the chance that all three of three trials succeed is 0.75 times 0.75 times 0.75, about 42 percent. The chance that at least one of three succeeds is 1 minus 0.25 cubed, about 98 percent. "By k=10, they tell opposite stories: pass@k approaches 100% while pass^k falls to 0%."
+
+Which one matters is a product decision. If a human picks the best of several drafts, pass@k is the right lens. If a customer relies on the feature every day, pass^k is closer to their experience, because every run has to work. The talk's line: "Consistency matters for repeated customer use." Both formulas assume the trials are independent, which is a simplification worth naming when you report them.
+
+### Precision, recall, and thresholds
+
+**Decision it affects.** Where to set a threshold, and which metric a release gate should use. Used in [Verification and evals](/modules/verification-and-evals) and [Models](/modules/models).
+
+Accuracy is the share of all predictions that were correct. Google's Machine Learning Crash Course defines it as "the proportion of all classifications that were correct, whether positive or negative." It then warns about the case where accuracy misleads. On a dataset where 1 percent of examples are positive, "a model that predicts negative 100% of the time would score 99% on accuracy, despite being useless." Most interesting events in a product are rare: fraud, account takeovers, policy violations, the one ticket in fifty that needs a human. Accuracy hides them.
+
+The fix is to count each kind of outcome separately. For a binary question, such as "is this ticket an account-security issue?", every prediction falls in one of four cells.
+
+| | Actually security | Actually not security |
+|---|---:|---:|
+| Predicted security | true positive (TP) | false positive (FP) |
+| Predicted not security | false negative (FN) | true negative (TN) |
+
+That table is a confusion matrix. Two numbers built from it carry most of the information.
+
+**Recall** is the share of real positives the system caught: `TP / (TP + FN)`. The crash course calls it "the proportion of all actual positives that were classified correctly as positives". If there were 50 real security tickets and the classifier caught 41, recall is 41 out of 50, or 0.82.
+
+**Precision** is the share of positive predictions that were right: `TP / (TP + FP)`. In the crash course's words, "the proportion of all the model's positive classifications that are actually positive." If the classifier flagged 58 tickets as security and 41 were real, precision is 41 out of 58, or 0.707.
+
+Recall answers "of the things that mattered, how many did we catch?" Precision answers "when we raised the alarm, how often were we right?" They trade against each other. A classifier that flags everything has perfect recall and terrible precision. A classifier that flags only the most obvious cases has high precision and poor recall.
+
+**F1** combines them into one number, the harmonic mean: `2 × precision × recall / (precision + recall)`. For the example above, F1 is about 0.759. The harmonic mean punishes imbalance: a classifier with precision 0.95 and recall 0.10 has an F1 of about 0.18, not the 0.53 a simple average would suggest. F1 is useful for ranking candidates when you have no better information about costs. When you do have that information, use it instead. F1 silently assumes a false positive and a false negative cost the same, and in most products they do not.
+
+Most classifiers, including a language model asked to label something, produce a score or a probability before the label. A threshold turns the score into a decision: flag as security if the score is at least 0.5. Moving the threshold moves you along the tradeoff. Lower it and you catch more real cases, with more false alarms. Raise it and the alarms you raise are more often right, but more real cases slip through.
+
+So which threshold is right? The one that minimizes expected cost on your traffic. Here is the reasoning in the running example. A false positive on security sends a routine ticket to the security queue. An analyst spends five minutes and sends it back. A false negative leaves a real account takeover in the general queue, where the first human might see it in six hours. If the second error costs fifty times the first, you should accept many false positives to avoid one false negative. That is an asymmetric error, and the book's chapter 4 treats it as a first-class topic for this reason. The right threshold is a business decision expressed in probability, and the person who sets it should be able to say what each error costs.
+
+Two warnings. Per-class metrics on a rare class rest on small numbers, and the next section shows how wide their intervals are. And the threshold is part of the configuration: when someone changes it, the recall drop belongs next to the precision gain in the report.
+
+For multi-class problems, compute precision and recall per class. Averages across classes exist, but none replaces looking at the class you care about most.
+
+### Intervals: how sure is the number
+
+**Decision it affects.** Whether a measured difference is large enough to act on, and how many cases to label. Used in [Verification and evals](/modules/verification-and-evals) and [Models](/modules/models).
+
+A rate measured on a sample comes with uncertainty. An interval is how you write the uncertainty down. A 95 percent confidence interval is a range built by a procedure that, across many repeated samples, would contain the true population rate 95 percent of the time. Read it as "values of the true rate that are consistent with what we saw." It is not a guarantee about this particular interval, and it says nothing about cases unlike the ones you sampled.
+
+For a rate, the quickest interval is the normal approximation: the estimate plus or minus about two standard errors, where the standard error of a proportion p measured on n independent cases is `√(p × (1 − p) / n)`. Do the arithmetic once and the scale becomes intuitive.
+
+- 50 cases at 80 percent: the standard error is about 5.7 points, so the interval is roughly 69 to 91 percent.
+- 200 cases at 80 percent: about 2.8 points, roughly 74 to 86 percent.
+- 1,000 cases at 80 percent: about 1.3 points, roughly 77.5 to 82.5 percent.
+
+So "accuracy improved from 82 to 85 percent" on 50 cases is a difference well inside the noise. The talk's advice to start with 20 to 50 tasks drawn from real failures is right for error analysis, where you are reading failures to learn what is wrong. It is not enough to detect a three-point difference between two candidates. Those are two different jobs, and the second one needs a bigger sample or a paired design.
+
+Here is the same arithmetic applied to a published result. Lingjiao Chen, Matei Zaharia, and James Zou measured GPT-4 on 1,000 prime-or-composite questions. Their abstract reports that "GPT-4 (March 2023) was reasonable at identifying prime vs. composite numbers (84% accuracy)" and that the June version "was poor on these same questions": 51 percent. With 1,000 questions, the normal-approximation interval around 84 percent is about plus or minus 2.3 points, and around 51 percent about plus or minus 3.1. The intervals are nowhere near each other, so the gap is real for that task and prompt. The talk is careful about what it does not show: it is task-specific evidence, not a measure of overall model quality. An interval does not widen a claim beyond the population you measured.
+
+The normal approximation breaks down in two common cases. When the rate is near 0 or 1, or the sample is small, use a Wilson interval, which stays inside 0 and 1 and behaves better at the edges. For 41 caught out of 50 security tickets, the Wilson 95 percent interval runs from about 69 to 90 percent. That is a wide range for a number someone will put in a slide as "82 percent recall."
+
+When the metric is not a simple proportion, or the cases are not independent, use the bootstrap. Take your sample of n cases. Draw n cases from it at random, with replacement, so some cases appear twice and some not at all. Compute the metric on that resample. Repeat ten thousand times. The middle 95 percent of the resulting values is a bootstrap interval. It works for medians, F1, cost per completed task, and differences between two systems. It respects clustering if you resample the right unit: when several trials or tickets share a task or a customer, resample the tasks or the customers, not the individual rows.
+
+Evan Miller's 2024 paper on error bars for language model evals makes the same argument for the whole field: "Fundamentally, evaluations are experiments; but the literature on evaluations has largely ignored the literature from other sciences on experiment analysis and planning." His recommendations include treating eval questions as "drawn from an unseen super-population," reporting standard errors, clustering them when questions share a source, and comparing models on the same questions. You will apply each of those in the Workshop.
+
+Two rules follow. Never report a rate without its sample size, and preferably its interval. And decide before you run the eval how large a difference would change your decision.
+
+### Comparing two systems
+
+**Decision it affects.** Which prompt, model, or configuration to ship, and whether a migration is safe. Used in [Verification and evals](/modules/verification-and-evals) and [Models](/modules/models).
+
+Most decisions in AI engineering are comparisons. The current prompt against a new one. The pinned model against its replacement. Retrieval with five chunks against retrieval with ten. The talk puts it in one line: "Your eval suite gives evidence for a migration decision." This section is about making that evidence sound.
+
+**Pair the cases.** Run both systems on the same frozen set of cases and compare them case by case. Pairing removes a large source of noise: the difference in difficulty between two samples. On the same cases, the easy cases are easy for both systems and the hard cases hard for both, so most of that noise cancels.
+
+With paired cases, the information is in the discordant pairs: the cases where one system was right and the other was wrong. Cases both get right, and cases both get wrong, say nothing about which is better. If the new system wins 27 discordant cases and loses 25, it is not meaningfully better, no matter how large the total sample is. A paired bootstrap, resampling cases and recomputing the difference each time, gives you an interval on the difference directly. When the two systems agree on most cases, as similar systems usually do, that interval can be much narrower than the one you would get by treating the same results as two independent samples. On a 600-case set at about 87 percent accuracy where the systems disagree on about 50 cases, it is about 60 percent of the width.
+
+**Hold the population fixed.** A comparison is valid only when the two measurements describe the same population. The book's chapter 4 failure exercise names the classic violation: "An apparent improvement comes from a changed traffic mix." Measure the old system on last month's traffic and the new one on this month's, after an outage flooded this month with easy password resets, and the new system looks better without being better. The overall rate is a weighted average of the slice rates, and the weights moved. Look for this whenever two numbers were measured at different times.
+
+**Do not select on the test set.** The same failure exercise names the second violation: an improvement that "comes from repeatedly selecting the best result on the same test set." Try twelve prompt variants, keep the one with the highest score on your eval set, and report that score. The reported score is biased upward. Part of the winner's advantage is luck: it happened to fit the quirks of those cases. The more variants you try, the larger that part. Google's crash course puts it plainly: "test sets and validation sets still 'wear out' with repeated use." The fix is the one machine learning has used for decades. Select on a development set, a separate set used only for choosing, which the section on splits returns to. Then report on a held-out test set you touch once. When you must iterate on the only set you have, say so in the report, and treat the number as optimistic.
+
+**Beware many comparisons.** Slice a comparison into twenty categories and, on average, one will show a difference whose 95 percent interval excludes zero, by chance alone. A slice that matters for cost, chosen in advance, deserves a look on its own terms. A surprising slice you went hunting for is a hypothesis to test on fresh data.
+
+**Run more than once.** For a model-dependent system, one run of each candidate on each case is one sample of each candidate's behavior. If you re-run the same candidate and a few percent of its outputs change, a difference between candidates that is smaller than that churn is not yet a difference. Anthropic's eval guide keeps tasks and trials as separate words for this reason. Anthropic's own September 2025 postmortem, discussed later in this module, admits "we relied too heavily on noisy evaluations."
+
+Put together, a valid comparison has five properties you can check in any report: the same cases for both systems, a defined unit of sampling, an interval on the difference, a decision rule written before the results were seen, and slices reported for the categories whose errors cost the most. When a report is missing one, you know what to ask for.
+
+### Token likelihood, expressed confidence, and empirical reliability
+
+**Decision it affects.** Whether to trust a model's confidence, when to abstain or escalate, and what a judge's score means. Used in [Verification and evals](/modules/verification-and-evals) and [Operating it](/modules/operating-it).
+
+The word "confidence" means three different things around a language model, and the book's chapter 4 asks you to "Distinguish token likelihood, expressed confidence, and empirical reliability." Confusing them leads to escalation rules that do not work.
+
+**Token likelihood** is the probability the model assigned to the tokens it produced. Many APIs can return these as log probabilities. They are internal numbers from the model's output distribution, and the section on decoding explains where they come from. A high probability on the token "Yes" means the model's distribution strongly favored "Yes" in that context. It does not mean "Yes" is correct.
+
+**Expressed confidence** is what the model says about its own certainty, in words or numbers it generates: "I'm 95% confident," "I'm not sure," "Definitely." It is generated text, shaped by training that rewarded certain styles of answer. It can be informative or entirely decorative.
+
+**Empirical reliability** is how often outputs of a given kind turn out to be correct when you check them against ground truth. It is the only one of the three that is measured on your population. "When the classifier says security with a score above 0.8, it is right 91 percent of the time, on 400 checked cases" is a statement of empirical reliability.
+
+The bridge between them is calibration. A source of confidence is calibrated when its stated confidence matches its empirical accuracy: of all the answers it gives with 80 percent confidence, about 80 percent are right. Research has measured calibration for both of the first two kinds. Saurav Kadavath and colleagues at Anthropic reported in 2022 that "larger models are well-calibrated on diverse multiple choice and true/false questions" when the questions are put in the right format, and that models can be asked to estimate the probability that their own proposed answer is true.
+
+OpenAI's GPT-4 technical report, from March 2023, measured the other side of the story. It needs two terms that part 3 covers in full. The pre-trained model is the model after its first and largest training stage, learning to predict text. Post-training is the set of later stages that turn that text predictor into an assistant, covered in "From pretraining to the assistant you call". On a subset of the MMLU benchmark, the report found that "the pre-trained model is highly calibrated." It also found that "after the post-training process, the calibration is reduced." Its Figure 8 caption states that "The post-training hurts calibration significantly." The training stages that make a model helpful can make its probabilities less honest.
+
+Here is what checking calibration looks like in the running example. The team asked the assistant to state its confidence with each answer, then checked 400 answers against the policy.
+
+| Stated confidence | Answers | Correct | Measured accuracy |
+|---|---:|---:|---:|
+| 0.9 to 1.0 | 120 | 94 | 78 percent |
+| 0.7 to 0.9 | 160 | 118 | 74 percent |
+| 0.5 to 0.7 | 80 | 49 | 61 percent |
+| below 0.5 | 40 | 18 | 45 percent |
+
+The numbers are synthetic. The top band is overconfident: answers stated at 0.9 or more are right 78 percent of the time. An escalation rule that trusts every answer stated at 0.9 sends about one wrong answer in five straight to a customer. The middle bands barely differ, so the signal separates good answers from bad ones only weakly.
+
+So which one does a decision need? Almost always the third. To make the assistant abstain when it is unsure, you need to know how often its answers are right in each band of whatever signal you use, measured on your cases. Any signal can be a good one or a weak one. You only find out by measuring. Adam Tauman Kalai and colleagues argued in a September 2025 paper that the incentive runs the wrong way. "Like students facing hard exam questions, large language models sometimes guess when uncertain." In their account, that happens because "the training and evaluation procedures reward guessing over acknowledging uncertainty." If your own eval scores only accuracy, it rewards the same guessing. An eval that credits a correct "I don't know, escalating" is how you measure an assistant that knows its limits.
+
+The same distinction applies to LLM judges. A judge that writes "Score: 9/10, high confidence" has expressed confidence. Whether its scores agree with expert humans on your cases is empirical reliability, and it has to be measured. The [Verification and evals](/modules/verification-and-evals#topics-and-learning-outcomes) module calls this calibrating the grader.
+
+<Callout kind="plain" label="End of part 1">
+
+This is a good place to stop. Part 2 starts with what a model learns from data.
+
+</Callout>
+
+### What a model learns: parameters, loss, and optimization
+
+**Decision it affects.** Whether a behavior can be fixed with context, or needs adaptation, or needs a different model. Used in [Models](/modules/models), and in the elective on fine-tuning, distillation, and model adaptation.
+
+Every model you will call is a function with a very large number of adjustable numbers inside it. Those numbers are the parameters, also called weights. Given an input, the function does a fixed sequence of arithmetic with the parameters and produces an output. Change the parameters and the same input produces a different output. A model that writes poetry and one that writes nonsense can differ only in those values.
+
+Training is the process that chooses those values. It needs three ingredients.
+
+**An objective.** A precise statement of what "good output" means, written as a number to minimize. That number is the loss. For a classifier, the loss on one example is small when the model puts high probability on the right label and large when it puts low probability there. The usual choice is the negative logarithm of the probability assigned to the correct answer, called cross-entropy or log loss. If the model gives the right label probability 0.9, the loss is about 0.105. If it gives 0.1, the loss is about 2.3. The logarithm makes confident wrong answers very expensive.
+
+**Data.** A set of examples to compute the loss on. The loss on the whole training set is the average loss over its examples.
+
+**An optimizer.** A procedure for nudging the parameters to reduce the loss. The standard family is gradient descent. The gradient tells you, for each parameter, which direction to move it to make the loss go down, and roughly how much it matters. The optimizer takes a small step in that direction, computes the loss on the next batch of examples, and repeats, millions of times. You do not need the calculus. You need the picture: training is a search that follows the slope downhill on the training loss, one small step at a time. Two more terms appear in training reports. A saved copy of the parameters at a point in training is a checkpoint. One pass over the training data is an epoch.
+
+Inference is running the trained function with the parameters frozen. When you call a model API, you are doing inference. Nothing you send changes the parameters, so a model does not learn from your conversation in the training sense. What changes between your first request and your tenth is only the input, including whatever context your harness assembles. Memory features, session state, and retrieved knowledge all work by putting text back into the input. The [Context and knowledge](/modules/context-and-knowledge) module is about engineering that input, precisely because it is the part you control at inference time.
+
+Here is where the debugging habit transfers. When a model does something wrong, there are three places the cause can live. The parameters: the model never learned the behavior, or learned a wrong one. The input: the context did not contain what the model needed, or contained something misleading. The decoding: the sampling procedure picked an unlikely continuation. A wrong answer about your refund policy is usually an input problem, not a parameter problem, as the section on training stages explains. The book's chapter 5 transfer statement says "Debugging and data modeling become tools for understanding what a model learns." The first diagnostic question is always which of those three places to look.
+
+Training loss going down tells you the search is working on the training data. It does not tell you the model will work on your data. That gap is the subject of the next section.
+
+### Generalization is not training success
+
+**Decision it affects.** How much to trust any reported score, including a vendor's benchmark and your own eval. Used in [Models](/modules/models) and [Verification and evals](/modules/verification-and-evals).
+
+A model generalizes when it performs well on inputs it was not trained on, drawn from the population you care about. Generalization is the whole point. A model that is perfect on its training data and poor on new data has memorized rather than learned.
+
+Overfitting is the name for that failure. With enough parameters, a model can fit almost any training set exactly, including its noise, its labeling errors, and its accidents. Picture a classifier that learns that tickets containing a particular customer's email signature are always billing tickets, because in the training data that customer only ever wrote about billing. It scores perfectly on that customer's training tickets. It has learned nothing about billing. On a new customer, the signature is gone and the rule is useless.
+
+The classic sign of overfitting is a gap between training performance and held-out performance. Training loss keeps falling while the loss on a held-out set stops falling and starts rising. The usual responses are known as regularization: anything that discourages the model from fitting noise. Penalties on large parameter values, stopping early when held-out performance stops improving, and above all more varied data. You will not apply these unless you adapt a model, but you need to recognize them in an adaptation report.
+
+The book's chapter 5 completion evidence asks you to "explain the difference between training success and generalization." Here is the short version you can say in a design review. Training success is evidence that the optimizer worked. Generalization is evidence that the model works. The first is measured on data the model has seen. The second can only be measured on data it has not seen, drawn from the population it will serve. Any report that offers the first as evidence of the second has made a category error, however large the number.
+
+The same logic applies to public benchmarks. If benchmark questions leaked into the enormous body of text the model was originally trained on, the score measures some memorization. The talk's research puts it plainly: a public benchmark measures a population you did not choose, on a harness you do not control. Even a perfectly clean benchmark generalizes to your product only as far as your traffic resembles its tasks. That is why the [Models](/modules/models) module says to measure your product on representative cases.
+
+### Splits, leakage, and the grouping unit
+
+**Decision it affects.** How to build an eval set that measures generalization, and how to read anyone else's. Used in [Verification and evals](/modules/verification-and-evals) and [Context and knowledge](/modules/context-and-knowledge).
+
+Machine learning protects generalization with a simple discipline: split the data before you look. The crash course describes the roles. Train on the training set. "Use the validation set to evaluate results from the training set." Then "use the test set to double-check your model." The validation set, also called the development set, is where you make choices: which prompt, which checkpoint, which threshold. The test set is where you measure the final choice, once. Testing on examples the model did not train on is, in the crash course's words, "stronger proof of your model's fitness than testing on the same set of examples."
+
+Leakage is any path by which information from the test set reaches the model or the choices made about it. Leakage makes the test set lie, always in the flattering direction. It comes in three common forms.
+
+**Duplicates and near-duplicates.** The crash course's advice is direct: "delete any examples in the validation set or test set that are duplicates of examples in the training set." Its own example confesses the failure: "You've inadvertently trained on some of your test data." Exact duplicates are easy to remove. Near-duplicates are not. Support tickets generated from a template, the same complaint with a different order number, the same question asked in two channels: these pass an exact-match check and carry the same answer into both sides of the split.
+
+**Shared groups.** The book's chapter 5 failure exercise names this one: "Near-duplicate conversations or customer-specific labels appear in both training and evaluation data." Split tickets at random and a customer with forty tickets lands on both sides. The model learns that customer's vocabulary and habits, and the test set rewards it for recognizing them, so the score estimates performance on customers the model has already met. The fix is to split by the grouping unit: every ticket from a given customer on the same side. The chapter's completion evidence asks you to "rebuild the split by the relevant grouping unit." The relevant unit is whatever your production traffic will contain new instances of: new customers, new documents, new codebases, new weeks.
+
+**Selection leakage.** Every time you look at test results and change something, a little information about the test set flows into your choices. Choosing the best of nine checkpoints by test score is leakage. So is tuning a prompt until the test cases pass. This is the same failure as selecting on the test set, seen from the training side.
+
+A fourth form is specific to retrieval: eval questions written by reading the source documents share their phrasing, so retrieval looks better on them than on how customers actually ask. The [Context and knowledge](/modules/context-and-knowledge) module returns to this.
+
+How do you detect leakage in a report you did not write? Ask four questions. What was the unit of the split? Could one group appear on both sides? How were duplicates found, by exact match or by similarity? Was the test set used to choose anything? Then look for the tell: a slice of the test set made only of groups the model never saw in training. If performance on that slice is much lower than on the rest, the headline number was measuring familiarity.
+
+### Distribution shift
+
+**Decision it affects.** When to re-run evals, which production samples to review, and what to alert on. Used in [Operating it](/modules/operating-it) and [Verification and evals](/modules/verification-and-evals).
+
+A measurement is valid for the population it was taken on. Distribution shift is the name for the population changing after you measured. It is not an exotic event. It is the normal state of a product.
+
+Three kinds are worth naming. The input mix shifts: a holiday season brings more shipping tickets, an outage brings password resets, a new product line brings questions the classifier has never seen. The relationship shifts: a refund policy changes, so the right answer to the same question changes, and the labels in your eval set go stale. The system shifts underneath you: a vendor updates a model alias, retires a snapshot, or changes the infrastructure that serves it. The [Models](/modules/models) module covers the last one as a lifecycle problem.
+
+A synthetic example shows how an input-mix shift moves a number. Suppose the classifier is 88 percent correct on shipping tickets and 85 percent on everything else. In October, shipping is 25 percent of traffic, and overall accuracy is 0.25 × 88 plus 0.75 × 85, about 85.8 percent. In December, holiday orders push shipping to 40 percent, and overall accuracy becomes 0.40 × 88 plus 0.60 × 85, 86.2 percent. Nothing about the classifier changed. If the holiday also brings a new kind of question that the classifier handles at 60 percent, the overall number can fall while every old slice holds steady. Read the slices before you read the total.
+
+Shift is why the talk's third commitment says "Evaluation does not stop at deployment." An eval suite built in July describes July. To keep it honest, you watch production for signs that the population has moved: category mix, input length, language, new vocabulary, rising escalation rates, and the fraction of outputs a sampled human review rejects. You refresh the eval set with recent cases, and you keep the old cases as a regression suite so that the new behavior does not quietly lose what the old one had. Google's crash course gives the same advice for test sets that wear out: collect more data to refresh them.
+
+Shift also feeds the traffic-mix trap from the section on comparing two systems: a change and a shift arrive in one number.
+
+### Vectors, dot products, and embeddings
+
+**Decision it affects.** How retrieval finds relevant context, and why similar-looking text can be retrieved for the wrong reason. Used in [Context and knowledge](/modules/context-and-knowledge).
+
+A vector is an ordered list of numbers. A point on a map is a vector of two numbers. A vector of 1,024 numbers is a point in a space with 1,024 directions. You cannot picture that space, but everything you need about it works the same way it does on a map: points have positions, and some points are closer together than others.
+
+The dot product of two vectors multiplies them position by position and adds up the results. For the vectors (1, 2, 3) and (4, 0, −1), the dot product is 1 × 4 plus 2 × 0 plus 3 × −1, which is 1. A large positive dot product means the two vectors point in similar directions. Divide the dot product by the lengths of both vectors and you get the cosine similarity, a number between −1 and 1 that ignores length and measures only direction. Cosine similarity is a common way for retrieval systems to measure how alike two pieces of text are.
+
+An embedding is a vector that represents a piece of content. OpenAI's documentation defines it plainly: "an embedding is a vector representation of a piece of data (e.g. some text)." An embedding model is trained so that content with similar meaning lands at nearby points. "My package never arrived" and "the parcel didn't show up" end up close together even though they share almost no words. That is the strength of embeddings, and the reason semantic search finds answers that keyword search misses.
+
+It is also their weakness, and the reason the talk insists that retrieval methods are chosen "for the data and task". Embeddings encode whatever the training made them encode. Two support tickets that mention the same product line might sit close together whether one is a refund request and the other a compliment. An order number, a product SKU, or an error code carries meaning only as an exact string, and an embedding may place two different SKUs close together because they look alike. Anthropic's contextual retrieval write-up notes that embeddings "can miss crucial exact matches." That is why many production systems combine lexical search, which matches exact strings, with embedding search, which matches meaning.
+
+Matrices and tensors appear in model documentation. A matrix is a grid of numbers, and multiplying a vector by one takes many dot products at once. When a model card says "hidden size 4,096", each token is represented inside the model by a vector of 4,096 numbers. The Mathematical reference at the end of this section shows how to read shapes, which the elective on inference and hosting fundamentals uses.
+
+<Callout kind="plain" label="End of part 2">
+
+This is a good place to stop. Part 3 starts with tokens, the unit every model reads.
+
+</Callout>
+
+### Tokens
+
+**Decision it affects.** Cost estimates, context budgets, and why certain inputs, such as IDs, numbers, and non-English text, behave worse than others. Used in [Context and knowledge](/modules/context-and-knowledge) and [Operating it](/modules/operating-it).
+
+If you use a coding agent, you have seen a context meter: a figure like "62 percent of context used" that climbs as the agent reads files and runs commands. That figure is counted in tokens. Part 3 starts there, because every mechanism in it shows up on that meter or near it. The worked example at the end of the part puts the pieces together.
+
+A language model does not read characters or words. It reads tokens. OpenAI's documentation puts it in one line: "Text generation and embeddings models process text in chunks called tokens." "Tokens represent commonly occurring sequences of characters." Its own example: the string " tokenization" is split into " token" and "ization".
+
+The splitting is done by a tokenizer, a separate component that is fixed before the model is trained. Most current tokenizers descend from an idea Rico Sennrich and colleagues brought to neural machine translation in 2015, which language models later adopted: "encoding rare and unknown words as sequences of subword units," built with "a segmentation based on the byte pair encoding compression algorithm." The procedure starts from single characters or bytes and repeatedly merges the most frequent adjacent pair into a new vocabulary entry, until the vocabulary reaches a chosen size. Common words become single tokens. Rare words, names, and identifiers are built from pieces. Any input can be represented, because single bytes are always there to fall back on.
+
+The trace below follows one request from a fictional support assistant through a fictional tokenizer. Read Part 1 now. The trace appears again where Parts 2 and 3 come up.
+
+<Artifact id="foundations-tokenization-trace" level={4} />
+
+Part 1 shows the consequences that matter for an engineer.
+
+**Token counts are not word counts.** OpenAI gives a rough rule for English: "1 token is approximately 4 characters or 0.75 words for English text." The rule is rough by design, and it applies to English prose. The German sentence in the trace costs nine tokens for four words. Aleksandar Petrov and colleagues measured this across languages in 2023: "The same text translated into different languages can have drastically different tokenization lengths, with differences up to 15 times in some cases." Prices, rate limits, and context windows are all denominated in tokens, so the same feature can cost noticeably more for some of your customers than for others. Measure token counts on your own traffic, in every language you serve. Do not convert from words.
+
+**Identifiers are fragmented.** The order number A-77120 becomes four tokens, split at places that mean nothing. Numbers are split by frequency, not by place value. When an answer must reproduce an ID, a price, or an account number, have code fill it in or check it afterwards. The [Tools and extensibility](/modules/tools-and-extensibility) module returns to this: a tool that returns the ID is more reliable than a model that retypes it.
+
+**Small surface changes change the input.** "refund" with a leading space, "Refund" at the start of a sentence, and "REFUND" in capitals are different tokens. To you they are the same word. To the model they are different inputs that it has learned to treat similarly, usually but not always. This is one mechanism behind sensitivity to formatting: a prompt that works can change behavior when someone reformats it.
+
+**Structured formats cost tokens.** The 69-character JSON payload costs 24 tokens in the trace, because braces, quotes, colons, and underscore-joined names each take their own tokens. That is a reason to keep tool schemas and structured context lean. Part 3 of the trace shows fourteen tool definitions spending 3,880 tokens before the conversation starts.
+
+**Different models count differently.** A tokenizer belongs to a model family, so the same prompt can cost a different number of tokens after a migration. Re-measure. The [Models](/modules/models) module treats a model change as a change to every number that depends on it.
+
+### Attention and the transformer, at the level of intuition
+
+**Decision it affects.** How to order and structure the context, and why long inputs cost more and behave differently. Used in [Context and knowledge](/modules/context-and-knowledge).
+
+You may have noticed that a long coding-agent session gets slower and costlier per turn, and that the agent starts to lose track of an instruction you gave early on. Both effects come from the mechanism in this section.
+
+After tokenization, each token is looked up in a table and replaced by a vector, its token embedding. The model now holds a sequence of vectors, one per token, and its job is to transform them, layer after layer, until the last vector holds enough information to predict the next token. The architecture that does this in essentially every foundation model you will call is the transformer, introduced in 2017 by Ashish Vaswani and colleagues in a paper whose abstract proposes "a new simple network architecture, the Transformer," based solely on attention mechanisms.
+
+Attention is the step that lets tokens use each other. Here is the intuition, without the matrices. At each layer, every token produces three vectors from its current representation: a query, which describes what it is looking for; a key, which describes what it offers; and a value, which is what it will contribute if chosen. Each token compares its query with every earlier token's key, using the dot product from the vectors section. High dot products mean "relevant to me." Those scores are turned into weights that sum to 1, and the token takes a weighted average of the values. The result is a new representation that blends in information from the tokens it found relevant.
+
+A small worked example makes it concrete. Take the sentence "The blender arrived broken, so the customer returned it." When the model processes "it", the query from "it" has a high dot product with the key from "blender" and a lower one with "customer", because what gets returned is usually an object. The weights might come out around 0.7 on "blender", 0.2 on "customer", and small amounts elsewhere. The new representation of "it" now carries mostly blender information. In "The blender arrived broken, so the customer said she wanted a refund", the token "she" would weight "customer" instead. Each token attends only to the tokens before it, which is why the model can generate one token at a time. The numbers here are illustrative, not measured, but the mechanism is the real one. Attention is a learned, soft lookup over the context, recomputed at every layer by many attention heads that each learn to look for different relationships.
+
+Three engineering consequences follow from this picture.
+
+**The context is all the model has at inference time.** Attention can only blend information that is in the sequence. If the refund policy is not in the context, no amount of attention finds it.
+
+**Everything in the context competes.** Attention weights sum to 1. Each irrelevant passage, stale instruction, or long tool result is a candidate for some of that weight. Anthropic's context engineering guide describes models as having an "attention budget" and calls context "a finite resource with diminishing marginal returns." The talk's takeaway for the context area, "Context is a budget, not a bucket," is a direct consequence of this mechanism.
+
+**Cost grows with length.** Comparing every token with every earlier token means the work of attention grows faster than the length of the input. Providers engineer around this with caching and specialized kernels, but long inputs still cost more time and more money, and the model still has to spread its attention over more material. The [Context and knowledge](/modules/context-and-knowledge) module turns this into a budgeting practice.
+
+The picture does not tell you what a particular model attended to in a particular case. Keep the mechanism as a source of hypotheses to test with controlled changes to the input, not as proof of why an output happened.
+
+### Next-token prediction and decoding
+
+**Decision it affects.** Why outputs vary between runs, which settings to expose, and how to evaluate a sampled system. Used in [Verification and evals](/modules/verification-and-evals) and [Models](/modules/models).
+
+Ask a coding agent for the same change twice and you get two different diffs. This section explains why, and why that is a property of the design rather than a bug.
+
+A foundation model does one thing at a time. Given the sequence so far, it produces a probability for every token in its vocabulary as the next token. Then something chooses one token, appends it, and runs the model again. A 300-token answer is 300 rounds of this. The choosing procedure is called decoding, and it is a separate piece of engineering from the model itself.
+
+The model's raw output for each candidate token is a score called a logit. A function called softmax turns the scores into probabilities that sum to 1. Decoding then picks from that distribution. Anthropic's September 2025 postmortem describes the process for its own models in plain words: the model "calculates probabilities for each possible next word, then randomly chooses a sample" from that distribution.
+
+Here is the trace from the Tokens section again. Part 2 shows one decoding step.
+
+<Artifact id="foundations-tokenization-trace" level={4} />
+
+The common decoding controls change which tokens can be picked and how likely each one is.
+
+- **Greedy decoding** always picks the most probable token. It is repeatable in principle. Ari Holtzman and colleagues showed in 2019 that maximizing likelihood as a decoding objective tends to produce text that is "bland and strangely repetitive."
+- **Temperature** divides the logits by a number before the softmax. Below 1, the distribution sharpens toward the top candidates. Above 1, it flattens and gives unlikely tokens more chance. Look at Part 2 of the trace: the probability of " 5" is 0.609 at temperature 0.5, 0.380 at 1.0, and 0.283 at 1.5.
+- **Top-k** keeps only the k most probable tokens and renormalizes.
+- **Top-p**, or nucleus sampling, keeps the smallest set of tokens whose probabilities add up to at least p. Holtzman and colleagues proposed it as a way of "truncating the less reliable tail of the distribution." In the trace, a top-p of 0.9 keeps six candidates.
+
+Now read the five completions in Part 2. The model wrote five fluent sentences with four different refund windows. Only one of them, run 4, matches the policy. Nothing went wrong in decoding. The distribution put most of its weight on "5" and "3" because, across the text the model learned from, refunds often take three to five days. The policy that says seven to ten was in the context, but far from the question and among eleven other passages, and the distribution did not reflect it strongly. Decoding faithfully sampled from a distribution that was wrong for this product. That is the general shape of a model failure: a fluent, high-probability continuation that is not true here.
+
+Three consequences matter for an owner.
+
+**Variation is built in.** Two identical requests can produce different outputs, because the output is sampled. That is why the evals area runs repeated trials, and why one run of a comparison is one sample. Even greedy decoding is not a guarantee of identical outputs. Horace He of Thinking Machines showed in September 2025 that "LLM APIs are still not deterministic in practice" at temperature 0, mainly because the arithmetic depends on how many requests share a batch, and that varies with server load. Treat bit-for-bit repeatability as something to verify, not assume.
+
+**Lowering temperature reduces variation, not error.** Turning temperature down makes the model more consistently pick its top candidate. If its top candidate is wrong, it becomes consistently wrong. In the trace, temperature 0.5 makes "5" the answer 61 percent of the time. The correct "7" drops to 7 percent. The fix for a wrong distribution is a better input or a better model, measured with an eval, not a different sampling setting.
+
+**Decoding controls are vendor decisions, and they change.** Which controls you get depends on the model. On the day this module was checked, Anthropic's model deprecations page lists `temperature`, `top_p`, and `top_k` as deprecated for Claude 4.7 and later models: each "Returns a 400 error when set to a non-default value," and the recommended replacement is to omit them and use prompting to guide behavior. A harness that hardcodes a temperature can break on a model migration. Include sampling parameters in the configuration your eval suite covers, and expect them to move.
+
+Decoding also lives in infrastructure you do not see, and it can fail there. Anthropic's postmortem of September 17, 2025, written by Sam McAllister, describes three overlapping bugs that degraded responses from Claude models in August and early September 2025. One was a misconfiguration that "occasionally assigned a high probability to tokens that should rarely be produced given the context," for example "producing Thai or Chinese characters in response to English prompts." Another was a compiler bug in an approximate top-k operation, "a performance optimization that quickly finds the highest probability tokens," which "sometimes returned completely wrong results, but only for certain batch sizes and model configurations." The decoding path around the model broke. The postmortem is candid about detection: "The evaluations we ran simply didn't capture the degradation users were reporting." It also admits that "we relied too heavily on noisy evaluations." Users saw behavior the postmortem calls "frustratingly inconsistent." In its words, "The same prompt might work perfectly on one request and fail on the next." Three lessons meet in that account: decoding is engineered, inconsistent failures hide in noisy measurements, and a provider's failure reaches your product as your failure, which the [Operating it](/modules/operating-it) module takes up.
+
+### From pretraining to the assistant you call
+
+**Decision it affects.** Whether to fix a behavior with context, examples, adaptation, or a different model. Used in [Models](/modules/models), and in the elective on fine-tuning, distillation, and model adaptation.
+
+The model you call through an API went through several training stages. The book's chapter 6 asks you to "Distinguish pretraining, supervised adaptation, preference optimization, and reinforcement learning." Each stage uses the same machinery from the section on parameters and loss, with a different objective and different data. Each one changes what the model tends to do, and none of them changes the basic fact that the model predicts tokens.
+
+**Pretraining** trains the model to predict the next token on an enormous body of text and code. The objective is the cross-entropy loss on the actual next token. This stage is where nearly all of the model's knowledge and linguistic ability comes from, and nearly all of its cost. A pretrained model continues text: ask it a question and it may answer, or continue with three more questions. Its knowledge is frozen at the date its data was collected, and it reflects how often things appear in that data, not whether they are true.
+
+**Supervised adaptation**, often called supervised fine-tuning or instruction tuning, trains the pretrained model further on examples of the behavior you want: a prompt and a good response, written or curated by people. The loss is the same next-token loss, applied to the responses. This stage teaches format and role: answer the question, follow the instruction, use this structure. It adds relatively little new knowledge.
+
+**Preference optimization** trains the model on comparisons. People, or models acting for them, rank several responses to the same prompt, and the model is pushed toward the preferred ones. Long Ouyang and colleagues at OpenAI described the combination in 2022: "we collect a dataset of labeler demonstrations of the desired model behavior," fine-tune on it, then "collect a dataset of rankings of model outputs" to tune further with reinforcement learning from human feedback. Their headline result shows how much this stage shapes perceived quality: "outputs from the 1.3B parameter InstructGPT model are preferred to outputs from the 175B GPT-3," a model with about a hundred times more parameters. Preference training optimizes for what raters prefer, which is not the same as correct. Recall the calibration result: post-training made GPT-4's probabilities less calibrated.
+
+**Reinforcement learning** on tasks with checkable outcomes trains the model to produce sequences that lead to verified success: code that passes tests, math answers that match, tool calls that complete a task. Developers use it to train multi-step reasoning and agent behavior. It rewards whatever the checker rewards. A model trained against weak checks can learn to satisfy the check rather than the task, which is one reason the talk insists "Run the check before accepting the claim."
+
+Two practical conclusions. First, knowledge and behavior come from different stages. If the model does not know your refund policy, that is a pretraining fact: it never saw your policy. The fix is to supply the policy in context, not to fine-tune, and the [Context and knowledge](/modules/context-and-knowledge) module covers how. If the model knows what to do but does it in the wrong format or tone, examples in the prompt or supervised adaptation can help. Second, every stage is a vendor decision you inherit. When a provider ships a new version, the post-training may differ even when the base is related, and behaviors you relied on can change. That is why the [Models](/modules/models) module treats the model as a versioned dependency with an eval suite behind it.
+
+### Context windows, position, and reasoning tokens
+
+**Decision it affects.** How much context to send, where to put the important part, and how to budget for reasoning. Used in [Context and knowledge](/modules/context-and-knowledge) and [Orchestration](/modules/orchestration).
+
+The context meter in a coding agent fills as the session runs, and at some point the agent compacts its history. Both behaviors follow from what a context window is.
+
+The context window is the limit on how many tokens one request can involve. OpenAI's documentation defines it: "The context window is the maximum number of tokens that can be used in a single request." The next sentence is the one engineers miss: "This max tokens number includes input, output, and reasoning tokens." The window is not an input box. It is a shared budget for what you send, what the model writes back, and what it thinks along the way. Part 3 of the trace reserves 16,000 tokens for output and reasoning for exactly this reason. When the total goes over, in OpenAI's words, "Tokens generated in excess of the context window limit may be truncated in API responses."
+
+Reasoning tokens deserve their own paragraph. A coding agent's model picker often offers a reasoning effort setting, such as low, medium, or high. Reasoning-oriented models generate intermediate tokens before the visible answer. OpenAI's reasoning guide describes the control: "The `reasoning.effort` parameter guides the model on how much to think when performing a task," with model-dependent settings, and "Lower effort favors speed and lower token usage, while at higher effort the model thinks more completely". Those tokens are hidden from the response but, per the same guide, take up context window space and "are billed as output tokens." So reasoning effort is a cost, latency, and context dial at once. Whether more effort improves your task is an empirical question. Treat the setting as part of the configuration you evaluate.
+
+A window's size says how much fits. It does not say how well the model uses what fits. Two lines of research show the gap.
+
+Nelson Liu and colleagues, in "Lost in the Middle", published in the Transactions of the Association for Computational Linguistics in 2024, placed the one relevant document at different positions in a long input for multi-document question answering and key-value retrieval. Their finding: "performance can degrade significantly when changing the position of relevant information," with models doing worst when the relevant information sat in the middle of a long context, including models built for long contexts. The paper's results hold for the models and tasks it studied. Read it as a reason to treat placement as an evaluation variable, not as one best order for every model and task.
+
+Chroma's "Context Rot" report of July 14, 2025 tested 18 models. It found that "Model performance varies significantly as input length changes, even on simple tasks." It also found that "models do not use their context uniformly; instead, their performance grows increasingly unreliable as input length grows." It also found that "Even a single distractor reduces performance relative to the baseline," an effect that grows with input length.
+
+Here is the trace once more. Read Part 3.
+
+<Artifact id="foundations-tokenization-trace" level={4} />
+
+The policy passage that held the right answer was retrieved. It sat seventh of twelve passages, in the middle of the retrieved block, at tokens 17,420 to 19,318. After it came 61,300 tokens of conversation history before the question. It was far from the question and surrounded by distractors. The book's chapter 6 failure exercise names the symptom: "a longer input causes a previously available fact to be missed." The fact was available. Its position and its competition made it less likely to be used. Possible fixes include fewer and better passages, placing the governing passage near the question, compacting the history, and quoting the policy explicitly in the instruction. Each is a hypothesis to measure, which is the [Context and knowledge](/modules/context-and-knowledge) module's job.
+
+An agent loop appends every tool result and model turn to the context, so the window fills as the task proceeds. The [Orchestration](/modules/orchestration) module decides what carries between turns and when to compact.
+
+### Worked example: the coding agent you already use
+
+**Decision it affects.** What to measure and budget when you own the loop that a coding agent's vendor owned for you. Used in [Orchestration](/modules/orchestration) and [Context and knowledge](/modules/context-and-knowledge).
+
+Every mechanism in this part of the module is already on your screen when you use a coding agent. The talk walks every area in one pattern: what you touched as a user, what someone engineered behind it, and what becomes yours as the owner. The commands are from the vendors' own documentation for Codex CLI and Devin CLI, the two tools the talk names, checked on 2026-10-09. Other coding agents expose the same surfaces under different names: a context or usage meter, a compact command, and a model or effort picker. The sections above opened with these surfaces. Here they are together, each with what a feature like it has to do behind the screen.
+
+**What you touched: a context meter.** In Codex CLI, `/status` will "Display session configuration and token usage," and the documentation says to use it to "Confirm the active model, approval policy, writable roots, and remaining context capacity." In Devin CLI, `/context` will "Show context window usage". You have glanced at a number like "62 percent of context used" and kept working.
+
+What someone had to engineer behind it: a meter like this has to count tokens with the model family's tokenizer over everything in the session, including the system prompt, tool definitions, every file the agent read, every command output, and every turn. It has to subtract room for the next response and any reasoning tokens, because the window covers input, output, and reasoning together. When the model changes, the count has to change tokenizers with it, or the meter misleads.
+
+**What you touched: compaction.** Both tools have `/compact`. Codex describes it as "Summarize the visible chat to free tokens," to use "after long runs so Codex retains key points without blowing the context window." Devin CLI's version will "Force conversation compaction". Codex also compacts on its own: its configuration reference lists `model_auto_compact_token_limit`, the "Token threshold that triggers automatic history compaction (unset uses model defaults)." You may have watched a session compact and then forget a constraint you set an hour earlier.
+
+What someone had to engineer behind it: compaction needs a threshold that balances cost against the position and length effects. A long history is not only expensive, it is a context full of distractors, and the important constraint from the start of the session is now in the middle. Compaction also needs a summary step that decides what survives. The constraint you lost was a casualty of a policy someone wrote. When you own an agent, you write that policy, and you evaluate it the way this module evaluates anything: on representative long sessions, counting how often a constraint survives.
+
+**What you touched: reasoning effort.** In Codex, `/model` will "Choose the active model (and reasoning effort, when available)." Its configuration key `model_reasoning_effort` takes the "Reasoning effort advertised by the selected model, such as `low`, `medium`, `high`, `xhigh`, `max`, or `ultra`," and the documentation adds that "Available levels depend on the model and client." The talk calls this setting "a cost and latency dial."
+
+What someone had to engineer behind it: a setting like this has to map a friendly label to a model-specific amount of hidden reasoning, in tokens that are billed and occupy context. It also needs a default that someone had to choose, ideally by measuring on a population of coding tasks where more effort stopped paying for itself. Codex even lets plan mode use a different effort from the rest of the session, with `plan_mode_reasoning_effort`. Any such default rests on a comparison between configurations, of the kind the first part of this module teaches, on a population that is not yours.
+
+**What you touched: two different answers to the same request.** Ask an agent for the same change twice and you get two different diffs. You may have shrugged and picked the better one.
+
+What someone had to engineer behind it: a loop that does not need any single sample to be right. The agent writes code, runs the repository's tests, reads the failure, and tries again. In this module's terms, the test suite is a verifier applied to a sampled output, and the loop is a way of buying pass@k reliability from a model with a lower per-sample success rate. It works because, in the talk's words, "the repo already contains ground truth." When you own a product without a test suite to lean on, you have to build the verifier yourself, and the [Verification and evals](/modules/verification-and-evals) module shows how.
+
+Each of the four is a decision about tokens, sampling, or measurement that a vendor made on your behalf. As the owner, you set them, and you need numbers to set them with.
+
+### How foundation models fail
+
+**Decision it affects.** How to diagnose a bad output, what to change first, and how to write it up without overclaiming. Used in every area module, and first in [Verification and evals](/modules/verification-and-evals).
+
+The book's chapter 6 asks you to "Investigate unsupported claims, sensitivity to instructions, knowledge limitations, and inconsistent behavior." Each of the four has a mechanism you now have the vocabulary for, and each has a test that tells you whether the mechanism is the right one.
+
+**Unsupported claims.** The model states something fluent and specific that nothing supports: a refund window, a product feature, a citation. The mechanism is the decoding section's: a plausible specific answer is often more probable than "I don't know," especially after training and evaluation rewarded confident answers. Kalai and colleagues put the training side bluntly: hallucinations need not be mysterious, and "they originate simply as errors in binary classification." The test is to compare the claim with the sources that were actually in the context. If the supporting text was absent, the failure is a knowledge or retrieval problem. If it was present and contradicted, the failure is about use of context, and position and distractors are the first suspects.
+
+Moffatt v. Air Canada shows what that failure can cost. British Columbia's Civil Resolution Tribunal decided it in February 2024, and Barry Sookman of McCarthy Tétrault summarized it. Air Canada's website chatbot told a customer, Jake Moffatt, that he could apply for a bereavement fare retroactively. Another page on the same website said otherwise. The tribunal found the airline liable for negligent misrepresentation and held it responsible for the information its chatbot gave, as Sookman's commentary reports. The talk's research holds this as secondary evidence, since the tribunal decision itself was not read, and it is used here the same way. A fluent explanation that invents a policy is the default failure of a system that generates likely text, and the book's chapter 6 failure exercise opens with it: "A fluent explanation invents a product capability." The lesson for the owner is the talk's takeaway for the Operating it area: "When you are the owner, its answer is your answer."
+
+**Sensitivity to instructions.** A small change in wording, formatting, or order changes the behavior. The mechanism is in the tokens and attention sections: a reformatted prompt is a different token sequence, and every token competes for attention. A second mechanism is version change. Chen, Zaharia, and Zou reported "evidence that GPT-4's ability to follow user instructions has decreased over time" between two versions in 2023, which is part of why the same prompt scored 84 and 51 percent on their prime task. The test is a perturbation set: the same cases under paraphrases, reorderings, and formatting changes, with the rate measured under each. If the rate moves more than your interval allows, the behavior is fragile, and the fragility belongs in the eval suite.
+
+**Knowledge limitations.** The model does not know something, or knows an outdated version of it. The mechanism is pretraining: knowledge stops at the data's collection date, reflects frequency rather than truth, and never included your private documents. The test is simple. Supply the fact in context and see whether the failure disappears. If it does, the fix is in the [Context and knowledge](/modules/context-and-knowledge) module, not in a bigger model.
+
+**Inconsistent behavior.** The same request works on one run and fails on the next. The mechanisms are sampling, serving infrastructure, and long-context effects. The test is repeated trials: run the case ten or twenty times and measure the failure rate. A failure that appears once in twenty runs is real, and it will reach a customer who uses the feature daily. That is pass^k thinking, and the [Verification and evals](/modules/verification-and-evals) module builds it into the suite.
+
+One trap runs across all four: asking the model why it did what it did. A model's explanation of its own reasoning is generated text, produced by the same next-token process as everything else. It is not a readout of the computation. Anthropic's interpretability team showed this directly in March 2025. When they traced how a Claude model added two numbers, they found it used parallel internal strategies, yet "If you ask how it figured out that 36+59 is 95, it describes the standard algorithm involving carrying the 1." They also observed that the model "sometimes makes up plausible-sounding steps to get where it wants to go." An explanation can be a useful hypothesis. It is not evidence. The book's chapter 6 completion evidence states the standard: "Connect observations to plausible mechanisms, preserve uncertainty, and avoid treating generated explanations as privileged access to internal computation."
+
+That standard gives you a procedure: the debugging loop you already know, with a statistical twist.
+
+1. Reproduce the failure, and measure how often it happens over repeated trials. One failure is an anecdote. A rate is a finding.
+2. Form a hypothesis from the mechanisms: missing knowledge, position or distraction in the context, instruction sensitivity, decoding, or a version change.
+3. Change one thing: add the fact, move the passage, rephrase the instruction, change the setting, pin the version.
+4. Measure the rate again on the same cases, and compare the two rates with an interval.
+5. Write down what you concluded, how sure you are, and what you did not test.
+
+A write-up that says "the model missed the policy because the passage sat far from the question in a 90,000-token context; moving it next to the question raised the correct-answer rate from 6 of 20 runs to 18 of 20 on the same case; untested on other cases" is a good write-up. It connects an observation to a plausible mechanism and keeps the uncertainty visible. A write-up that says "the model explained that it overlooked the passage" is not.
+
+<Collapsible title="Mathematical reference">
+
+Notation and short worked examples for the quantities in this module. Each entry names the section where the concept first affects a decision. Formulas are written in plain text: `×` is multiplication, `√` is the square root, `Σ` is a sum, and `ln` is the natural logarithm.
+
+**Vectors.** An ordered list of numbers, `v = (v1, v2, ..., vn)`. Its length is `|v| = √(v1² + v2² + ... + vn²)`. First affects a decision in Vectors, dot products, and embeddings.
+
+**Dot product.** `a · b = a1 × b1 + a2 × b2 + ... + an × bn`. Example: `(1, 2, 3) · (4, 0, −1) = 4 + 0 − 3 = 1`. Cosine similarity is `a · b / (|a| × |b|)`, between −1 and 1. Used for retrieval similarity and, inside the model, for attention scores. First affects a decision in Vectors, dot products, and embeddings.
+
+**Matrices and shapes.** A matrix is a grid of numbers with r rows and c columns. Multiplying a matrix by a vector of length c computes r dot products and returns a vector of length r. A tensor is the same idea with more dimensions. A shape such as `8 × 2048 × 4096` reads as batch, sequence length, and hidden size: 8 sequences, each 2,048 tokens long, each token a vector of 4,096 numbers. First affects a decision in Vectors, dot products, and embeddings.
+
+**Probability.** `P(A)` is a number from 0 to 1. The probabilities of all possible outcomes sum to 1. Two events are independent when `P(A and B) = P(A) × P(B)`. First affects a decision in Probability, conditioning, and base rates.
+
+**Conditional probability.** `P(A | B) = P(A and B) / P(B)`, the probability of A within the slice where B holds. An overall rate is a weighted average of slice rates: `P(correct) = Σ P(correct | category) × P(category)`. First affects a decision in Probability, conditioning, and base rates, and again in Comparing two systems.
+
+**Base rates.** With prevalence 0.02, recall 0.90, and false positive rate 0.05, the share of flags that are real is `0.018 / (0.018 + 0.049) ≈ 0.27`. First affects a decision in Probability, conditioning, and base rates.
+
+**Expectation.** `E[X] = Σ x × P(X = x)`, the long-run average. Expected cost of errors is `Σ rate × cost` over error types. First affects a decision in Expectation, variance, and sampling.
+
+**Variance and standard deviation.** `Var(X) = E[(X − E[X])²]`. The standard deviation is its square root, in the same units as X. First affects a decision in Expectation, variance, and sampling.
+
+**Standard error of a proportion.** For a rate p on n independent cases, `SE = √(p × (1 − p) / n)`. Example: `p = 0.8`, `n = 200` gives `SE ≈ 0.028`. It shrinks with the square root of n: four times the cases, half the error. First affects a decision in Intervals: how sure is the number.
+
+**Sampling intervals.** Normal approximation: `p ± 1.96 × SE` for a 95 percent interval. Near 0 or 1, or with small n, prefer the Wilson interval. Example: 41 of 50 gives a Wilson interval of about 0.69 to 0.90. Bootstrap: resample the units of sampling with replacement, recompute the metric each time, and take the middle 95 percent. First affects a decision in Intervals: how sure is the number.
+
+**Paired comparisons.** With both systems run on the same n cases, let b be the cases only A got right and c the cases only B got right. The difference in accuracy is `(c − b) / n`. A paired bootstrap resamples cases and recomputes it each time. First affects a decision in Comparing two systems.
+
+**Repeated trials.** For per-trial success rate p and independent trials, `pass@k = 1 − (1 − p)^k` and `pass^k = p^k`. Example: `p = 0.75`, `k = 3` gives about 0.98 and about 0.42. First affects a decision in Expectation, variance, and sampling.
+
+**Logarithms and loss.** `ln` turns products into sums and small probabilities into large negative numbers. Cross-entropy loss for one example is `−ln(probability assigned to the correct answer)`: 0.9 gives about 0.105, 0.1 gives about 2.303. First affects a decision in What a model learns.
+
+**Gradients.** For each parameter, how fast the loss changes as that parameter changes. Gradient descent steps against it: `w_new = w − learning_rate × gradient`. First affects a decision in What a model learns.
+
+**Softmax and temperature.** For logits z1 to zn and temperature T, `p_i = exp(z_i / T) / Σ exp(z_j / T)`. Lower T sharpens the distribution, higher T flattens it. First affects a decision in Next-token prediction and decoding.
+
+**Precision, recall, and F1.** From the confusion matrix: `precision = TP / (TP + FP)`, `recall = TP / (TP + FN)`, `F1 = 2 × precision × recall / (precision + recall)`. Example: TP 41, FP 17, FN 9 gives precision 0.707, recall 0.820, F1 0.759. Accuracy is `(TP + TN) / total`. First affects a decision in Precision, recall, and thresholds.
+
+**Calibration.** A confidence signal is calibrated when, among cases where it says q, the observed accuracy is about q. Check it by grouping cases into confidence bands and comparing each band's stated confidence with its measured accuracy. First affects a decision in Token likelihood, expressed confidence, and empirical reliability.
+
+</Collapsible>
 
 ## Workshop
 
 <Workshop>
 
-The workshop will be an analysis exercise on provided artifacts. No code. It will state the task in one paragraph and give a rubric.
+The book's chapter 4 workshop asks you to "Compare two ticket classifiers using confusion matrices, paired cases, bootstrap intervals, and per-category results." This version gives you the results already computed. Your job is to read them the way an owner reads them before a ship decision. Both reports below describe the same two classifiers. Both are being cited in the decision.
+
+<Artifact id="foundations-triage-reports" />
+
+Write a recommendation of 300 to 500 words to the engineering lead, who must decide by Friday whether to ship triage-v4. Say which of the two comparisons is misleading and explain the mechanism in terms of the population each report measured, using numbers from the report. Define the unit of sampling in the trustworthy comparison, and say why it is the right unit for this comparison or what you would change. State the overall difference between the two classifiers with its interval, and say what the second run of triage-v4 tells you about how to read that difference. Name the per-category result that matters most for this decision, explain it with precision and recall, and connect it to the threshold change and to what each kind of error costs according to the runbook. End with a decision, ship, do not ship, or ship with a specific change, and the one additional measurement that would most change your mind.
+
+Apply this rubric to your own response before you save it. It is a checklist for you, not a grade.
+
+- I named the misleading comparison and the mechanism: different months, a different category mix, and an overall rate that is a weighted average of category rates.
+- I used the report's own numbers to show the mix effect, for example that password resets rose from 18 percent of July's sample to 41 percent of September's, and that v4 is not clearly better than v3 within any category in Report A.
+- I named the unit of sampling in Report B, one ticket per conversation, and said why pairing on the same frozen tickets is a fairer comparison than two separate samples.
+- If I argued for the customer as the unit instead, I said what that would change in the sample and the interval.
+- I stated the overall difference with its interval, +0.3 points with a 95 percent interval of −2.0 to +2.7, and said the interval includes zero.
+- I compared the size of that difference with the churn from re-running v4, 17 changed labels out of 600, and drew a conclusion about single-run comparisons.
+- I identified account security as the category that decides this, reported its recall falling from 0.825 to 0.675 while precision rose from 0.733 to 0.844, and tied the change to the threshold moving from 0.35 to 0.50.
+- I used the runbook to argue that a missed security ticket costs far more than a false escalation, so the recall loss outweighs the precision gain.
+- I acknowledged the uncertainty on 40 security tickets and did not treat the billing gain or any other single slice as settled without more data.
+- My decision follows from the evidence, and I named one concrete next measurement, such as more labeled security tickets or v4's prompt with the old threshold.
 
 </Workshop>
 
@@ -43,11 +935,25 @@ The workshop will be an analysis exercise on provided artifacts. No code. It wil
 
 <FailureExercise>
 
-The failure exercise will plant a failure in an artifact and ask you to find it and explain it.
+This report asks for a production change. Its numbers are internally consistent and its arithmetic is correct. Something in it makes the conclusion unsupported.
+
+<Artifact id="foundations-release-report" />
+
+Find the failure and explain it in a few sentences. Say what the headline held-out number actually measures, which evidence in the report shows it, and what the report would need before anyone could decide to replace the production classifier. Use only what the report itself contains.
 
 <Fragment slot="explanation">
 
-The explanation appears here after a response is saved.
+The report treats training success as evidence of generalization. Its conclusion, "The model generalizes: held-out accuracy is within 1.5 points of training accuracy," rests on a held-out set that is not held out in the way that matters.
+
+The split was random over messages, not over accounts. Accounts send many messages, a median of 5 and up to 212, so 2,071 of the 2,132 held-out messages, about 97 percent, came from accounts that also had messages in training. The dedup was exact-match only, and the most common message pattern is a template that differs only in the order number, 1,140 near-duplicates that an exact match cannot catch. Customer-specific wording and templates were in both training and evaluation data, which is the leakage the book's chapter 5 failure exercise describes. The held-out score measures performance on customers and templates the model has already seen.
+
+The report contains its own evidence. On the 61 held-out messages from accounts with no training messages, accuracy is 82.0 percent, not 97.9. That slice is small: its 95 percent Wilson interval runs from about 70 to 90 percent. But it is the only number in the report that estimates performance on new customers, and section 5 says 31 percent of September tickets came from accounts created after the training data ends. The production classifier scored 89.6 percent on the full held-out set and was never measured on that slice, so the claimed 8.3-point improvement is not established for the traffic the model will actually serve. The prompted production classifier was not trained on these messages, so leakage inflates only the candidate's score.
+
+There is a second, smaller leak. The checkpoint was chosen by held-out accuracy, then the same held-out accuracy was reported as the result. That is selection on the test set, which biases the number upward. And both systems were measured once, with no interval on the difference.
+
+What the report needs before a decision: rebuild the split by account, so every account sits entirely on one side; remove near-duplicates by similarity, not only exact match; choose the checkpoint on a separate development set; then report both classifiers on the same account-held-out test set, with a paired interval on the difference and the same slices for both. If production traffic keeps adding new accounts at 31 percent, the held-out set should contain new accounts in that proportion.
+
+In the orientation's terms, a strong score on familiar data shows works.any(). The decision needs evidence of works.all() on the population the model will serve.
 
 </Fragment>
 

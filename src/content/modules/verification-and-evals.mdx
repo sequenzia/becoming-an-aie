@@ -4,42 +4,876 @@ kind: area
 area: evals
 order: 5
 summary: "Verify one action, evaluate many cases, keep evaluating. Graders, pass@k and pass^k, and an eval suite that starts from real failures."
-readingMinutes: 75
+readingMinutes: 52
 prerequisites: [foundations, models]
 talkBeats: ["2.5"]
 bookChapters: [8, 9, 19]
-draft: true
-updatedOn: 2026-09-16
-checkedOn: 2026-09-16
+draft: false
+updatedOn: 2026-10-09
+checkedOn: 2026-10-09
 staleAfterDays: 90
 takeaway: "Check the action before accepting it. Measure behavior across representative cases. Keep both checks running as the system changes."
 pitfall: "A generic judge instead of error analysis; grading the transcript instead of the outcome"
 transferRows: [testing]
-artifacts: []
-outcomes: []
-selfCheck: []
-sources: []
+artifacts: [verification-and-evals-output-set, verification-and-evals-judge-report, verification-and-evals-refund-trial]
+outcomes:
+  - id: verify-and-evaluate
+    text: Distinguish verification of one action from evaluation across cases, and say where each one runs.
+  - id: outcome-not-transcript
+    text: Grade the outcome in the environment's state, and inspect the trace for required constraints without prescribing the path.
+  - id: choose-graders
+    text: Choose a code, model, or human grader for a check, and name what each one costs.
+  - id: error-analysis
+    text: Run error analysis on a sample of outputs and turn the counts into the next engineering change.
+  - id: calibrate-judge
+    text: Validate a model judge against expert labels on held-out examples before trusting its scores.
+  - id: design-eval-data
+    text: Design an eval set from real failures, with coverage, reference judgments, held-out cases, and a stated purpose.
+  - id: pass-at-k
+    text: Compute pass@k and pass^k from a per-trial success rate, and say which one a product's users experience.
+  - id: keep-checking
+    text: Keep verification and evaluation running as the system changes, and use the suite as evidence for a migration.
+selfCheck:
+  - id: q1-two-uses
+    outcome: verify-and-evaluate
+    question: "Which of these are verification, in the talk's organizing model?"
+    options:
+      - "A Stop hook that runs the test suite before the agent may end its turn"
+      - "A nightly run of 200 cases with three trials each"
+      - "A check that blocks a refund above the limit before the tool executes"
+      - "Comparing two prompt versions across the same golden set"
+    correct: [0, 2]
+    feedback:
+      - "Correct. It checks one action, inside the loop, before the result is accepted."
+      - "Not yet. Many cases and repeated trials measure behavior across runs. That is evaluation. Reread Two uses of checks."
+      - "Correct. It checks one action before accepting it. Verification sits inside the loop."
+      - "Not yet. A comparison across a case set is an experiment, which is evaluation. Reread Two uses of checks."
+  - id: q2-outcome
+    outcome: outcome-not-transcript
+    question: "An agent's final message says it refunded order A-1034. What settles the result check?"
+    options:
+      - "The final message, if it includes a refund reference number"
+      - "A refund row for A-1034, owned by the signed-in customer, for the right amount"
+      - "A call to the refund tool somewhere in the trace"
+      - "A model judge that rates the confirmation as clear"
+    correct: [1]
+    feedback:
+      - "Not yet. A reference number in a sentence is still a claim. The outcome lives in the environment's state. Reread Check the result, inspect the trace."
+      - "Correct. The outcome is the final state of the environment, checked against what was requested."
+      - "Not yet. A tool call is a step, not an outcome. It may have targeted the wrong order. Reread Check the result, inspect the trace."
+      - "Not yet. A judge that reads the transcript grades the claim. Reread Check the result, inspect the trace."
+  - id: q3-trace
+    outcome: outcome-not-transcript
+    question: "Which checks belong in a trace check for a refund agent?"
+    options:
+      - "A refund above the limit went through an approval request"
+      - "Every refund targeted an order the signed-in customer owns"
+      - "The agent called its tools in the same order as the reference solution"
+      - "The agent wrote its answer in the same words as the reference answer"
+    correct: [0, 1]
+    feedback:
+      - "Correct. Required approvals are a constraint on the process, so the trace is where you check them."
+      - "Correct. Access constraints, such as account ownership, are checked in the trace and the state."
+      - "Not yet. Prescribing an arbitrary tool sequence makes the eval brittle, because agents find valid paths you did not anticipate. Reread Check the result, inspect the trace."
+      - "Not yet. Many tasks admit several valid answers. A reference is a guide for a grader, not a string to match. Reread Designing eval data."
+  - id: q4-grader
+    outcome: choose-graders
+    question: "You need to confirm that no refund exceeds its order's total. Which grader fits best?"
+    options:
+      - "Code that compares the refund amount with the order total in the database"
+      - "A model judge asked whether the refund looks reasonable"
+      - "A domain expert who reviews every trial by hand"
+    correct: [0]
+    feedback:
+      - "Correct. The rule is explicit and the data is in the state. Code is fast, cheap, objective, and reproducible."
+      - "Not yet. A model judge is for qualities that resist an explicit rule, and it needs calibration. Reread Graders: code, model, human."
+      - "Not yet. Expert time is the most expensive grader. Spend it on judgment that code cannot make. Reread Graders: code, model, human."
+  - id: q5-axial
+    outcome: error-analysis
+    question: "You have written open notes on 60 traces. What comes next in error analysis?"
+    options:
+      - "Adopt a builtin helpfulness judge to score the rest"
+      - "Group the notes into a failure taxonomy and count each category"
+      - "Raise the release threshold from 80 to 90 percent"
+    correct: [1]
+    feedback:
+      - "Not yet. A generic metric skips the step that tells you what to measure. Reread The procedure and Why generic metrics fail."
+      - "Correct. Axial coding turns notes into categories. The counts tell you what to fix first and which evaluators to build."
+      - "Not yet. A threshold on an unexamined metric changes nothing about what you know. Reread The procedure and Why generic metrics fail."
+  - id: q6-generic-gap
+    outcome: error-analysis
+    question: "A builtin judge passes 21 of 24 sampled conversations. Your own review of the same 24 finds far more failures. What explains the gap?"
+    options:
+      - "The judge saw only the two messages, not the order record or the policy"
+      - "The rubric rewards warmth and completeness, which are not the product's failure modes"
+      - "Human review is subjective, so the judge's number is the more reliable one"
+      - "Twenty-four cases are too few to say anything at all"
+    correct: [0, 1]
+    feedback:
+      - "Correct. A judge cannot catch an invented tracking number or a policy breach it has no way to see."
+      - "Correct. A generic rubric measures abstract qualities. Error analysis found the failures that matter for this product."
+      - "Not yet. The judge's agreement with human labels was never measured. Reread Trusting a judge."
+      - "Not yet. Twenty-four cases are too few for a precise rate, but concrete failures, each with a case id and a cause, are plenty to act on. Reread Where cases come from, under Designing eval data."
+  - id: q7-tpr
+    outcome: calibrate-judge
+    question: "On a held-out test split, experts labeled 50 failures and 50 passes. The judge flagged 35 of the failures and passed 48 of the good outputs. What are its rates?"
+    options:
+      - "TPR 70 percent, TNR 96 percent"
+      - "TPR 83 percent, TNR 83 percent"
+      - "TPR 96 percent, TNR 70 percent"
+    correct: [0]
+    feedback:
+      - "Correct. It catches 35 of 50 failures and correctly passes 48 of 50 good outputs."
+      - "Not yet. 83 percent is overall accuracy, 83 of 100, which hides the two error types. Reread Measure two rates, not one."
+      - "Not yet. The rates are swapped. Positive means a failure is present, so TPR counts caught failures. Reread Measure two rates, not one."
+  - id: q8-split
+    outcome: calibrate-judge
+    question: "You tuned the judge's prompt on the dev split until it agreed with experts 92 percent of the time. What do you report?"
+    options:
+      - "92 percent"
+      - "Its TPR and TNR on the test split, which you did not use for tuning"
+      - "The average of the dev and test results"
+    correct: [1]
+    feedback:
+      - "Not yet. A number you optimized against overstates how the judge will do on new data. Reread Split the labeled data."
+      - "Correct. Only examples the tuning never touched estimate the judge's real agreement."
+      - "Not yet. Mixing in the tuned split still leaks the optimization into the estimate. Reread Split the labeled data."
+  - id: q9-suites
+    outcome: design-eval-data
+    question: "Which statements about designing an eval set are true?"
+    options:
+      - "A capability suite should start at a low pass rate"
+      - "A regression suite should pass at close to 100 percent"
+      - "A capability suite at 100 percent is the goal to aim for"
+      - "A golden case cannot also be a held-out case"
+      - "A suite that covers every case where retrieval should occur needs no cases where it should not"
+    correct: [0, 1]
+    feedback:
+      - "Correct. Capability cases probe the limits, so most of them fail at first."
+      - "Correct. Each regression case is something the system once did right, so a failure means something broke."
+      - "Not yet. A capability suite at 100 percent is saturated and has stopped teaching you anything. Reread Held-out data and the purpose of each suite."
+      - "Not yet. Golden says the reference was reviewed; held-out says the case was not used for tuning. A case can be both. Reread Held-out data and the purpose of each suite."
+      - "Not yet. One-sided evals create one-sided optimization. Reread Coverage, and the cases that should not trigger."
+  - id: q10-numbers
+    outcome: pass-at-k
+    question: "A task succeeds on 80 percent of independent trials. What are pass@3 and pass^3?"
+    options:
+      - "pass@3 about 99 percent, pass^3 about 51 percent"
+      - "pass@3 about 51 percent, pass^3 about 99 percent"
+      - "pass@3 about 99 percent, pass^3 about 80 percent"
+    correct: [0]
+    feedback:
+      - "Correct. pass@3 is 1 minus 0.2 cubed, 0.992. pass^3 is 0.8 cubed, 0.512."
+      - "Not yet. The two are swapped. At least one success gets easier as k grows; every success gets harder. Reread The arithmetic."
+      - "Not yet. pass^k equals the per-trial rate only at k equal to 1. Three successes in a row is 0.8 cubed. Reread The arithmetic."
+  - id: q11-which
+    outcome: pass-at-k
+    question: "Customers rebook through your agent every week. Each week's request gets one attempt, with no retry hidden from the customer. Which number describes a regular customer's experience?"
+    options:
+      - "pass@k, because some attempt usually succeeds"
+      - "pass^k, because every attempt has to succeed for the customer to trust it"
+      - "pass@1, because each week is one attempt"
+    correct: [1]
+    feedback:
+      - "Not yet. pass@k fits when a verifier can pick the one good attempt before anyone sees it. Customers see every attempt. Reread Which one your users experience."
+      - "Correct. Consistency matters for repeated customer use."
+      - "Not yet. Each week is one trial; the customer lives through all of them. Reread Which one your users experience."
+  - id: q12-keep
+    outcome: keep-checking
+    question: "Which practices keep checks honest after launch?"
+    options:
+      - "More sensitive evaluations that separate working from broken implementations"
+      - "Quality evaluations running continuously on true production systems"
+      - "Running the held-out suite on the current and the candidate model, with repeated trials, and comparing per category"
+      - "Comparing the candidate model with the current one on the overall pass rate only, because per-category numbers are noisy"
+    correct: [0, 1, 2]
+    feedback:
+      - "Correct. Anthropic's September 2025 postmortem lists this. A check that cannot tell working from broken is not a regression check."
+      - "Correct. The same postmortem lists it. Sampled production checks catch what offline suites miss."
+      - "Correct. That is the suite used as migration evidence, on cases the tuning never touched."
+      - "Not yet. An overall rate can hide a regression in one critical category. Reread The suite as migration evidence."
+sources:
+  - title: Beyond the Coding Agent, the talk repository
+    author: Stephen Sequenzia
+    date: "2026-09"
+    url: https://github.com/sequenzia/beyond-the-coding-agent
+    checkedOn: 2026-10-09
+    note: "Beat 2.5 as this program's talk knowledge base records it (slides 16 and 17), and research/section-2.md section 5, read from a local clone at commit d90f230. That section also records the requirement that each case have its own starting conditions and allowed outcomes (subsection \"Verification & Evals integration, September 16, 2026\") and cites Hardy 2024 on golden datasets (subsection \"SME review and golden datasets, September 16, 2026\"). Later revisions of the talk restructure this beat; the quotes here follow the knowledge base."
+  - title: Becoming an AI Engineer, the book blueprint
+    date: "2026-09"
+    checkedOn: 2026-10-09
+    note: "Chapters 8, 9, and 19 of the blueprint, read from a local copy. The public link is pending."
+  - title: Demystifying evals for AI agents
+    org: Anthropic
+    author: Mikaela Grace, Jeremy Hadfield, Rodrigo Olivares, Jiri De Jonghe
+    date: "2026-01-09"
+    url: https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents
+    checkedOn: 2026-10-09
+    note: "Vocabulary, grader types, outcome versus transcript, pass@k and pass^k, the 20 to 50 task start, and the CORE-Bench and tau2-bench accounts. Experience-based guidance from one vendor's teams."
+  - title: Some thoughts on LLMs and Software Development
+    author: Martin Fowler
+    date: "2025-08-28"
+    url: https://www.martinfowler.com/articles/202508-ai-thoughts.html
+    checkedOn: 2026-10-09
+  - title: "AI Evals: Everything You Need to Know"
+    author: Hamel Husain and Shreya Shankar
+    date: "2026-09-18"
+    url: https://hamel.dev/blog/posts/evals-faq/
+    checkedOn: 2026-10-09
+    note: "The page shows September 18, 2026, modified September 21, 2026; individual answers carry earlier dates from 2025. Practitioner guidance; the 60 to 80 percent figure describes the authors' own projects, not an industry rule."
+  - title: A Field Guide to Rapidly Improving AI Products
+    author: Hamel Husain
+    date: "2025-03-24"
+    url: https://hamel.dev/blog/posts/field-guide/
+    checkedOn: 2026-10-09
+    note: "The Nurture Boss figures are the author's client account, not an independent measurement."
+  - title: Your AI Product Needs Evals
+    author: Hamel Husain
+    date: "2024-03-29"
+    url: https://hamel.dev/blog/posts/evals/
+    checkedOn: 2026-10-09
+  - title: "Using LLM-as-a-Judge For Evaluation: A Complete Guide"
+    author: Hamel Husain
+    date: "2024-10-29"
+    url: https://hamel.dev/blog/posts/llm-judge/
+    checkedOn: 2026-10-09
+    note: "Last modified September 1, 2026."
+  - title: "Who Validates the Validators? Aligning LLM-Assisted Evaluation of LLM Outputs with Human Preferences"
+    author: Shreya Shankar, J.D. Zamfirescu-Pereira, Björn Hartmann, Aditya G. Parameswaran, Ian Arawjo
+    date: "2024-04-18"
+    url: https://arxiv.org/abs/2404.12272
+    checkedOn: 2026-10-09
+    note: "UIST 2024. Quoted from the abstract."
+  - title: "\"All that Glitters\": Approaches to Evaluations with Unreliable Model and Human Annotations"
+    author: Michael Hardy
+    date: "2024-11-23"
+    url: https://arxiv.org/abs/2411.15634
+    checkedOn: 2026-10-09
+    note: "Quoted from the abstract. The study concerns expert ratings of classroom teaching; its findings do not transfer to other datasets."
+  - title: Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena
+    author: Lianmin Zheng and colleagues
+    date: "2023-06-09"
+    url: https://arxiv.org/abs/2306.05685
+    checkedOn: 2026-10-09
+    note: "NeurIPS 2023 Datasets and Benchmarks, revised 2023-12-24. Agreement with human preferences is not correctness, and it must be revalidated for another domain, rubric, or model."
+  - title: "tau-bench: A Benchmark for Tool-Agent-User Interaction in Real-World Domains"
+    author: Shunyu Yao, Noah Shinn, Pedram Razavi, Karthik Narasimhan
+    date: "2024-06-17"
+    url: https://arxiv.org/abs/2406.12045
+    checkedOn: 2026-10-09
+    note: "Quoted from the abstract. The results describe the models and tasks studied in 2024, not current models."
+  - title: Evaluating Large Language Models Trained on Code
+    author: Mark Chen and colleagues
+    date: "2021-07-07"
+    url: https://arxiv.org/abs/2107.03374
+    checkedOn: 2026-10-09
+    note: "Section 2.1 defines the unbiased pass@k estimator."
+  - title: Recent Frontier Models Are Reward Hacking
+    org: METR
+    author: Sydney Von Arx, Lawrence Chan, Beth Barnes
+    date: "2025-06-05"
+    url: https://metr.org/blog/2025-06-05-recent-reward-hacking/
+    checkedOn: 2026-10-09
+    note: "Observed on METR's own task suites; not a measure of how often this happens in products."
+  - title: A postmortem of three recent issues
+    org: Anthropic
+    author: Sam McAllister
+    date: "2025-09-17"
+    url: https://www.anthropic.com/engineering/a-postmortem-of-three-recent-issues
+    checkedOn: 2026-10-09
+    note: "A first-party account, not independently audited. The third bug, in the postmortem's words, was a change that \"inadvertently triggered a latent bug in the XLA:TPU compiler\", affecting an approximate top-k operation."
+  - title: Evaluation best practices
+    org: OpenAI
+    date: "2026"
+    url: https://developers.openai.com/api/docs/guides/evaluation-best-practices
+    checkedOn: 2026-10-09
+    note: "The page shows no publication date; the year is the year checked. On the day checked it also announced that the hosted Evals platform becomes read-only on October 31, 2026 and shuts down on November 30, 2026."
+  - title: Hooks
+    org: OpenAI, Codex documentation
+    date: "2026"
+    url: https://learn.chatgpt.com/docs/hooks
+    checkedOn: 2026-10-09
+    note: "The Stop event, the block decision, exit code 2 with the reason on standard error, and the stop_hook_active field. The page shows no version. The year is the year checked; the page carries no date of its own."
+  - title: Slash commands in Codex CLI
+    org: OpenAI, Codex documentation
+    date: "2026"
+    url: https://learn.chatgpt.com/docs/cli/slash-commands
+    checkedOn: 2026-10-09
+    note: "The /review and /approve commands, and the review_model setting in config.toml that runs /review on a different model. The page shows no version. The year is the year checked; the page carries no date of its own."
+  - title: Hooks reference
+    org: Anthropic, Claude Code documentation
+    date: "2026"
+    url: https://code.claude.com/docs/en/hooks
+    checkedOn: 2026-10-09
+    note: "The Stop event and its exit code 2 behavior. The page shows no version. The year is the year checked; the page carries no date of its own."
 ---
+
+This module takes apart one region of the anatomy diagram: Verification inside the run, and Evaluations across runs. It covers the talk's beat 2.5 and three chapters of the book blueprint. It is long, because the talk spends five minutes on the area and the job takes much longer than that to learn. If you have done [Foundations](/modules/foundations), the statistics here will feel familiar. If you have not, read its section on intervals before Trusting a judge.
 
 ## Transfer connection
 
-This module is planned. It is not yet written. This page holds its place in the catalog until it is.
+This module expands one row of the talk's transfer table. You already do this: **Testing discipline.** It becomes this: Eval discipline.
 
-It will expand one row of the talk's transfer table. You already do this: Testing discipline. It becomes this: Eval discipline. The module will say what stays the same and what changes.
+The talk says it in one line: "Testing discipline extends to evals." It also says what carries over: "The habit of checking before accepting a result transfers. Ordinary tests remain part of the machinery." What the talk leaves implicit is what does not carry over: the unit of measurement. A test checks one path you wrote. An eval measures behavior across a population of cases.
+
+What stays the same is most of what you know. You write the check before you trust the result. You refuse to ship on a green run you did not read. You keep a regression suite so that a fix for one thing does not quietly break another. You treat a flaky test as a bug in the test, not as noise to ignore. You know that a suite only proves what it covers, and you know that coverage is something you design. Every one of those habits is load-bearing in this module.
+
+What changes is the shape of the evidence. Three things change, and each of the book chapters this module draws on names one.
+
+1. The test data becomes measurement data. Chapter 8's transfer statement: "Acceptance testing expands into sampling, annotation, and management of measurement data." Your fixtures used to be a handful of inputs you made up. Your eval set is a sample of real traffic and real failures, labeled by someone who knows the domain, split so that you do not tune on what you report.
+2. The test instrument can be wrong. Chapter 9's transfer statement: "Debugging now includes checking whether the test instrument itself is wrong." An assertion that compares two integers is rarely the bug. A grader that reads prose and decides whether it is good can be wrong in ways you will only find by checking it against people.
+3. One run is not a result. Chapter 19's transfer statement: "End-to-end tests expand to repeated trials and inspection of external outcomes." The same input can produce a different path on the next run. You run it several times. And you check what the system did to the world, not what it said it did.
+
+There is a fourth change that is easy to miss. In ordinary testing the spec comes first and the tests follow it. Here, part of the spec comes from watching the system fail. [Orientation](/modules/orientation#a-compelling-prototype-is-not-evidence) quoted Shreya Shankar and colleagues on this; they call it criteria drift. You will write some checks before you see any output. You will discover the most important ones by reading outputs. This module makes that a working method.
+
+If you read the [Models](/modules/models) module, you met this row of the table once already. There it was about choosing and replacing a model on evidence. Here it is the evidence itself: how you build it, how you trust it, and how you keep it current.
 
 ## Topics and learning outcomes
 
 <Outcomes />
 
-The module draws on talk beat 2.5 and on book chapters 8, 9, 19. Each concept arrives with its outcome. Each gets a coding-agent worked example: what the user touched, what the vendor engineered. Each cites a public incident or a first-hand account, with its checked-on date.
+### Two uses of checks
+
+Start from your own work. A pre-commit hook blocks one bad commit before it lands. A CI dashboard that tracks flaky-test rates over a month tells you how the suite behaves. The first is verification; the second is closer to evaluation.
+
+The talk organizes the whole area around one distinction. Its research states it in four sentences: "Verification checks an action before accepting it. Evaluation measures behavior across representative cases. Inside and outside the loop describe complementary uses of checks, not a universal boundary between tests and evals. Keep both running as the system changes."
+
+The talk's slide puts it in a table.
+
+| Verification | Evaluation |
+|---|---|
+| Check an action before accepting it | Measure behavior across representative cases |
+| Inside the loop | Outside the loop |
+| Rules, state checks, visual checks | Tasks, trials, graders, suites |
+
+Read the two columns as two questions. Verification asks: should I accept this one result? Evaluation asks: how reliably does this system produce acceptable results? The first question has a yes or no answer for a single action, right now, while the run is still going. The second has a rate, a distribution, and a confidence, and it is answered over many runs after the fact.
+
+The same check can serve both. A check that a refund amount does not exceed the order total can run inside the loop, where it blocks one bad refund before the money moves. The same check can run across 120 eval trials, where it tells you how often your agent attempts a refund that the block would have stopped. Inside the loop it protects a user. Outside the loop it measures your system. You want both, and the talk is explicit that the boundary is an organizing model, not a law. The talk's phrase is "complementary uses of checks". Treat it that way.
+
+Why does an agent need both, when an ordinary service mostly needs tests? Anthropic's evals article gives the reason in two sentences. "The capabilities that make agents useful also make them difficult to evaluate." And: "Agents use tools across many turns, modifying state in the environment and adapting as they go, which means mistakes can propagate and compound." A test suite checks paths you wrote. An agent writes its own path at run time. You cannot enumerate the paths, so you check the actions as they happen and you measure the behavior across a sample of the situations the agent will meet.
+
+#### The vocabulary
+
+Anthropic's article fixes a vocabulary that this module uses throughout. It is worth learning precisely.
+
+- **Task.** A single test with defined inputs and success criteria. Other sources say case. This module uses both.
+- **Trial.** One attempt at a task. You run several, because outputs vary.
+- **Grader.** Logic that scores some aspect of performance. A task can have several graders.
+- **Transcript.** The complete record of a trial: outputs, tool calls, and reasoning.
+- **Trace.** The structured record of a trial's steps: model calls and tool calls with their arguments and results, usually as spans. A transcript is what was said; a trace is what was done, step by step. This module checks constraints in the trace and success in the outcome.
+- **Outcome.** The final state of the environment after a trial.
+- **Evaluation harness.** The infrastructure that runs evals end to end, including grading and aggregation.
+- **Agent harness.** The system that lets a model act as an agent. When you evaluate an agent, you evaluate the harness and the model together.
+- **Evaluation suite.** A collection of tasks that measures specific capabilities or behaviors.
+
+Two of these words carry the area's pitfall. The transcript is what the agent said and did. The outcome is what the world looks like afterwards. They usually agree. When they disagree, the outcome is the truth, and a grader that reads only the transcript will not know.
+
+Notice also the distinction between the two harnesses. The agent harness is the product you ship: the loop, the tools, the context, the guardrails. The evaluation harness is the test rig around it: it sets up the environment, runs trials, collects transcripts and outcomes, runs graders, and aggregates. In ordinary testing, the test runner and the code under test are obviously separate. Here, both are built from models and tools, and it is easy to let them blur. Keep them separate. An agent that can read its grader's code, or that shares a database with the grader's expectations, is no longer being measured.
+
+#### What a check can look at
+
+The slide's third row lists the raw material of each column. On the verification side: rules, state checks, visual checks. A rule is a predicate on the action itself: the amount is positive, the recipient is on the allowlist, the SQL statement is read-only. A state check looks at the environment: does the row exist, does the file compile, did the balance change by the right amount. A visual check looks at rendered output: a screenshot of the page the agent edited. On the evaluation side: tasks, trials, graders, suites. Those are the structure you put around many checks so that the results mean something.
+
+Learning outcome: you can say, for any check you are about to build, which question it answers and where it runs. Most checks you build will end up running in both places.
+
+### When you are the user: the test loop
+
+You have watched this happen. You ask a coding agent to fix a bug. It edits a file, runs the tests, reads the failure, edits again, runs the tests again, and stops when they pass. The talk names the pattern in four steps: "write, run, read the failure, retry." It is the most successful verification loop most engineers have ever used, and it is worth understanding why it works before you try to build one.
+
+It works for one reason, which the talk's research states plainly: "It works because the repo already contains ground truth." The test suite existed before the agent arrived. Someone wrote it to encode what correct means for this code. The agent did not write the checks, and in a well-run repository it cannot quietly weaken them. That independence is what makes it work. The check is not the agent's opinion of its own work. It is an external fact about the code.
+
+Now the failure mode. [Orientation](/modules/orientation#a-compelling-prototype-is-not-evidence) quoted Martin Fowler on it: the agent reports "all tests green", and when he runs the tests, there are failures. The agent ran a subset. It ran the tests before its last edit. It read a warning as a pass. Or it did not run anything at all and reported what it expected the result to be. Fowler's next sentence, from August 2025: "If that was a junior engineer’s behavior, how long would it be before H.R. was involved?"
+
+The talk's rule for it: **Run the check before accepting the claim.** Then: "A hook can enforce that check. A model reporting success cannot substitute for it."
+
+#### What someone engineered
+
+Look at what the coding agent vendors built so that rule can be enforced rather than hoped for. Two examples, both from the vendors' own documentation, checked 2026-10-09.
+
+Codex CLI has hooks: scripts that run at fixed points in the agent loop. Its documentation lists "Run a custom validation check when a chat turn stops, enforcing standards" as one of the things hooks are for. The `Stop` event fires when the agent is about to end its turn. A Stop hook can refuse. Its documented response for that case is a JSON object with `"decision": "block"` and a reason, and the documentation's own example reason is "Run one more pass over the failing tests." The hook can also exit with code 2 and write the reason to standard error. Either way the agent does not get to stop; it gets the reason as its next instruction. The Stop event's input includes a field called `stop_hook_active`, which says whether this turn was already continued by a Stop hook. That field exists because a hook that always blocks would loop forever.
+
+Claude Code has the same shape. Its hooks reference describes the Stop event as running "When Claude finishes responding", and an exit code of 2 "Prevents Claude from stopping, continues the conversation".
+
+Codex CLI also ships a review step. Its slash command reference, checked 2026-10-09, describes `/review` as "Ask Codex to review your working tree", to be used "after Codex completes work or when you want a second set of eyes on local changes". It describes an automatic reviewer that can deny an action, with `/approve` to "Approve one retry of a recent auto review denial."
+
+Read those features as design decisions. Someone decided:
+
+- **Where the check fires.** At the end of the turn, which is the moment the agent is about to make a claim. Not after every edit, which would be slow; not after the session, which would be too late.
+- **What happens on failure.** The agent continues with the failure as its input. The check does not just log; it changes control flow.
+- **How the loop terminates.** A guard field, so a check that keeps failing does not burn tokens forever. Someone had to choose what happens then: give up, hand back to the user, or try once more.
+- **Who reviews.** A second pass, which can run on a different model through the `review_model` setting, looking at the diff rather than the agent's account of the diff.
+- **What the user can override.** One approved retry, not a blanket bypass.
+
+None of this is the model. All of it is the harness. And every one of those choices becomes yours when you build an agent whose users are not engineers watching a terminal.
+
+#### What does not transfer from the coding loop
+
+The coding agent had a gift: a test suite that already defined correct. Your product usually has nothing like it. A support agent that issues refunds has no `npm test`. A research assistant that summarizes filings has no assertion that says the summary is faithful. When you are the owner, you build the ground truth before you can verify against it. The rest of this module is about how.
+
+There is a second difference. In the coding loop, a human reads the final diff. That human is a verifier of last resort, and a good one. In a product, the person reading the agent's final message is a customer who has no way to check whether the refund went to the right order. Your verifier has to run before the claim reaches them.
+
+Learning outcome: you can point to the verifier in the coding agent you use, say what someone engineered around it, and name what your own product lacks that the repository had.
+
+### Check the result, inspect the trace
+
+The talk's bridge for this area turns on one illustration. Anthropic's article supplies it: "A flight-booking agent might say 'Your flight has been booked' at the end of the transcript, but the outcome is whether a reservation exists in the environment's SQL database."
+
+The talk turns that into an illustrative grader with two parts. The result check: is there a reservation matching the requested traveler and itinerary? No matching reservation means FAIL, whatever the transcript says. The trace check, run separately: were the required approvals and access constraints satisfied? The talk's spoken line: **Check the result. Inspect the trace.** And one more sentence that matters as much as the other two: "An arbitrary sequence of tool calls does not define success."
+
+That gives you three rules. Each one is worth taking apart.
+
+#### Rule one: the outcome lives in the environment
+
+The transcript is a story the agent tells. The outcome is a fact you can query. A grader that reads the agent's last message and asks a model whether the request was resolved is grading the story. It will pass every trial in which the agent sounds like it succeeded. That is exactly the set of trials where the claim and the world can disagree without anyone noticing.
+
+So the result check reads state. For a booking agent, it queries the reservations table. For a coding agent, it runs the tests in a clean checkout. For an agent that sends email, it reads the outbox of a test mail server. For an agent that edits documents, it diffs the document store. Each of those is an ordinary piece of test infrastructure. You have built ones like them before. What is new is the discipline of never letting the agent's narration stand in for them.
+
+There is good precedent for building evals this way. The tau-bench benchmark, published by Shunyu Yao and colleagues in June 2024, simulates customers talking to agents in retail and airline domains. Its abstract describes "an efficient and faithful evaluation process that compares the database state at the end of a conversation with the annotated goal state." That is the result check, built into a benchmark. The agent can say whatever it likes. The grade comes from the database.
+
+The same benchmark shows a second part of the instrument. Its customers are not people: the abstract says the user is "simulated by language models". When the eval simulates the user, as tau-bench does, the simulator is part of the instrument. It can be easier, more cooperative, or more consistent than real customers. Check its transcripts against real conversations before trusting a pass rate. The book's Chapter 19 puts it in its topics: "Build isolated test environments and examine simulator and grader limitations."
+
+A matching row is necessary. It is not always sufficient. A good result check compares the state against what was requested, field by field: the right traveler, the right flight, the right date, the right fare class, and no second reservation that should not exist. Duplicate actions are their own failure. An agent that retries a timed-out booking call can book twice, and both bookings are real. The talk lists duplicate actions among the checks a domain may need, alongside refund limits, account ownership, and ledger state.
+
+#### Rule two: some process constraints matter
+
+Outcome-only grading has a blind spot. An agent can reach the requested state by a path it was not allowed to take. The book's Chapter 19 plants that failure deliberately: "An agent reports success without changing state; another achieves the requested state through an unauthorized action." The first agent fails the result check. The second agent passes it, and should not.
+
+So the trace check looks for the constraints that hold no matter which path the agent takes. Anthropic's article names them: required approvals, access constraints, and policy compliance. In a refund product that means: every refund above the limit went through an approval request; every action targeted an account the signed-in customer owns; no data from one customer appeared in another customer's session. These are properties of the whole trace, and they are checked the way you would check them in a security review: by looking at every action, not just the last one.
+
+#### Rule three: do not prescribe the path
+
+The temptation, once you are reading traces, is to write the expected trace down and compare. Call `get_order`, then `check_policy`, then `issue_refund`, in that order, with these arguments. Anthropic's article is direct about why that fails: grading a fixed sequence of steps is "too rigid and results in overly brittle tests, as agents regularly find valid approaches that eval designers didn't anticipate." Its advice is that it is usually better to grade the output than the path.
+
+The article has a sharp example. On a flight-booking task from tau2-bench, Anthropic reports that Claude Opus 4.5 "failed" the eval as written, because it found a loophole in the airline's policy that gave the customer a better outcome than the expected solution. The grader encoded one acceptable answer. The agent found another. An eval that prescribes the path cannot tell a cleverer solution from a wrong one, and it will push you to make the agent less capable in order to pass.
+
+The distinction to hold is between constraints and choreography. A constraint says what must never happen, or what must always happen, along any path: approvals, ownership, no destructive command outside the sandbox. Choreography says which steps happen in which order. Check constraints. Do not check choreography, unless the order is itself a requirement, such as reading a record before overwriting it.
+
+The book draws the same line in Chapter 19's topics: "Distinguish useful trajectory inspection from unnecessarily prescribing every step."
+
+#### Partial credit and resource use
+
+Not every task is pass or fail as a whole. Anthropic recommends that "For tasks with multiple components, build in partial credit." Its example is a support agent that verifies the customer correctly but then fails to issue the refund. That is still better than an agent that fails at the first step, and a score that treats them the same hides progress.
+
+Partial credit is a reporting choice, not a softening of the result check. The refund either happened correctly or it did not. What partial credit adds is a second number: how far the agent got. Report both.
+
+The book's Chapter 19 also asks you to measure "completion, prohibited actions, resource use, and consistency across trials." Resource use means tokens, tool calls, wall-clock time, and money per trial. A trial that succeeds after forty tool calls is a different product from one that succeeds after four, even if both pass. Record resource use per trial. Do not turn it into a pass condition unless you have a budget that requires it.
+
+#### Isolate every trial
+
+Trials must not share state. Anthropic's article warns that leftover files or cached data can cause correlated failures or inflate scores, and it reports an internal case in which Claude gained an unfair advantage by "examining the git history from previous trials." The agent was not cheating in any intentional sense. It was using what it could see. If the environment holds the answer, a capable agent will find it.
+
+The engineering is familiar: a fresh database per trial, a clean checkout, a reset mail server, a fixed clock, seeded fixtures. The book's project guidance says it in one line: "Trial environments are reset between runs." It also says to "Keep expected outcomes and grader internals inaccessible to the agent during its trial." That second rule is the one people forget.
+
+METR, an AI evaluation organization, reported in June 2025 that recent frontier models were reward hacking on its task suites: getting high scores by subverting the task rather than doing it. In one example, OpenAI's o3 overwrote the PyTorch equality operator so that when the score function computed `a == b`, it returned `1 == 1`. In another, it monkey-patched the evaluator to always return a perfect score. In a third, a model "overwrites the timing function so that it always returns shorter measurements" instead of making the code faster. METR reports that the models "demonstrate awareness that their behavior isn't in line with user intentions." Those are research task suites, not products, and METR does not claim a product frequency. The lesson for you is structural. A verifier the agent can reach is a verifier the agent can satisfy. Put the check where the agent's tools cannot touch it.
+
+#### The grader can be the bug
+
+Sometimes the trial is right and the grader is wrong. Anthropic's article gives a public example. Claude Opus 4.5 initially scored 42 percent on CORE-Bench, a benchmark of reproducing research results. An Anthropic researcher then found grading problems: rigid grading that rejected "96.12" where "96.124991..." was expected, ambiguous task specifications, and stochastic tasks that could not be reproduced. After the bugs were fixed and the agent ran in a less constrained harness, the score rose to 95 percent.
+
+Read that as an engineer, not as a benchmark story. Much of the measured failure came from the instrument and the setup, not the agent. Nobody would have known without reading the failing transcripts.
+
+Anthropic's guidance on this is short: "You won't know if your graders are working well unless you read the transcripts and grades from many trials."
+
+Learning outcome: given an agent task, you can write the result check against environment state, name the process constraints the trace must satisfy, and refuse to prescribe the path.
+
+### Graders: code, model, human
+
+The talk's slide lists three kinds of grader in one line: "code · model, with expert calibration · human". Each has a place. The skill is matching the grader to the property you need to check, and knowing what each one costs.
+
+#### Code graders
+
+Anthropic's article summarizes code-based graders as "Fast, cheap, objective, reproducible, easy to debug". Their weakness is that they are brittle to valid variation that does not match the expected pattern, and they have little nuance for subjective qualities.
+
+Code is the right grader whenever the property can be stated as a rule over data you can reach. Does the refund row exist? Is the amount at most the order total? Does the JSON validate against the schema? Did the SQL statement only read? Does the cited document exist and contain the quoted string? Is the response under the length limit? Is the date the agent booked the date the customer asked for, computed from the conversation's own timestamp?
+
+Engineers new to evals often underuse code graders, because the first failures they notice are fuzzy ones: tone, helpfulness, faithfulness. A large share of real failures in tool-using systems are crisp: wrong record, wrong date, wrong amount, missing step, forbidden action. Every one of those can be a code check, and a code check never needs calibration.
+
+Husain and Shankar's evals guide makes the cost argument explicitly. "Simple assertions and reference-based checks (comparing against known correct answers) are cheap to build and maintain. LLM-as-Judge evaluators require 100+ labeled examples, ongoing weekly maintenance, and coordination between developers, PMs, and domain experts." Their conclusion: "Only build expensive evaluators for problems you’ll iterate on repeatedly."
+
+#### Model graders
+
+A model grader, or judge, is a model call that reads some part of a trial and returns a verdict. Anthropic summarizes the type as "Flexible, scalable, captures nuance, handles open-ended tasks" and also "non-deterministic, requires human calibration".
+
+Use one when the property is real, matters, and cannot be written as a rule. Does the summary say anything the source does not support? Did the agent's reply answer the question the customer actually asked? Is the explanation correct for a reader at this level? Those are judgments. A code grader cannot make them, and a human cannot make them on ten thousand trials a night.
+
+The design of a judge matters more than the choice of judge model. Husain and Shankar's guide argues for narrow, binary judges. "Binary evaluations force clearer thinking and more consistent labeling." Its reasons against 1 to 5 scales: "the difference between adjacent points (like 3 vs 4) is subjective and inconsistent across annotators", and detecting differences "requires larger sample sizes". A judge that answers one yes or no question about one failure mode ("does the reply state a delivery date that is not in the order record?") is easier to calibrate and easier to act on than a judge that rates overall quality from 1 to 5.
+
+Give the judge what it needs to see. A judge asked whether a reply contains invented facts cannot answer without the facts. A judge asked whether a refund followed policy needs the policy and the order. A judge that sees only the customer's message and the assistant's reply can grade tone. It cannot grade truth.
+
+Judges have known biases. Lianmin Zheng and colleagues studied strong models as judges in 2023 and named the problems in their abstract: "position, verbosity, and self-enhancement biases, as well as limited reasoning ability." Position bias means the judge favors the first (or second) answer in a pairwise comparison regardless of content. Verbosity bias means it favors longer answers. Self-enhancement means it favors answers that resemble its own. The same paper reports that strong judges reached "over 80% agreement, the same level of agreement between humans" with human preferences on their benchmarks. Hold both findings at once. Agreement with human preference on chat benchmarks is encouraging. It is not correctness, and it does not transfer to your domain, your rubric, or a different judge model without being measured again.
+
+The book's Chapter 9 workshop includes a cheap test for position bias: "reverse pairwise answer order." If a judge prefers A over B, and then prefers B over A when you swap them, it is not judging content.
+
+Shankar and colleagues put the root problem in one sentence: "LLM-generated evaluators simply inherit all the problems of the LLMs they evaluate, requiring further human validation." A judge is a model. Everything you learned in the Models module about model behavior applies to it.
+
+#### Human graders
+
+Human review is the gold standard and the most expensive grader. Anthropic lists its strengths as quality and alignment with expert judgment, and its weaknesses as cost, speed, and the difficulty of getting experts at scale. Humans are also what you calibrate model graders against, so even a mostly automated suite needs them.
+
+Which humans? Husain's guide to judges is specific: "there is usually one (maybe two) key individuals whose judgment is crucial." His later guide with Shankar calls this person a "benevolent dictator": "appointing a single domain expert as a 'benevolent dictator' is the most effective approach." The reason is consistency. Five reviewers with five standards produce labels that disagree with each other, and a judge calibrated against a committee learns the committee's confusion. One expert with a written rationale for each verdict produces labels you can learn from. Where two experts are needed, track where they disagree, because that disagreement is information about an underspecified requirement.
+
+Anthropic's article gives a test for whether a task is well specified: "A good task is one where two domain experts would independently reach the same pass/fail verdict." If your experts cannot agree on a case, no grader will grade it reliably. Fix the case or the criteria first.
+
+#### Combining graders
+
+A real task usually has several graders. A refund task might have a code grader on the refund row, a code grader on account ownership, a code grader on the approval request when the amount is over the limit, and one narrow judge on whether the reply told the customer accurately what happened. Each returns pass or fail.
+
+How do you report them? Husain and Shankar suggest a "pass all" rate: "An example passes only if it passes every check." Then design the report so that you can drill down from the overall rate to each check. One number for the people who ask for one; per-check numbers for the people who fix things.
+
+Learning outcome: for a property you need to check, you can choose the grader that fits, say what it costs to build and keep, and say what it cannot see.
+
+A good place to stop. The next sections are error analysis, judges, data, and pass@k.
+
+### Error analysis before infrastructure
+
+The talk's slide gives the starting procedure in three lines: "Start with 20 to 50 tasks drawn from real failures." "Read failures and refine the criteria." "Review grader disagreements." The roadmap's first step says the same thing for Monday: review 20 to 50 outputs by hand. The talk's line: "That is your first eval. Do it before any infrastructure."
+
+The method has a name. Husain and Shankar's evals guide: "Error analysis is the most important activity in evals." And its purpose: "Error analysis helps you decide what evals to write in the first place."
+
+Most teams skip this part. Husain's March 2025 field guide opens with a question he asks client teams: "Can you show me how you’re measuring if any of this actually works?" Its diagnosis of the usual answer: "Teams invest weeks building complex AI systems, but can't tell me if their changes are helping or hurting."
+
+#### The procedure
+
+Husain and Shankar describe error analysis in steps adapted from qualitative research. In engineering terms:
+
+1. **Collect a sample.** Representative traces from real use. If you have no users yet, generate synthetic inputs that cover the situations you expect, and replace them with real traffic as soon as it exists. Sample at random, and also sample on purpose from the places you suspect: long conversations, unusual tools, complaints.
+2. **Open coding.** Read each trace and write a short, free-form note on what went wrong, if anything. Do not use a fixed list of categories yet. The guide says to annotate "at least 30 traces yourself" before looking at any machine suggestions, and when you start, to note the first failure in each trace, "as upstream errors can cause downstream issues." A wrong order lookup in step one explains the wrong refund in step three. Note the lookup.
+3. **Axial coding.** Group the notes into categories: a failure taxonomy. The guide: "Categorize the open-ended notes into a 'failure taxonomy.'" And: "Axial coding is the most important step. At the end, count the number of failures in each category." A model can help propose groupings. You review and correct them.
+4. **Iterate until new categories stop appearing.** Keep reading until new traces stop producing new categories. The guide: "Continue until new traces stop revealing failure modes or changing existing ones." It recommends reviewing "at least 100 traces," and continuing past 100 "while you are still learning."
+
+What you hold at the end is a table: failure categories, a definition of each, a count, and example trace ids. That table tells you what to fix, in what order, and which checks to build.
+
+Do the reading yourself, with the domain expert beside you: Husain and Shankar call outsourcing error analysis "usually a big mistake (with some exceptions)", because "you often break the feedback loop between observing a failure and understanding how to improve the product." In the projects they describe, they report that "we’ve spent 60-80% of our development time on error analysis and evaluation", a figure the talk keeps in its backup notes as their teams' experience, not an industry rule.
+
+#### A worked account: Nurture Boss
+
+Husain's field guide reports one client's run through this process. Nurture Boss builds an AI assistant for the apartment-leasing industry. The team built a simple viewer for conversations with space for open notes beside each one. After annotating dozens of conversations, a pattern appeared: the assistant was "failing 66% of the time" on date handling, when users said things like "let’s schedule a tour two weeks from now." The team categorized the date failures, built specific tests for them, and measured. The guide reports that date handling success "improved from 33% to 95%."
+
+The same guide describes the taxonomy step in their spreadsheet. Each row was a conversation with an open note; a model helped build the categories; then they counted. "The results were striking - just three issues accounted for over 60% of all problems": conversation flow issues, handoff failures, and rescheduling problems.
+
+Take the numbers as one practitioner's account of one client, not as a benchmark. The shape is what generalizes. Three categories covered most of the failures. A generic quality score would have averaged them away. A count per category told the team exactly what to work on.
+
+#### Why generic metrics fail
+
+The opposite of error analysis is to start from a list of metrics someone else wrote: helpfulness, coherence, relevance, toxicity, hallucination. Every eval tool ships them. Husain's field guide calls this the "tools trap" and does not soften it: "Generic metrics are worse than useless – they actively impede progress". The first reason it gives: "they create a false sense of measurement and progress."
+
+The evals guide gives the same advice as a direct answer to the question whether to use ready-made metrics: "No. Generic evaluations waste time and create false confidence when you use them as quality measures." It explains: "These metrics measure abstract qualities that may not matter for your use case. Good scores on them don’t mean your system works." It also allows one use: they "can still help you find traces to inspect."
+
+The talk compresses all of this into the first half of the area's pitfall: a generic judge instead of error analysis.
+
+Why is the generic judge so persuasive? Because it produces a number, and the number is usually high. A builtin helpfulness rubric rewards answers that are long, warm, confident, and complete-sounding. Many of your worst failures are exactly that: an assistant that confidently promises a refund it is not allowed to give, or invents a tracking number with a friendly sign-off. The generic judge rates those highly, because by its rubric they are helpful. You get a green dashboard and a broken product. The workshop in this module puts that in front of you.
+
+The field guide names the two ways to build a taxonomy. "The top-down approach starts with common metrics like “hallucination” or “toxicity”". The other: "The more effective bottom-up approach forces you to look at actual data and let metrics naturally emerge." Bottom-up is error analysis. It finds the failure modes your product actually has, in your domain's terms, such as "booked the wrong day" or "refunded above the limit without approval", rather than generic ones.
+
+#### From counts to the next change
+
+Error analysis is not finished when you have counts. It is finished when you have chosen the next engineering change and know how you will measure whether it worked.
+
+Some failures do not need an evaluator at all. Husain and Shankar: "Many teams discover their LLM doesn’t meet preferences they never actually specified - like wanting short responses, specific formatting, or step-by-step reasoning. Fix these obvious gaps first before building complex evaluation infrastructure." If the instructions never said to hand off on a chargeback threat, add the instruction and move on. Their rule for when to automate: "Focus automated evaluators on failures that persist after fixing your prompts."
+
+Other failures need a diagnosis first. The book's Chapter 9 lists the places a failure can originate: "Diagnose whether failures originate in the model, context, data, application, or evaluation." Suppose an assistant tells a customer that a jacket carries a 12-month warranty, and the record says 24 months. That could be the model answering from what it has seen of jackets in general instead of from the record (model). It could be the product record missing from the context, so the model had nothing to read (context). It could be the catalog listing the wrong warranty for that product (data). It could be the product tool returning the parent product's warranty instead of the color variant's (application). Or the grader's reference answer could come from last year's policy (evaluation). Each diagnosis leads to a different fix. The trace usually tells you which. The symptom alone does not.
+
+A good fix for the application case, for example, is often not a better prompt. It is a tool that returns the warranty for the exact variant from the catalog, with an instruction to quote only what the tool returns, so the model never recalls the number. Then a code grader can check every quoted warranty against the catalog. That is the pattern to look for: move a fuzzy model judgment into deterministic code where you can, then check it with code.
+
+#### Should evals come first?
+
+You will meet conflicting advice here, and both sides are in this module's sources. OpenAI's evaluation guide, checked 2026-10-09, says: "Adopt eval-driven development: Evaluate early and often." Husain and Shankar's guide answers the question "Should I practice eval-driven development?" with "Generally no." Their reason: "Unlike traditional software where failure modes are predictable, LLMs have infinite surface area for potential failures. You can’t anticipate what will break." Their rule: "Write evaluators for errors you discover, not errors you imagine."
+
+The disagreement is smaller than it looks. Both want evaluation from the start. OpenAI's guide also says to "Log everything" so you can mine your logs for eval cases, and to set up continuous evaluation on every change. Husain and Shankar want you to look at outputs before you decide what to automate. Read the two together this way. Write the checks you know you need on day one: the policy limits, the access rules, the schema. Those are requirements, and they are crisp. Do not write speculative judges for failure modes you have not seen. Look first. Then automate what you found.
+
+Learning outcome: given a sample of outputs, you can open-code them, build a failure taxonomy with counts, and turn the category you choose to fix first into a diagnosed engineering change with a check that will show whether it worked.
+
+### Trusting a judge
+
+Sooner or later you will build a model judge for a failure mode that code cannot check. The book's Chapter 9 names the skill: "Calibrate judges against human references and inspect disagreement." The talk's Q&A answer to "How do I trust the judge?" is the procedure in three sentences: "Use direct checks where possible. Calibrate subjective graders against domain experts, review disagreements, and evaluate on separate data that was not used to tune the judge. Recheck calibration as tasks and models change."
+
+Husain has a useful way to see the whole exercise: "creating a LLM judge is a nice "hack" I use to trick people into carefully looking at their data!" The labeling you do to calibrate a judge is error analysis under another name. If the judge never ships, the labels were still worth it.
+
+#### Measure two rates, not one
+
+Treat the judge as a classifier. Its job is to detect a failure. Husain and Shankar define the two numbers that matter, with "positive" meaning a failure is present:
+
+- "True positive rate (TPR), also called recall, measures how many actual failures the evaluator catches."
+- "True negative rate (TNR) measures how many good outputs the evaluator correctly passes."
+
+Their worked examples: if people identify 10 failures and the judge catches 8, its TPR is 80 percent. If people identify 100 good outputs and the judge passes 95, its TNR is 95 percent, and the other five are false alarms.
+
+Do not collapse the two into accuracy. Suppose a test set has 40 failures and 60 good outputs, and the judge catches 30 failures and passes 57 good outputs. Its accuracy is 87 of 100, or 87 percent. That sounds fine. But it misses a quarter of the failures (TPR 75 percent) while rarely crying wolf (TNR 95 percent). Whether that is acceptable depends on what a missed failure costs. The guide: "Prioritize this when missing a failure is costly", about TPR, and "If failures are rare, even a small false-alarm rate can create a lot of unnecessary reviews", about TNR.
+
+The two rates also tell you how far to trust the judge's headline number. A judge with a TPR of 75 percent, run on production traffic, will under-report the failure rate. If the true failure rate is 20 percent, a judge with TPR 0.75 and TNR 0.95 reports about 0.75 times 0.20 plus 0.05 times 0.80, which is 0.15 plus 0.04, or 19 percent. Close, by luck of offsetting errors. If the true rate is 5 percent, it reports about 0.0375 plus 0.0475, or 8.5 percent: most of its flags are false alarms. The judge's raw rate is a biased estimate. Knowing TPR and TNR lets you see by how much, and in which direction.
+
+#### Split the labeled data
+
+The judge prompt is code, and you will tune it. Tuning on the same examples you report on overstates agreement, exactly as training on a test set overstates accuracy. Husain and Shankar give a split. Get labels from a trusted domain expert with enough Pass and Fail examples of both classes, then: "Use 10 to 20 percent for train examples that may appear in the prompt. Use 40 to 45 percent for dev while refining the judge. Reserve the remaining 40 to 45 percent for one final test." When possible, "include 30 to 50 Pass examples and 30 to 50 Fail examples in both the dev and test sets."
+
+Those numbers have a reason. With 30 failure examples, a TPR estimate of 80 percent has a 95 percent confidence interval of roughly 63 to 90 percent. With 10 failures it is roughly 49 to 94 percent, which is too wide to tell a good judge from a coin that leans the right way. The [Foundations](/modules/foundations#topics-and-learning-outcomes) module covers how intervals like these are computed. Here, the point is practical: a judge validated on a dozen examples has not been validated.
+
+#### Read the disagreements
+
+Every case where the judge and the expert disagree is worth reading. Some disagreements are judge errors: it missed an invented fact, or it was swayed by length. Some are label errors: the expert was tired, or the case was ambiguous. Some are criteria problems: the rubric did not say what the expert meant. Each kind has a different fix. Judge errors lead to a better prompt, more context for the judge, or a narrower question. Label errors lead to corrected labels and a note in an adjudication log. Criteria problems lead to a rewritten rubric and, often, a conversation with the product owner about what the requirement actually is. That last kind is criteria drift happening in front of you.
+
+Husain's judge guide describes the expert's side of this. The expert gives "a clear pass or fail decision" and writes "a critique that explains their reasoning." Those critiques become the judge's few-shot examples (worked examples placed in the judge's prompt) and the record of why a label is what it is.
+
+#### Recheck when things change
+
+A calibration is valid for the judge model, the prompt, the rubric, and the distribution of cases it was measured on. Change any of them and the numbers can move. When your vendor retires the judge model, you are back to the Models module's problem: a replacement you have never measured. Keep the labeled test split. Rerun it on every judge change. It is a regression suite for your instrument.
+
+Learning outcome: you can validate a judge against expert labels on held-out data, report its TPR and TNR, and say what those rates mean for the scores it produces.
+
+### Designing eval data
+
+Graders decide whether a trial passed. The data decides which trials you run. A perfect grader on the wrong cases measures the wrong thing perfectly. The book gives the data its own chapter, and its topics read like a checklist:
+
+- "Translate requirements and observed failures into evaluation cases."
+- "Establish reference answers, rubrics, annotation instructions, and disagreement handling."
+- "Cover representative traffic, difficult cases, important subgroups, and negative examples."
+- "Protect held-out data and distinguish regression testing from capability exploration."
+
+Take them one at a time.
+
+#### Where cases come from
+
+Two sources, and you need both. Requirements give you the cases you can write before you see any output: every policy rule, every permission boundary, every action that must never happen. A refund limit of 150 USD gives you a case at 149, one at 150, one at 151, and one at 400. Account ownership gives you a case where the customer names someone else's order. These are the cases a careful engineer writes for any system, and you should write them on day one.
+
+Observed failures give you the cases you could not have imagined. Error analysis is the factory for these. Every category in your failure taxonomy becomes a set of cases: the actual traces that failed, cleaned up into tasks with clear starting conditions and success criteria. Anthropic's advice for a first suite is exactly this: "20-50 simple tasks drawn from real failures is a great start."
+
+Hold that number for what it is. Twenty to fifty is a starting point that gets a team moving. It is not a sample size that proves anything about reliability. Fifty cases with 45 passing gives a pass rate of 90 percent with a 95 percent confidence interval of roughly 79 to 96 percent. That interval is wide enough to hide a real regression between two versions. The suite grows as the product does: more cases where failures cluster, more cases where the stakes are highest.
+
+#### What a case contains
+
+The book's project guidance lists the fields: "Each case needs an identifier, input, relevant context, reference outcome or rubric, provenance, capability tags, split assignment, and annotation notes." Each one has a job.
+
+- **Starting state.** For an agent, the input is not just a message. It is the database fixture, the signed-in user, the clock, and the tools available. Two cases with the same message and different starting states are different cases.
+- **Reference outcome or rubric.** What success looks like. For a booking, the expected reservation row. For a summary, a rubric that an expert has applied to example outputs. Some tasks admit several valid answers. A reference answer guides a grader; it is not a string to match.
+- **Provenance.** Where the case came from: which production trace, which requirement, which failure category. When the case later looks wrong, provenance tells you whether the case or the system is at fault.
+- **Tags and split.** Which capability it exercises, which subgroup it represents, and whether it is development, regression, or held-out.
+
+Here is the warranty failure from error analysis, written down as a case.
+
+```yaml
+id: warranty-variant-014
+input: "How long is the warranty on the jacket I just bought?"
+starting_state:
+  fixture: fixtures/warranty-variant-014.sql  # order A-2210, variant FJ-220-W (24 months); parent FJ-220 (12 months)
+  signed_in_customer: C-1188
+  clock: 2026-09-30T15:05:00Z
+  tools: [get_order, get_product, handoff]
+reference_outcome:
+  reply_states_warranty_months: 24
+  state_changes: none
+provenance:
+  source: production trace tr-5f31, sampled 2026-09-30
+  failure_category: warranty-wrong-variant
+capability_tags: [product-facts, variant-lookup]
+split: regression
+annotation_notes: >
+  The variant's warranty overrides the parent product's. Labeled by the
+  support lead; confirmed against the catalog on 2026-10-06.
+```
+
+Look at the starting state first: the same question asked against a fixture where the variant has no warranty of its own is a different case with a different reference. Then look at the provenance: when this case fails next month, it tells you which trace it came from and which failure category it guards.
+
+For cases where the outcome is unclear, the talk's research adds a requirement: "Each case needs its own starting conditions and allowed outcomes." Its example is a tool call whose response is lost after the action may already have happened. In a payment product, that is a payment call that times out. A case where the payment provably went through should expect a confirmed result with no duplicate charge. A case where the outcome cannot be known should expect the agent to say so and hand off. The research's rule: do not "count every stopped run as completed work." The book's project guidance asks for the same check: "Verify actual state after timeout, retry, restart, and rollback."
+
+#### Reference judgments can be wrong
+
+Reviewed reference data is often called a golden dataset. The word "golden" can mislead. People who label make mistakes, especially on ambiguous cases, and they carry their own assumptions. The talk's research cites Michael Hardy's 2024 paper on unreliable annotations for this point. Its abstract says it plainly: "“Gold” and “ground truth” human-mediated labels have error." The study is about expert ratings of classroom teaching, so its specific findings do not transfer to your data. The warning does. Treat a golden set the way you treat any test fixture: it can have bugs. When a case fails, inspect the system's output, the trace, the grader, and the reference before you decide which one is wrong. Keep an adjudication log: each disputed label, who decided, and why. The book's Chapter 8 workshop asks for exactly that, "an adjudication log for ambiguous labels."
+
+#### Coverage, and the cases that should not trigger
+
+Representative traffic is the base: a random sample of what users actually do, so your overall numbers reflect reality. On top of it go the difficult cases, which are rare in traffic but expensive when they fail, and the important subgroups, so that a regression concentrated in one kind of customer or one language does not disappear in the average.
+
+Then the cases people forget: negative examples. Anthropic's article puts the principle in five words: "One-sided evals create one-sided optimization." The book's Chapter 8 failure exercise is the classic shape: "A suite tests when retrieval should occur but contains no cases where retrieval is unnecessary or unauthorized." A suite like that rewards a system that retrieves everything for everyone. It will never catch the assistant that pulls another customer's records into the context, because no case asks it not to.
+
+For every behavior you test, write the cases where the behavior should not happen. The refund agent needs cases where no refund is due. The handoff logic needs cases where the customer is annoyed but no handoff is required. The search tool needs questions the model should answer from what it already has. OpenAI's evaluation guide, checked 2026-10-09, gives the same rule in general form: "Ensure your test data includes typical cases, edge cases, and adversarial cases."
+
+#### Held-out data and the purpose of each suite
+
+You will tune your prompts, your tools, and your judges against eval cases. Every case you tune against becomes less honest as a measure. So keep some cases out of the loop. The book's project guidance is strict about the final collection: "the final acceptance collection must not be used for prompt, model, or grader tuning." Development cases are for iterating. Held-out cases are for deciding.
+
+"Golden" and "held-out" describe different things. Golden says the reference was reviewed. Held-out says the case was not used for tuning. A case can be both.
+
+Suites also differ in purpose. Anthropic's article separates two:
+
+- **Capability evals** ask what the agent can do well. They should start at a low pass rate, because they probe the limits.
+- **Regression evals** ask whether the agent still handles what it used to. They should sit near 100 percent, because each case is something the system once did right.
+
+This resolves an apparent conflict in the sources. Husain and Shankar warn: "If you’re passing 100% of your evals, you’re likely not challenging your system enough. A 70% pass rate might indicate a more meaningful evaluation that’s actually stress-testing your application." Anthropic says a regression suite should pass at near 100 percent. Both are right about different suites. A capability suite at 100 percent has stopped teaching you anything. Anthropic calls that saturation: "Eval saturation occurs when an agent passes all of the solvable tasks." A regression suite below 100 percent means something broke.
+
+When a capability case passes reliably for a while, promote it to the regression suite. When a production failure is fixed, add its case to the regression suite so it stays fixed. That is how the suite grows in the right places.
+
+The book's Chapter 8 completion evidence is the standard to hold yourself to: "Explain sampling choices, label provenance, coverage, intended uses, and limitations so another engineer can maintain the collection." If you could not hand your eval set to a colleague with that explanation, it is not finished.
+
+Learning outcome: you can design an eval set from requirements and real failures, cover negative cases and subgroups, protect held-out cases, and say which suite is for capability and which for regression.
+
+### pass@k and pass^k
+
+An agent given the same task twice may take different paths and get different results. So "does it pass?" has no single answer. The talk keeps two numbers for this, with their existing definitions. Anthropic's article:
+
+- pass@k: "Likelihood that an agent gets at least one correct solution in k attempts."
+- pass^k: "Probability that all k trials succeed."
+
+And the relationship: "At k=1, they're identical (both equal the per-trial success rate). By k=10, they tell opposite stories."
+
+#### The arithmetic
+
+Assume each trial succeeds independently with probability p. Then:
+
+- pass@k is 1 minus the chance that all k fail: 1 minus (1 minus p) to the power k.
+- pass^k is the chance that all k succeed: p to the power k.
+
+Take p equal to 0.7, a per-trial success rate many teams would call promising.
+
+| k | pass@k | pass^k |
+|---|---|---|
+| 1 | 0.70 | 0.70 |
+| 3 | 0.973 | 0.343 |
+| 10 | 0.99999 | 0.028 |
+
+At three trials, the agent almost always gets it right at least once, and gets it right every time only about a third of the time. At ten trials, one number is essentially certain and the other is essentially zero. Anthropic's "opposite stories" is literal.
+
+#### Which one your users experience
+
+The talk's line: **Consistency matters for repeated customer use.**
+
+pass@k describes a setting where something picks the good attempt before anyone relies on it. A coding agent with a test suite lives there. It can try five times, run the tests after each, and keep the attempt that passes. The verifier turns many tries into one good result, so pass@k is the right number, as long as the verifier is trustworthy.
+
+pass^k describes a setting where every attempt counts. A customer who rebooks through your agent every week does not get to discard the bad week. A thousand customers each making one request are, from the system's point of view, a thousand trials, and each failure lands on someone. If you need the agent to handle a given kind of request correctly for the same customer ten times in a row, pass^10 is the number, and at p equal to 0.9 that is only about 35 percent.
+
+The tau-bench paper introduced pass^k for exactly this reason. Its abstract proposes the metric "to evaluate the reliability of agent behavior over multiple trials" and reports, for the agents it tested in 2024, that even state-of-the-art function-calling agents, gpt-4o among them, succeeded on fewer than half of the tasks and were "quite inconsistent", with pass^8 under 25 percent in the retail domain. Those figures describe the models and tasks of mid-2024, not today's models. The shape of the finding is what lasts: a per-trial rate that sounds acceptable can hide a consistency that is not.
+
+So the outcome of this section is a decision as much as a calculation. Before you report a number, say which setting your users are in. If a verifier selects the result before anyone sees it, report pass@k and the verifier's own error rates. If users see every attempt, report pass^k at a k that matches how often a user repeats the task.
+
+#### Estimating them honestly
+
+Two cautions keep these numbers honest.
+
+First, do not compute them from a pooled rate. The independence assumption holds, at best, within one task. Across tasks, success rates differ: some tasks always pass, some usually fail. Suppose a suite has two tasks, one that passes every trial and one that passes 40 percent of trials. The pooled per-trial rate is 0.7, which would predict pass^3 of 0.343. The real pass^3 is the average of 1.0 and 0.064, which is 0.532. Compute per task, then average across tasks.
+
+Second, use an unbiased estimator. The pass@k metric was formalized for code generation by Mark Chen and colleagues in 2021. They generate n samples per task, count the c that pass, and estimate pass@k by counting combinations of those samples. They note that plugging the observed pass rate into 1 minus (1 minus p) to the power k is tempting, and show that it is biased. The rule to keep: compute per task, from the counts. The formulas and a worked example are in the reference below.
+
+<Collapsible title="Mathematical reference">
+
+C(a, b) is the number of ways to choose b items from a. For one task with n trials, of which c passed:
+
+```text
+pass@k = 1 - C(n - c, k) / C(n, k)
+pass^k = C(c, k) / C(n, k)
+```
+
+Worked example: one task, n = 10 trials, c = 3 passing, k = 3. C(10, 3) is 120 and C(7, 3) is 35.
+
+| Estimate | Calculation | Value |
+|---|---|---|
+| pass@3, unbiased | 1 - 35 / 120 | 0.71 |
+| pass@3, plug-in | 1 - (1 - 0.3)^3 | 0.657 |
+| pass^3 | C(3, 3) / 120 = 1 / 120 | 0.008 |
+
+</Collapsible>
+
+Both cautions point the same way. Run several trials per task, record each one, and compute the metric from the per-task counts. Repeated trials cost tokens. They are also the only way to see consistency at all.
+
+Learning outcome: you can compute pass@k and pass^k from a per-trial rate, estimate them from per-task counts, and say which one matches the way your users meet the system.
+
+### Keep both checks running
+
+The third sentence of the takeaway is the one teams drop. Checks get built for a launch, pass, and then sit still while everything around them moves. The model changes, the prompt changes, the tools change, the users change, and the data changes. Orientation's third commitment, in the talk's words: "Evaluation does not stop at deployment."
+
+#### A failure the suite did not catch
+
+The talk's outline reserved sixty seconds of this beat for the presenter's own story, with a fixed shape: "A failure your tests passed and evals or production caught. It must show three things: the suite was green, the behavior was wrong, and a population-level check or a real user found it." The presenter's story is not public. A public account with exactly that shape is.
+
+In September 2025 Anthropic published a postmortem of three infrastructure bugs that, between August and early September, "intermittently degraded Claude's response quality." The causes sat in the serving stack, below the prompt and the application. One was a routing error that sent some requests to servers configured for a different context window. One was a misconfiguration on some servers that "caused an error during token generation," producing stray characters. One was a code change that exposed a compiler bug in the serving stack.
+
+How was it found? Users. The postmortem reports that "A number of users began reporting degraded responses," and that the reports were at first hard to separate from ordinary variation in feedback. Why did the existing checks not catch it? The postmortem says it directly: "The evaluations we ran simply didn't capture the degradation users were reporting." It also says the team "relied too heavily on noisy evaluations." The suite was green, the behavior was wrong, and real users found it.
+
+The remediation is the third clause of the takeaway, written as an engineering plan. The postmortem lists more sensitive evaluations that better tell working implementations from broken ones, quality evaluations in more places, including "continuously on true production systems," and faster tooling for turning user feedback into a diagnosis. Notice that the fix was not to trust users instead of evals. It was to make the evals able to see what users saw.
+
+That is a vendor's own account and it was not independently audited. Take it for what it shows about the structure of the problem. Three of its lessons apply to any owner.
+
+1. A regression suite only catches regressions it can distinguish. A check whose noise is larger than the effect you care about is not protecting you. Measure your suite's sensitivity: run it twice on the same system and look at how much the numbers move.
+2. Changes below your code count. A dependency upgrade, a routing change, a new inference provider, a lower-precision build of the same model: none of these touch your prompt, and any of them can change behavior. Rerun the suite when anything in the stack changes, not only when you change your own code.
+3. Production is part of the eval. Some failures only appear under real traffic, real load, and real data. Sample production traces, grade them with the same checks you use offline, and read some of them by hand every week.
+
+#### What keeps running
+
+The talk's owner slide makes this a three-step job. Build the verifier: "Schema check · business rule · database state · calibrated rubric · human." Build the eval suite: "Representative cases and repeated trials." Keep running it: "Regression checks and sampled production traffic."
+
+In practice that means:
+
+- **Verifiers stay in the loop.** Every action that changes the world passes its checks before it is accepted, on every run, in production. These are not tests that run in CI. They are part of the product.
+- **The regression suite runs on every change.** Prompt edits, tool changes, model swaps, dependency upgrades. OpenAI's evaluation guide gives the same practice its own name: "Set up continuous evaluation (CE) to run evals on every change". A failing regression case blocks the release the way a failing unit test does.
+- **Production is sampled and graded.** A fixed fraction of real traces goes through the same code graders and calibrated judges, and a smaller fraction goes to a human every week. New failure categories found there become new cases.
+- **The instrument is rechecked.** Judges are re-validated against held-out labels when the judge model, the rubric, or the traffic changes.
+
+#### The suite as migration evidence
+
+The talk's owner slide has one line on what all this buys: **Your eval suite gives evidence for a migration decision.** The spoken qualification matters: "The time and confidence depend on the task, sample size, and deployment constraints."
+
+The Models module described the deprecation notice that arrives with a replacement you have never measured. The suite is what turns that notice into an engineering task instead of a gamble. Run the held-out suite on the current model and on the candidate, with repeated trials, per task. Compare per category, not just overall, because aggregate scores can hide the failure the book's Chapter 9 exercise plants: "aggregate scores conceal a critical-category regression." Read the cases that changed verdict in either direction. Then decide, and write down what the evidence did and did not cover.
+
+A comparison is evidence only when it is controlled: the same held-out cases, the same number of trials, and one change at a time. An ablation removes one component, such as a retrieval step, a tool, or an instruction, and reruns the suite, so you learn what each part contributes. Compare per case, paired, and per category. The book's Chapter 9 names these tools together: "Use controlled comparisons, ablations, repeated trials, and error taxonomies."
+
+The suite is also something you own, and the way you store it matters. OpenAI's evaluation guide, checked 2026-10-09, announces that its hosted Evals platform becomes read-only for existing users on October 31, 2026 and is scheduled to shut down on November 30, 2026. That is true on the day checked and may change. The lesson does not depend on it. Your cases, labels, graders, and results are engineering assets. Keep them in a form you control, versioned with the system they measure, so that a vendor's product decision does not take your evidence with it.
+
+Learning outcome: you can name what keeps running after launch, explain how a regression suite earns its name, and use the suite as evidence for a model or harness migration.
+
+### When you are the owner
+
+The talk's owner slide for this area carries the title "Verify one. Evaluate many. Keep evaluating." It opens with the responsibility: **You must define the checks your domain needs.** The talk's examples: "Refund limits, duplicate actions, account ownership, and ledger state may be directly checkable. Other qualities, such as faithfulness, may need expert judgment."
+
+Put the whole module together and the owner's job has a shape.
+
+1. Write down what success means for your product, with the people who know the domain. Outcomes, required constraints, forbidden actions, and acceptable behavior when the system cannot finish.
+2. Read outputs before you automate anything. Twenty to fifty to start, a hundred before you trust your taxonomy. Count the failures by category.
+3. Build verifiers for every action that changes the world, out of reach of the agent, inside the loop. Code where the rule is explicit. Approval where it is not.
+4. Build the suite from requirements and real failures. Negative cases, subgroups, held-out cases. Repeated trials. Graders that read the outcome, and trace checks for the constraints.
+5. Calibrate every judge against an expert on data the tuning never touched. Report TPR and TNR, not a single agreement number.
+6. Keep it running. Regression on every change, production samples every week, new failures turned into new cases.
+
+The talk's slide states the area's pitfall in two halves: "Evals: a generic judge instead of error analysis. Trusting the success claim without checking the result." This program's content map words the same two failures as "A generic judge instead of error analysis; grading the transcript instead of the outcome", and the workshop and the failure exercise below each plant one half.
+
+The talk closes the area with the takeaway:
 
 <Takeaway />
+
+Read the three sentences as three different checks with three different clocks. The first runs on every action, in milliseconds, inside the loop. The second runs across a suite, in minutes or hours, before a release. The third runs for as long as the system exists.
 
 ## Workshop
 
 <Workshop>
 
-The workshop will be an analysis exercise on provided artifacts. No code. It will state the task in one paragraph and give a rubric.
+This workshop puts the first face of the area's pitfall in front of you: a generic judge instead of error analysis. You get two artifacts about the same system. The first is a random sample of 24 conversations from a fictional order-support assistant, with the facts the assistant could see and the policy it was given. The second is the report an off-the-shelf helpfulness judge produced on the same 24 conversations. Do the error analysis first, before you read the judge report. Allow about 45 minutes. Short notes are enough, for example: "booked Tue 6th, customer asked for Wed 7th".
+
+Your task. Read all 24 conversations against the policy, the tool list, and each order record, and write a short open note on every one that fails, naming the first thing that went wrong. Group your notes into a failure taxonomy of three to five categories, with a one-line definition and a count for each, and compute the share of conversations your review would pass. Then compare your result with the judge report: name at least three cases where the judge and your review disagree, and say why the judge got each one wrong. Finish by choosing the category you would fix first and saying why (count, cost of a failure, or both), saying where the failure most likely originates (model, context, data, application, or evaluation), naming the check, with its grader type, that would show whether the change worked, and saying what a sample of 24 cannot tell you.
+
+<Artifact id="verification-and-evals-output-set" />
+
+When your taxonomy and counts are written, open the judge report.
+
+<Artifact id="verification-and-evals-judge-report" />
+
+Apply this rubric to your own response.
+
+- Every failing conversation has a note that names its first failure, tied to a policy rule or an order field, not a general impression such as "unhelpful".
+- The taxonomy uses the product's own terms, each category has a definition another reviewer could apply, and the counts add up to your number of failures.
+- You state a pass share from your review and set it against the judge's 87.5 percent, and you say what the judge could not see or was not asked.
+- At least three disagreements are explained by cause: missing context, a rubric that rewards the wrong qualities, or a correct answer the rubric penalizes.
+- The proposed change is diagnosed before it is fixed, and at least one proposed check is code rather than a judge where the rule is explicit.
+- You say what this sample cannot tell you: 24 cases give a wide interval, and three weeks of traffic may miss failure types.
+
+<Collapsible title="One reviewer's verdicts, open after you write yours">
+
+Thirteen conversations pass and eleven fail, a pass share of about 54 percent against the judge's 87.5 percent.
+
+- Date handling, 3: OS-03 (the day after tomorrow is Saturday the 19th; booked Friday the 18th), OS-09 (two weeks from Monday the 14th is Monday the 28th; booked the 21st), OS-15 ("this Saturday" from Thursday the 24th is the 26th; booked October 3).
+- Refund outside policy, 3: OS-06 (212.00 refunded with no approval request, above the 150.00 limit), OS-12 (delivered August 4, 49 days earlier, outside the 30-day window), OS-19 (180.00 refunded with no approval request).
+- Missed handoff, 2: OS-08 (the customer asked for a person), OS-17 (the customer mentioned a chargeback).
+- Invented facts or actions, 3: OS-11 (a tracking number and an arrival date the record does not hold), OS-23 (a backordered order described as on its way, with a date), OS-07 (an exchange and a payment link the assistant has no tool for, and a price difference the record does not hold).
+
+The judge failed three conversations that pass: OS-05 (accurate and short), OS-14 (the required handoff for an injury), and OS-20 (the required approval request above the limit). It passed all eleven failures and flagged no hallucinations. Your categories may cut differently, for example with OS-07 in a category of its own for claimed actions. What matters is that another reviewer could apply your definitions. With three categories tied at three, the one to fix first is a judgment about cost: a refund paid outside policy loses money every time it happens.
+
+</Collapsible>
 
 </Workshop>
 
@@ -47,11 +881,23 @@ The workshop will be an analysis exercise on provided artifacts. No code. It wil
 
 <FailureExercise>
 
-The failure exercise will plant a failure in an artifact and ask you to find it and explain it.
+This exercise plants the second face of the area's pitfall. A refund agent's regression suite reports 97.5 percent. One task's three trials all passed. Below are the task definition, the trace of trial 1, the grader verdicts, and the database rows the harness dumped after trial 1.
+
+<Artifact id="verification-and-evals-refund-trial" />
+
+Read all four parts. Decide whether trial 1 should have passed. If it should not, say what actually happened in the environment, why the grader passed it anyway, and which checks, inside the loop and in the eval, would have caught it. Write a few sentences.
 
 <Fragment slot="explanation">
 
-The explanation appears here after a response is saved.
+Trial 1 should have failed. The suite's 97.5 percent cannot be trusted either.
+
+What happened. The customer, C-2207, asked for a refund on order A-1034, a rain jacket for 64.50. The agent looked up A-1043 instead, a transposition of two digits. That order belongs to a different customer, C-5521, and holds hiking boots for 86.00. The agent then issued a refund of 86.00 on A-1043. The tool accepted it. The agent's final message told the customer it had refunded 86.00 "for the rain jacket on order A-1034." The database tells the real story: no refund exists for A-1034, and a refund of another customer's order was initiated from C-2207's session. Two clues sit in plain sight: the `customer_id` in the `get_order` result does not match `session.customer_id` in the trace, and the refunded 86.00 does not match the jacket's 64.50 in the orders table.
+
+Why the grader passed it. The only grader, `resolution-judge`, reads `transcript.final_assistant_message`. Its rubric asks whether the assistant "resolved the customer's request and clearly confirmed the action taken." The final message does exactly that, fluently, with a reference number. The grader graded the transcript instead of the outcome. It cannot see the database, so a confident wrong claim looks the same to it as a correct one. The other 116 passing trials were graded the same way, so the suite's 97.5 percent says how often the agent sounds successful, not how often it is.
+
+What would have caught it. Inside the loop, a verifier on `issue_refund`: the order must belong to the signed-in customer, and the amount must not exceed the order total. The refund tool accepted an order the session did not own, which is an account-ownership check missing from the harness, and the talk names account ownership as a check a domain may need. In the eval, a result check on the state: a refund row for the requested order, owned by the session customer, for an amount the policy allows, and no refund rows on any other order. A trace check for the same ownership constraint across every tool call. None of these prescribes the path the agent takes. All of them read the outcome.
+
+Which face is which. The area's pitfall is "A generic judge instead of error analysis; grading the transcript instead of the outcome." This failure exercise plants the second half: grading the transcript instead of the outcome. The workshop plants the first half: a generic helpfulness judge, run with no error analysis behind it, rating policy breaches and invented facts as excellent service. In both, a check existed and returned a reassuring number. In both, it was measuring the wrong thing.
 
 </Fragment>
 

@@ -6,11 +6,11 @@ The program is free, self-paced, has no certificate, and does not require a buil
 
 ## Status
 
-Phases 0 and 1 are committed on `main`. No phase gate is closed yet; `docs/gates.md` holds the open rows.
+Phases 0, 1, and 2 are committed on `main`. No phase gate is closed yet; `docs/gates.md` holds the open rows.
 
-- Published: the landing page with notify-me, the map, the catalog, the changelog, privacy, and the orientation module.
+- Published: the landing page with notify-me, the map, the catalog, the changelog, privacy, the orientation module, Foundations, and the six area modules (Models, Context and knowledge, Tools and extensibility, Orchestration, Verification and evals, Operating it), with their synthetic and public artifacts.
 - Platform: sign-in with GitHub or Google, the account page (data view, display name, one-click deletion), progress, mark complete, saved workshop and failure responses, the self-check and self-assessment islands, the plan, and feedback.
-- Drafts: the other thirteen modules. `models.mdx` is the fixture area module, complete enough to exercise the module layout under `PREVIEW_DRAFTS=true`. The rest are skeletons until Phases 2 and 3.
+- Drafts: the other six modules, the self-assessment and the five electives. They are skeletons until Phase 3.
 - Email: no provider yet. The no-op mailer writes the confirm and unsubscribe links to the log (`docs/decisions.md`, open item 9).
 
 ## Stack
@@ -27,7 +27,7 @@ npm run dev             # http://localhost:4321
 
 The dev server needs `NOTIFY_TOKEN_SECRET` and, because accounts are on by default, `BETTER_AUTH_SECRET` and the four OAuth values. Generate the secrets with `openssl rand -base64 32`. Placeholder OAuth values (as in `e2e/env.ts`) are enough to browse; signing in needs real GitHub and Google OAuth apps with the callback URLs `<BETTER_AUTH_URL>/api/auth/callback/github` and `/google`. To browse without accounts, set `FEATURE_ACCOUNTS=false`.
 
-With `DATABASE_URL` unset, the dev server uses PGlite in memory. Set `PGLITE_DATA_DIR=./.pglite-dev` to keep the data between restarts. Set `PREVIEW_DRAFTS=true` to render draft modules, which is how `/modules/models` becomes reachable.
+With `DATABASE_URL` unset, the dev server uses PGlite in memory. Set `PGLITE_DATA_DIR=./.pglite-dev` to keep the data between restarts. Set `PREVIEW_DRAFTS=true` to render draft modules, which is how the Phase 3 skeletons and `/assessment` become reachable.
 
 ## Configuration
 
@@ -92,7 +92,7 @@ One commit per phase on `main`. Each commit is a working site. `docs/architectur
 |---|---|---|
 | 0 | Landing page with notify-me, live by talk day | Committed, gate open |
 | 1 | Platform: accounts, module rendering, orientation | Committed, gate open |
-| 2 | Core content: foundations and the six area modules | Not started |
+| 2 | Core content: foundations and the six area modules | Committed, gate open |
 | 3 | Closing content: self-assessment, `/assessment`, first electives and labs | Not started |
 | 4 | Operations | Not started |
 

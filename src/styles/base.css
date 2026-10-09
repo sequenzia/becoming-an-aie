@@ -62,6 +62,11 @@ th { text-align: left; font-size: var(--size-heading); font-weight: var(--weight
 td { vertical-align: top; padding: var(--space-3) var(--space-4) var(--space-3) 0; }
 .card th, .callout-surface th, .notice th, .band th { color: var(--color-text); }
 .table-ruled tr + tr td { border-top: 1px solid var(--color-hairline); }
+/* A Markdown table in a module body has no .table-wrap (no rehype plugins, decision 45), so the table itself
+   scrolls sideways when it is wider than the column, and long inline code outside a table breaks, instead of
+   widening the page (WCAG 1.4.10; docs/decisions.md, 2026-10-09). Chromium keeps the table role with display: block. */
+.module-body table { display: block; max-width: 100%; overflow-x: auto; }
+.module-body :not(pre):not(td):not(th) > code { overflow-wrap: anywhere; }
 
 /* focus ring: primary text color with a ground-colored gap, 12.5:1 or better everywhere */
 :focus { outline: none; }

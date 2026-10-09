@@ -4,34 +4,727 @@ kind: area
 area: context
 order: 2
 summary: "Every token in the window is your decision. Instructions, compaction, memory, retrieval, and caching, treated as a budget."
-readingMinutes: 60
+readingMinutes: 51
 prerequisites: [foundations, models]
 talkBeats: ["2.2"]
 bookChapters: [11, 12, 13, 14]
-draft: true
-updatedOn: 2026-09-16
-checkedOn: 2026-09-16
+draft: false
+updatedOn: 2026-10-09
+checkedOn: 2026-10-09
 staleAfterDays: 90
 takeaway: "Context is a budget, not a bucket."
 pitfall: "Adding context instead of curating it"
 transferRows: [decomposition]
-artifacts: []
-outcomes: []
-selfCheck: []
-sources: []
+artifacts:
+  - context-and-knowledge-window-budget
+  - context-and-knowledge-retrieval-stale
+  - context-and-knowledge-compaction-drop
+  - context-and-knowledge-more-context-fix
+outcomes:
+  - id: budget-the-window
+    text: Itemize what fills the context window for one model call and allocate it as a budget, giving each item a relevance, a freshness, a provenance, and a size.
+  - id: diagnose-failures
+    text: Diagnose a context failure by inspecting the assembled input, and name it as rot, distraction, confusion, clash, poisoning, position, staleness, or information loss.
+  - id: prepare-the-corpus
+    text: Design ingestion that keeps source identity, revision, effective dates, structure, and access scope, and that propagates updates, deletions, and permission changes.
+  - id: choose-retrieval
+    text: Choose lexical, semantic, hybrid, agentic, or no retrieval for a corpus and task, and measure retrieval separately from the generated answer.
+  - id: construct-grounded-context
+    text: Assemble one call's context so instructions stay separate from evidence, claims trace to passages, and the system abstains when evidence is missing or in conflict.
+  - id: govern-state-and-memory
+    text: Separate conversation history, application state, memory, and authoritative records, and design compaction and memory with correction, expiry, deletion, and tenant scope.
+  - id: cache-stable-prefixes
+    text: Explain how prompt caching rewards a stable prefix, and why correctness and authorization still override a cache hit.
+  - id: curate-not-add
+    text: Recognize adding context instead of curating it, and choose a curation fix over a larger window.
+selfCheck:
+  - id: q2-focused
+    outcome: budget-the-window
+    question: "Chroma compared full LongMemEval prompts of about 113,000 tokens with focused prompts of about 300 tokens that held only the relevant parts. What did the report find?"
+    options:
+      - "The full prompts did better, because they held more information."
+      - "Every model family did significantly better on the focused prompts."
+      - "There was no difference once the window was large enough to hold the full prompt."
+    correct: [1]
+    feedback:
+      - "Not yet. More tokens did not mean more usable information. Reread Why the window is a budget."
+      - "Correct. The relevant information was in both prompts. Only the focused one let the models use it reliably."
+      - "Not yet. Fitting in the window is not the same as being used well. Reread Why the window is a budget."
+  - id: q3-poisoning
+    outcome: diagnose-failures
+    question: "An agent wrote a false fact into its goals section and keeps pursuing a goal that the fact made impossible. Which of Breunig's four failures is this?"
+    options:
+      - "Context poisoning"
+      - "Context distraction"
+      - "Context confusion"
+      - "Context clash"
+    correct: [0]
+    feedback:
+      - "Correct. An error got into the context and keeps being referenced. The Gemini Pokemon account is the example."
+      - "Not yet. Distraction is over-focus on a long context at the expense of training. Reread How context fails."
+      - "Not yet. Confusion is superfluous content shaping the answer. Reread How context fails."
+      - "Not yet. Clash is new information conflicting with old. Reread How context fails."
+  - id: q4-rot-vs-stale
+    outcome: diagnose-failures
+    question: "The talk's later revision defines context rot and warns not to confuse it with something else. With what?"
+    options:
+      - "Information becoming outdated"
+      - "Prompt injection"
+      - "Model deprecation"
+    correct: [0]
+    feedback:
+      - "Correct. Rot is degraded use of a growing input. Staleness is content that is no longer true. They need different fixes."
+      - "Not yet. Injection is a security failure of untrusted content. Reread How context fails."
+      - "Not yet. Deprecation is the Models area. Reread How context fails."
+  - id: q5-deletion
+    outcome: prepare-the-corpus
+    question: "A help article was deleted in the documentation system a month ago. The assistant still quotes it. Where does the module place the defect first?"
+    options:
+      - "The model hallucinated the article."
+      - "The ingestion pipeline did not propagate the deletion to the index."
+      - "The retrieval top_k is too low."
+    correct: [1]
+    feedback:
+      - "Not yet. The article existed and was retrieved. The model used what it was given. Reread Knowledge starts as data."
+      - "Correct. A deletion is an event the pipeline must carry to every copy: the index, caches, and memory."
+      - "Not yet. A larger top_k retrieves more, including the deleted article. Reread Knowledge starts as data."
+  - id: q6-exact-codes
+    outcome: choose-retrieval
+    question: "Users paste exact error codes such as SAML-417. Dense retrieval returns articles about similar problems but misses the one that names the code. What should you try first?"
+    options:
+      - "Add lexical matching and fuse it with the dense results."
+      - "Raise top_k to fifty."
+      - "Switch to a larger generation model."
+    correct: [0]
+    feedback:
+      - "Correct. Embeddings can miss crucial exact matches. Lexical search matches identifiers, and hybrid retrieval combines the two signals."
+      - "Not yet. More results of the wrong kind spend budget without fixing the mismatch. Reread Retrieval is search you already know."
+      - "Not yet. The generator never sees the right article. Reread Retrieval is search you already know."
+  - id: q7-separate-measurement
+    outcome: choose-retrieval
+    question: "Why measure retrieval separately from the generated answer?"
+    options:
+      - "So a wrong answer can be traced to missing evidence or to misused evidence"
+      - "Because retrieval is cheaper to evaluate than generation"
+      - "Because a good recall score makes answer evaluation unnecessary"
+    correct: [0]
+    feedback:
+      - "Correct. The two failures need different fixes, and an end-to-end score hides which one you have."
+      - "Not yet. Cost is not the reason. Reread Measure retrieval separately."
+      - "Not yet. Perfect retrieval still allows an unsupported claim. Reread Retrieval is search you already know."
+  - id: q8-version-conflict
+    outcome: construct-grounded-context
+    question: "Two retrieved documents give different procedures, one for 7.x self-hosted and one for 8.x cloud. Nothing in the context says which edition the user runs. Which responses are sound?"
+    options:
+      - "Read the edition from the authoritative workspace record, when a tool can, before answering."
+      - "Use the higher-ranked document."
+      - "Merge the two procedures into one answer."
+      - "Say the procedure depends on the edition, show each with its scope, and ask which applies."
+    correct: [0, 3]
+    feedback:
+      - "Correct. The application record is the authority for the user's edition. Look it up instead of guessing."
+      - "Not yet. Rank measures similarity to the query, not applicability to this user. Reread Constructing the context for one call."
+      - "Not yet. A merged procedure is correct for nobody. Reread Constructing the context for one call."
+      - "Correct. Exposing the conflict is a valid outcome when the scope cannot be resolved."
+  - id: q8b-claim-support
+    outcome: construct-grounded-context
+    question: "An answer says users stay signed in during certificate rotation, and cites a help article's section 2. Which checks must pass before that citation counts as grounding?"
+    options:
+      - "The cited section was in the input for this call."
+      - "The cited passage supports the claim next to it."
+      - "The cited article was the top-ranked retrieval result."
+      - "The citation includes a document id and a revision."
+    correct: [0, 1]
+    feedback:
+      - "Correct. A citation to text the model never saw is invented, however plausible it looks."
+      - "Correct. A real, relevant citation can still sit next to a sentence the passage does not say."
+      - "Not yet. Rank measures similarity to the query, not support for a claim. Reread Tie claims to passages."
+      - "Not yet. A well-formed identifier proves the document exists, not that it supports the claim. Reread Tie claims to passages."
+  - id: q9-spaiware
+    outcome: govern-state-and-memory
+    question: "In Johann Rehberger's 2024 SpAIware demonstration, what made the attack persist into future chats?"
+    options:
+      - "Instructions from untrusted content were written into the assistant's long-term memory."
+      - "A modified model checkpoint"
+      - "A malicious browser extension"
+    correct: [0]
+    feedback:
+      - "Correct. Memory writes from untrusted content turned one injection into every future conversation."
+      - "Not yet. Nothing changed in the model. The memory store did. Reread State, memory, and compaction."
+      - "Not yet. The entry point was a website or document the assistant read. Reread State, memory, and compaction."
+  - id: q10-constraints
+    outcome: govern-state-and-memory
+    question: "How should a harness keep a user's constraints through compaction?"
+    options:
+      - "Raise the compaction threshold so compaction rarely runs."
+      - "Hold constraints in a structured record outside the summary and inject that record into every call."
+      - "Rewrite the compaction prompt to tell the summarizer to keep every constraint."
+    correct: [1]
+    feedback:
+      - "Not yet. That postpones the loss, and it spends the budget on everything else in the history. Reread State, memory, and compaction."
+      - "Correct. A constraint is state. State that must survive belongs in a record the harness owns, not in a paraphrase."
+      - "Not yet. Write that prompt anyway, but the summary is still a paraphrase the model controls. Reread Compaction."
+  - id: q11-cache
+    outcome: cache-stable-prefixes
+    question: "An agent's input is mostly a long prefix that repeats from call to call. Which statements about its prompt cache are sound?"
+    options:
+      - "Putting the current time, to the second, on the first line of the system prompt drops the hit rate toward zero."
+      - "Appending each new tool result to the end of the context invalidates the cached prefix."
+      - "When a policy document in the prefix changes, update it now, even though the hit rate drops for a while."
+      - "After a user loses access to a tool, keep the tool in the list until the next weekly prefix rebuild, to protect the hit rate."
+    correct: [0, 2]
+    feedback:
+      - "Correct. A prefix cache matches from the first token. A value that changes every call at the top invalidates everything after it."
+      - "Not yet. Appending keeps the earlier prefix identical, so it stays cacheable. Reread Caching rewards a stable prefix."
+      - "Correct. Correctness comes before cost. A stale policy is not acceptable just because it improves cache hits."
+      - "Not yet. Authorization comes before cost. Reread the qualification at the end of Caching rewards a stable prefix."
+  - id: q12-curation
+    outcome: curate-not-add
+    question: "Which of these changes curate the context rather than add to it?"
+    options:
+      - "Filter retrieval by the user's product edition."
+      - "Append every version of the admin guide to the system prompt."
+      - "Clear raw tool results once the fields the task needs are extracted."
+      - "Raise retrieval top_k from 12 to 40."
+      - "Expire memory entries that were inferred and never confirmed."
+    correct: [0, 2, 4]
+    feedback:
+      - "Correct. Filtering removes passages that do not apply to this user."
+      - "Not yet. That adds four versions that clash with each other. Reread When you are the owner."
+      - "Correct. Tool result clearing keeps what the task needs and drops the rest."
+      - "Not yet. That adds twenty-eight more passages of the same quality. Reread When you are the owner."
+      - "Correct. Expiry keeps old, unverified claims from steering new answers."
+sources:
+  - title: Beyond the Coding Agent, the talk repository
+    author: Stephen Sequenzia
+    date: "2026-09"
+    url: https://github.com/sequenzia/beyond-the-coding-agent
+    checkedOn: 2026-10-09
+    note: "Beat 2.2, slides 10 and 11, as recorded in the program's talk knowledge base from commit 323bc2e. The later revision of beat 2.2 (slides 21 to 25, four decisions and four failure modes) and research section 2 were read at commit d90f230."
+  - title: Becoming an AI Engineer, the book blueprint
+    date: "2026-09"
+    checkedOn: 2026-10-09
+    note: "Chapters 11 to 14 and the project and assessment design, read from the blueprint on the checked date. The public link is pending."
+  - title: Context engineering, a post on X
+    author: Andrej Karpathy
+    date: "2025-06-25"
+    url: https://x.com/karpathy/status/1937902205765607626
+    checkedOn: 2026-09-15
+    note: "The quoted sentence and the enumeration were confirmed through Simon Willison's post, checked 2026-10-09. The thread itself was not read. Date checked is the talk research's check date."
+  - title: Context engineering
+    author: Simon Willison
+    date: "2025-06-27"
+    url: https://simonwillison.net/2025/Jun/27/context-engineering/
+    checkedOn: 2026-10-09
+  - title: Effective context engineering for AI agents
+    org: Anthropic
+    author: Prithvi Rajasekaran, Ethan Dixon, Carly Ryan, Jeremy Hadfield
+    date: "2025-09-29"
+    url: https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents
+    checkedOn: 2026-10-09
+    note: "First-party engineering guidance. Its recommendations should be evaluated on your own model and workload."
+  - title: "Context Rot: How Increasing Input Tokens Impacts LLM Performance"
+    org: Chroma
+    author: Kelly Hong, Anton Troynikov, Jeff Huber
+    date: "2025-07-14"
+    url: https://www.trychroma.com/research/context-rot
+    checkedOn: 2026-10-09
+    note: "Eighteen models, controlled tasks. Supports the qualified warning that reliability can decline as input grows. No universal threshold follows from it."
+  - title: How Long Contexts Fail
+    author: Drew Breunig
+    date: "2025-06-22"
+    url: https://www.dbreunig.com/2025/06/22/how-contexts-fail-and-how-to-fix-them.html
+    checkedOn: 2026-10-09
+    note: "The Gemini 2.5 Pokemon account, the Databricks long-context figure, the Berkeley Function-Calling Leaderboard result, and the sharded-prompt study are reported in this post from their original sources."
+  - title: "Lost in the Middle: How Language Models Use Long Contexts"
+    author: Nelson F. Liu, Kevin Lin, John Hewitt, Ashwin Paranjape, Michele Bevilacqua, Fabio Petroni, Percy Liang
+    date: "2024"
+    url: https://aclanthology.org/2024.tacl-1.9/
+    checkedOn: 2026-10-09
+    note: "Transactions of the Association for Computational Linguistics, volume 12. A failure class and an evaluation method for the models studied, not a fixed rule for current models."
+  - title: "Context Engineering for AI Agents: Lessons from Building Manus"
+    author: Yichao "Peak" Ji
+    org: Manus
+    date: "2025-07-18"
+    url: https://manus.im/blog/Context-Engineering-for-AI-Agents-Lessons-from-Building-Manus
+    checkedOn: 2026-10-09
+    note: "One team's reported production experience and its July 2025 pricing example, not universal cache economics."
+  - title: "Introducing SWE-grep and SWE-grep-mini: RL for Multi-Turn, Fast Context Retrieval"
+    org: Cognition
+    date: "2025-10-16"
+    url: https://cognition.com/blog/swe-grep
+    checkedOn: 2026-10-09
+    note: "A vendor's account of its own retrieval models for code. It does not establish that grep beats embeddings in general."
+  - title: Introducing Contextual Retrieval
+    org: Anthropic
+    author: Daniel Ford
+    date: "2024-09-19"
+    url: https://www.anthropic.com/engineering/contextual-retrieval
+    checkedOn: 2026-10-09
+    note: "The failure-rate reductions are measured on the vendor's own datasets and setup."
+  - title: Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks
+    author: Patrick Lewis and colleagues
+    date: "2020-05-22"
+    url: https://arxiv.org/abs/2005.11401
+    checkedOn: 2026-10-09
+    note: "NeurIPS 2020. The original trained architecture differs from most application-level RAG pipelines today."
+  - title: "Retrieval Augmented Generation or Long-Context LLMs? A Comprehensive Study and Hybrid Approach"
+    author: Zhuowan Li, Cheng Li, Mingyang Zhang, Qiaozhu Mei, Michael Bendersky
+    date: "2024-11"
+    url: https://aclanthology.org/2024.emnlp-industry.66/
+    checkedOn: 2026-10-09
+    note: "EMNLP 2024 Industry Track. Results hold for the models and datasets studied, not as a universal ranking or current economics."
+  - title: "Long Context vs. RAG for LLMs: An Evaluation and Revisits"
+    author: Xinze Li, Yixin Cao, Yubo Ma, Aixin Sun
+    date: "2024-12-27"
+    url: https://arxiv.org/abs/2501.01880
+    checkedOn: 2026-10-09
+    note: "arXiv preprint. The identifier 2501 is not the submission date."
+  - title: AGENTS.md
+    org: Agentic AI Foundation
+    date: "2026"
+    url: https://agents.md/
+    checkedOn: 2026-10-09
+    note: "The site's own description, adoption figure, and stewardship statement, as shown on the checked date."
+  - title: Custom instructions with AGENTS.md, Codex documentation
+    org: OpenAI
+    date: "2026"
+    url: https://learn.chatgpt.com/docs/agent-configuration/agents-md
+    checkedOn: 2026-10-09
+    note: "Discovery order, concatenation, the 32 KiB default for project_doc_max_bytes, and once-per-run loading, as documented on the checked date."
+  - title: Slash commands in Codex CLI
+    org: OpenAI
+    date: "2026"
+    url: https://learn.chatgpt.com/docs/cli/slash-commands
+    checkedOn: 2026-10-09
+  - title: Codex configuration reference
+    org: OpenAI
+    date: "2026"
+    url: https://learn.chatgpt.com/docs/config-file/config-reference
+    checkedOn: 2026-10-09
+    note: "Compaction, tool-output, project-instruction, and memories keys with their defaults, as documented on the checked date."
+  - title: Devin CLI commands and flags
+    org: Cognition
+    date: "2026"
+    url: https://docs.devin.ai/cli/reference/commands
+    checkedOn: 2026-10-09
+  - title: Devin CLI config file
+    org: Cognition
+    date: "2026"
+    url: https://docs.devin.ai/cli/reference/configuration/config-file
+    checkedOn: 2026-10-09
+  - title: "Codex as a platform: build on the open agent harness"
+    org: OpenAI Developers
+    date: "2026-08-19"
+    url: https://developers.openai.com/blog/codex-as-a-platform
+    checkedOn: 2026-10-09
+    note: "The page shows no date; the date is the talk research's. The ARC-AGI-3 figures are the vendor's own reported result."
+  - title: "Spyware Injection Into Your ChatGPT's Long-Term Memory (SpAIware)"
+    author: Johann Rehberger
+    org: Embrace The Red
+    date: "2024-09-20"
+    url: https://embracethered.com/blog/posts/2024/chatgpt-macos-app-persistent-data-exfiltration/
+    checkedOn: 2026-10-09
+    note: "A researcher's first-hand demonstration and disclosure account. The post reports the exfiltration channel fixed in the macOS app and memory manipulation through prompt injection not fixed, as of its writing."
+  - title: "OWASP Top 10 for Agentic Applications: the benchmark for agentic security in the age of autonomous AI"
+    org: OWASP GenAI Security Project
+    date: "2025-12-09"
+    url: https://genai.owasp.org/2025/12/09/owasp-top-10-for-agentic-applications-the-benchmark-for-agentic-security-in-the-age-of-autonomous-ai/
+    checkedOn: 2026-10-09
 ---
 
 ## Transfer connection
 
-This module is planned. It is not yet written. This page holds its place in the catalog until it is.
+This module expands one row of the talk's transfer table. You already do this: **Decomposition and systems thinking.** It becomes this: Harness design. Context and knowledge is where that row gets concrete, because the context window is the one interface every other part of the harness writes into.
 
-It will expand one row of the talk's transfer table. You already do this: Decomposition and systems thinking. It becomes this: Harness design. The module will say what stays the same and what changes.
+You already know how to decompose a system. You draw boundaries. You decide which component owns which state. You decide what crosses each boundary, in what shape, and how often. You know that a request handler should not load the whole database to answer one question, and that a cache needs an invalidation story before it ships. You know the difference between the system of record and a derived copy, and you know which one wins when they disagree. You have argued about payload sizes, pagination, and N+1 queries. All of that is the raw material of this module.
+
+Here is what stays the same. You still decompose. You still ask what each component needs and give it no more. You still separate the system of record from its copies, and you still design for invalidation, deletion, and access control from the start. Ingestion pipelines are still ETL. Search is still search, with indexes, relevance, and recall. Session state is still state, with a lifecycle and retention rules. The habits that keep a service lean and correct are the habits that keep a context window lean and correct.
+
+Here is what changes. The consumer of your payload is a model, and the payload is text. A service ignores the fields it does not read. A model does not. Every token you send can shift what it does, and the talk's research shows that a longer input can make a model less reliable even when the right answer is in it. So the size of the payload is no longer only a cost and latency question. It is a correctness question. The second change is that the model is stateless. Nothing persists between calls unless your harness puts it back into the next input. Conversation history, memory, retrieved documents, and tool results are all things you choose to resend, every call. The third change is where the boundary checks live. A service validates its inputs. A model cannot be trusted to enforce which documents a user may see or which version applies, so those checks move out of the model and into the code that assembles the context.
+
+The book's four chapters behind this module each name the same move in their own words. Chapter 11: "ETL, database integrity, and access control become determinants of answer quality." Chapter 12: "Search indexing and performance measurement extend to semantic representations." Chapter 13: "Dependency management now includes the evidence supplied to the model." Chapter 14: "State modeling and retention rules remain distinct from the model's text history." Read those four sentences again after the module. Each one is a transfer from something you already do.
+
+The decomposition row also belongs to Orchestration, which decides when the loop runs, when it compacts, and when it spawns a subagent. This module decides what each of those steps puts in front of the model. The two modules meet at compaction and subagents. Here they are treated as context decisions. Orchestration treats them as control flow.
 
 ## Topics and learning outcomes
 
 <Outcomes />
 
-The module draws on talk beat 2.2 and on book chapters 11, 12, 13, 14. Each concept arrives with its outcome. Each gets a coding-agent worked example: what the user touched, what the vendor engineered. Each cites a public incident or a first-hand account, with its checked-on date.
+The talk spends three and a half minutes on this area: two slides, one for the user and one for the owner. This module takes each idea on those slides apart and adds the four book chapters underneath them. It runs in the order a request travels. First the window itself and why it is a budget. Then the surfaces you have already touched in a coding agent and what someone engineered behind them. Then how context fails. Then knowledge: how documents become a corpus, how a corpus is searched, and how search results become evidence in one call. Then state: history, compaction, and memory across calls. Then caching, which turns context decisions into a bill. Last, the owner's view and the pitfall. The module reads in two sittings. A natural break falls after Retrieval is search you already know, about 34 minutes in.
+
+Some quotations come from a later revision of the talk's slides, which organizes the same material as four decisions: select, position, maintain, and delegate. Those quotations are marked as the talk's later revision.
+
+### Why the window is a budget
+
+Run /status in Codex CLI or /context in Devin CLI partway through a long session. The number it shows is the size of one input the agent rebuilds and resends on every call.
+
+A model call takes one input and returns one output. The input is a sequence of tokens. Everything the model knows about your task, for this call, is in that sequence. It does not remember the previous call. It does not know which documents exist unless their text is in the sequence. It does not know which tools it can use unless their definitions are in the sequence. The harness rebuilds the sequence before every call, including the call that follows each tool result. That sequence is the context.
+
+The talk dates the vocabulary to Andrej Karpathy's post of June 2025. Context engineering, he wrote, is "the delicate art and science of filling the context window with just the right information for the next step." His list of what goes in was long: "task descriptions and explanations, few shot examples, RAG, related (possibly multimodal) data, tools", and "state and history, compacting". Anthropic's engineering team published a fuller definition three months later, the one the talk's research records. Context engineering is "the set of strategies for curating and maintaining the optimal set of tokens (information) during LLM inference". Prompt engineering, by contrast, is "methods for writing and organizing LLM instructions". The prompt is one part of the context. The context is everything.
+
+The talk puts six things in the window and gives each four attributes. The six are instructions, examples, retrieved knowledge, session state, memory, and tool results. The talk's later revision adds the current request and tool definitions as separate categories, which makes eight. The attributes are the important part. In the talk's words: "Each has a relevance, a freshness, a provenance, and a size."
+
+- **Relevance.** Does this call need the item? A billing example is irrelevant to a certificate question. A tool the model will never call this session is irrelevant to every call in it.
+- **Freshness.** Is the item still true? A document revision, a memory entry, a summary, and a cached answer each have an age. Some ages matter.
+- **Provenance.** Where did the item come from, who may see it, and how much should the model trust it? A vendor knowledge base article, a forum post, a tool result, and an email the agent read are not equally authoritative.
+- **Size.** What does the item cost? Tokens, yes. Also attention, latency, and money.
+
+Why call it a budget and not a capacity? Because the advertised window is the ceiling, not the amount you can usefully spend. Anthropic's article puts it plainly: "Context, therefore, must be treated as a finite resource with diminishing marginal returns." It explains the mechanism with an analogy to human working memory. "LLMs have an 'attention budget' that they draw on when parsing large volumes of context." In a transformer, every token attends to every other token, which "results in n² pairwise relationships for n tokens." The model's ability to keep track of those relationships gets stretched as the input grows. Anthropic's guidance follows from that: aim for "the smallest possible set of high-signal tokens that maximize the likelihood of some desired outcome."
+
+The evidence for diminishing returns comes from several groups. Chroma's July 2025 report tested eighteen models from four families, including Claude Opus 4, GPT-4.1, Gemini 2.5 Pro, and Qwen3. Its headline finding: "Model performance varies significantly as input length changes, even on simple tasks." The experiments were deliberately easy. One asked models to find a sentence that answers a question inside a longer text. Another asked them to repeat a sequence of words with one word changed. Performance still fell as the input grew. Two results from the report matter most to a builder.
+
+The first is the focused-prompt experiment. Chroma ran a conversational memory benchmark, LongMemEval, two ways. The full prompts averaged about 113,000 tokens, mostly irrelevant conversation. The focused prompts averaged about 300 tokens and held only the relevant parts. Every model family did significantly better on the focused prompts. The information needed was present in both versions. Only one version let the models use it reliably. That is the budget argument in one experiment. Adding the rest of the conversation did not add information. It subtracted reliability.
+
+The second is the distractor result. Chroma added passages that were on topic but did not answer the question. "Even a single distractor reduces performance relative to the baseline," the report found, and four distractors degraded it further. Distractors are exactly what a retrieval system returns when it returns its top twelve results (top_k, the number of results retrieval returns, set to 12) and only two are useful. They are also what an over-broad instructions file contains.
+
+Position matters too. Nelson Liu and colleagues tested models on multi-document question answering and on key-value lookup, varying where the relevant item sat in a long input. Models did best when the relevant information was near the beginning or the end, and worse when it sat in the middle, including models built for long contexts. The paper was published in 2024 and studied models from 2023. The authors frame it as a failure class and an evaluation method. Read it that way. Do not adopt "put the important thing first" as a law. Adopt the talk's later rule instead: "test where key information works best."
+
+None of these studies gives you a threshold. Drew Breunig collected two numbers that are often quoted. Google's Gemini 2.5 report observed that "as the context grew significantly beyond 100k tokens, the agent showed a tendency toward favoring repeating actions" from its history. Breunig summarizes a Databricks study: "model correctness began to fall around 32k for Llama 3.1 405b and earlier for smaller models." Those numbers describe specific models on specific tasks in 2025. They are useful as a warning that degradation can start far below the advertised window. They are not a budget for your system. Your budget comes from measuring your system.
+
+What does a budget look like in practice? Write it down per call type, the way you would write a latency budget for a request path. Here is one shape, for a support assistant on a model with a 200,000-token window.
+
+| Component | Ceiling | Rule for inclusion |
+|---|---:|---|
+| System instructions | 3,000 | Versioned file. Changes go through the eval suite. |
+| Tool definitions | 4,000 | Only the tools this call type can use. |
+| Examples | 1,500 | Selected for the request type, not fixed. |
+| Pinned task state | 500 | Constraints and decisions from the application record. |
+| Memory | 800 | Scoped to user and tenant, confirmed or expiring. |
+| Retrieved evidence | 6,000 | Filtered by access and version, then reranked. |
+| Recent history | 8,000 | Last turns raw, older turns compacted. |
+| Tool results | 4,000 | Fields the task needs; raw payloads cleared. |
+| Output reserve | 4,000 | Never spent on input. |
+
+That table adds up to about 31,800 tokens, sixteen percent of the window. The numbers are illustrative, not a recommendation. The point is the column on the right. Each row has a rule that decides what earns a place, and the ceiling forces the rule to choose. When a component wants to grow, the question is not whether it fits. It is what it displaces and whether the eval suite says the trade was worth it.
+
+<Takeaway />
+
+The talk closes its owner slide with that sentence, right after the pitfall and one more line: "A big window is not permission to fill it." A bucket holds whatever you pour in. A budget makes every addition compete with every other use of the same resource. The rest of this module is about how to run that competition.
+
+### What you touched, what someone engineered
+
+You have already worked inside someone else's context budget. Two surfaces make it visible: the instructions file and the compaction notice. The talk names them on its user slide. "The instructions file and the compaction notice are two familiar surfaces." This section takes both apart in two coding agents, Codex CLI and Devin CLI, using each vendor's documentation as checked on 2026-10-09. The documentation changes often. Treat every key and default below as true on that day.
+
+#### When you are the user
+
+The instructions file first. Both tools read AGENTS.md. The project's site describes it as "A simple, open format for guiding coding agents." On the day checked, the site said it is "used by over 60k open-source projects" and is "now stewarded by the Agentic AI Foundation under the Linux Foundation." You write a Markdown file at the root of your repository. You put in the build commands, the test commands, the conventions, and the things the agent keeps getting wrong. The agent reads it at the start of a session.
+
+In Codex CLI, `/init` will "Generate an `AGENTS.md` scaffold in the current directory." In Devin CLI, the config file's `read_config_from` setting has an `agents_standard` option that will "Import standard project rules from `AGENTS.md`, `AGENTS.local.md`, `AGENT.md`, and `.windsurfrules`". Devin's command reference also describes its rules as "always-on context blobs". That phrase is exact. A rule is a block of text that rides along in every call.
+
+Then the compaction notice. Long sessions fill the window. When they do, the agent, or you, triggers a compaction: it summarizes what came before and continues from the summary. Codex documents an automatic threshold. Devin's documentation shows only the manual command. In Codex CLI, `/compact` will "Summarize the visible chat to free tokens", and `/status` will "Display session configuration and token usage." In Devin CLI, `/compact` is listed as "Force conversation compaction" and `/context` will "Show context window usage". If you have used either for a long task, you may have seen a compaction drop something that mattered: a file you had agreed not to touch, a decision you made an hour ago, a test you said was flaky. The talk's spoken version: "You have already felt context engineering fail."
+
+#### What someone engineered
+
+Behind each of those surfaces is a decision someone made about your budget. Codex's documentation is unusually explicit about them, which makes it a good specimen.
+
+The instructions chain. Codex reads a global file from its home directory, then walks from the project root to your working directory. "Starting at the project root (typically the Git root), Codex walks down to your current working directory." In each directory it looks for `AGENTS.override.md`, then `AGENTS.md`, then any fallback names you configure, and it "includes at most one file per directory." Then it concatenates them. "Codex concatenates files from the root down, joining them with blank lines." Precedence is positional. "Files closer to your current directory override earlier guidance because they appear later in the combined prompt." Read that sentence as an engineer. The override mechanism is not a merge with conflict rules. It is placement in the context, relying on the model to weight later text more heavily. That is a context engineering decision, and it is testable.
+
+The instructions chain also has a budget. Codex "stops adding files once the combined size reaches the limit defined by `project_doc_max_bytes` (32 KiB by default)." Thirty-two kibibytes is roughly eight thousand tokens of English. Someone chose that ceiling. When your instructions exceed it, the files nearest your working directory are the ones that do not load, because they come last. The documentation suggests raising the limit or splitting instructions across nested directories. And the chain is built "once per run; in the TUI this usually means once per launched session." Edit your AGENTS.md mid-session and the agent will not see the change until you restart. That is a freshness decision.
+
+Compaction. Codex's configuration reference lists `model_auto_compact_token_limit`, the "Token threshold that triggers automatic history compaction (unset uses model defaults)." It lists `compact_prompt`, an "Inline override for the history compaction prompt." The summary that replaces your history is itself a model call with a prompt someone wrote. You can replace that prompt. It also lists `tool_output_token_limit`, the "Token budget for storing individual tool/function outputs in history." Tool results are often the largest items in an agent's context, a full test log or a directory listing, and someone decided how much of each one is worth keeping.
+
+Memory. Codex has a memories feature, off by default on the day checked and configured with `/memories`, which will "Configure memory use and generation." Its configuration keys read like a retention policy. `memories.use_memories` controls whether existing memories are injected into future sessions. `memories.max_unused_days` makes a memory ineligible for consolidation after thirty days unused, by default. `memories.max_rollout_age_days` limits which past threads are considered at all, thirty days by default. And `memories.disable_on_external_context`, when set to true, keeps threads that used external context, such as MCP tool calls or web search, out of memory generation. It defaults to false. That one key encodes a security judgment: content the agent fetched from outside may not be trustworthy enough to remember. You will see why in the memory section.
+
+None of these is exotic. A size cap with a documented overflow order. Positional precedence. A load-once freshness rule. A compaction threshold and a replaceable summary prompt. A per-item size limit for tool output. A retention window and an exclusion rule for untrusted sources. Each is the kind of decision you make for a cache or a session store. The difference is that the reader is a model, and each decision changes what the model does.
+
+#### What it means when you are the owner
+
+When you use a coding agent, the vendor made all of those choices. When you build an assistant, there is no vendor default. The talk's owner slide is titled "Every token in the window is now your decision." and it lists what you now own: "The context budget · The compaction policy · The memory convention · The retrieval strategy". In the talk's words: "You own all four now."
+
+A good exercise before reading further: open the instructions file in a repository you work in. Count its tokens. Then ask of each paragraph whether the agent needs it on every call, on some calls, or never. The paragraphs it needs on some calls are candidates for retrieval instead of preloading. The paragraphs it never needs are candidates for deletion. That is curation, and it is the whole module in miniature.
+
+### How context fails
+
+A wrong answer from a model with bad context looks the same as a wrong answer from a weak model. That is why context failures get misdiagnosed. The team swaps the model, tunes the prompt, or raises the window, and the failure moves somewhere else. The way to diagnose them is to stop looking at the answer and look at the input. The talk's later revision ends its pitfalls slide with the instruction: "Check the actual input for this call, including what is missing and what no longer belongs."
+
+To do that you need names for what you might find. Drew Breunig's June 2025 post gives four, and the talk uses all of them.
+
+- **Context poisoning.** "Context Poisoning is when a hallucination or other error makes it into the context, where it is repeatedly referenced."
+- **Context distraction.** "Context Distraction is when a context grows so long that the model over-focuses on the context", neglecting "what it learned during training."
+- **Context confusion.** "Context Confusion is when superfluous content in the context is used by the model to generate a low-quality response."
+- **Context clash.** "Context Clash is when you accrue new information and tools in your context that conflicts" with "other information in the context."
+
+Each has a public example behind it. The best-documented poisoning case is a first-hand account in Google's Gemini 2.5 technical report, which Breunig quotes. Google ran Gemini 2.5 as an agent playing Pokemon, a long-running task. The agent kept a goals section in its context. When a hallucinated fact about the game state got into that section, Breunig summarizes, "the agent would develop nonsensical strategies and repeat behaviors in pursuit of a goal that cannot be met." Google's own phrasing is that the model "can become fixated on achieving impossible or irrelevant goals." The mechanism is worth stating precisely. The error was not in the model's weights. It was in the agent's notes, and the agent reread its notes every step. Every later call inherited the error and reinforced it. Any harness that writes model output back into its own context, as a plan, a scratchpad, a summary, or a memory, can poison itself this way.
+
+Distraction is the same Gemini report's 100,000-token observation: past that length, the agent favored repeating actions from its long history over forming new plans. Confusion has a clean measurement in tool definitions. Breunig cites the Berkeley Function-Calling Leaderboard, where "every model performs worse when provided with more than one tool", and a test in which a quantized Llama 3.1 8b failed a task with all 46 available tools and, "when they only gave the model 19 tools, it succeeded." Same model, same task. The difference was how many tool definitions it had to read on every call. Anthropic's article reaches the same conclusion from practice: "One of the most common failure modes we see is bloated tool sets."
+
+Clash has the largest number. Breunig reports a Microsoft and Salesforce study that took benchmark prompts and split them into shards delivered over several turns, the way real users reveal requirements. The result was "an average drop of 39%," and OpenAI's o3 "score dropped from 98.1 to 64.1." The information was the same. The study does not say why. One reading: early, partial turns invite the model to guess, and its guesses stay in the context for later turns to contend with. On that reading, this is clash and poisoning together, produced by nothing more than a normal conversation.
+
+Breunig's four names cover what goes wrong inside the window. The talk's later revision uses a partly overlapping list of four: distraction, position, context rot, and information loss. Position was the Liu result above. The other two new names need their own definitions.
+
+**Context rot is not staleness.** In the talk's later revision: "Context rot means reliability can decline as the input grows, even before the window is full. That is different from information becoming outdated." Rot is about volume. Staleness is about truth. A stale document can sit in a tiny, focused context and still produce a wrong answer. A perfectly current document can be lost in a huge one. They need different fixes. Rot is fixed by removing material. Staleness is fixed by refreshing it, and removing more material will not help.
+
+Information loss is the other. In the talk's later wording: "Retrieval can miss evidence. Summaries and subagent handoffs can drop constraints or uncertainty." Information loss is the failure of every mechanism you use to fight rot. Retrieval exists to bring in less than everything. Compaction exists to keep less than everything. Subagents exist to return less than everything they saw. Each one has to choose, and each one can choose wrong. So the cure for rot creates the risk of loss, and you manage the two together.
+
+Here is a diagnostic procedure you can run on any wrong answer. It assumes you can see the assembled input for the call, which is an observability requirement. If your harness cannot show you the exact input for a call, fix that first.
+
+1. Was the needed information available at all? Check the source system. If the right document does not exist, this is a content gap, not a context failure.
+2. Was it in the corpus the system searches? Check the index for the right revision. If the source has it and the index does not, the pipeline failed. That is the next section.
+3. Did retrieval return it? Check the result set for the query. If the index had it and retrieval missed it, the retrieval method or the query failed.
+4. Did it make it into the input? Check what was selected from the results, and whether access filters or a size cap dropped it.
+5. Did it survive? If it was in an earlier call's input, check whether compaction or a handoff kept it.
+6. Was it findable once there? Check its position, what surrounded it, and what contradicted it.
+7. Only then: did the model misuse correct, present, well-placed information? That is a model or instruction problem.
+
+Here is the procedure on one case. A user reports that the assistant quotes a help article the documentation team retired. Step 1: the source system shows the article deleted on 2026-07-02. Step 2: the index still holds it, and the index's last successful sync was 2026-06-28. Stop there. The defect is the sync job. Retrieval, selection, placement, the prompt, and the model all did their jobs with what they were given, so changing any of them would hide the problem rather than fix it.
+
+It is tempting to start at step 7, because that is where the visible symptom is. The procedure starts at step 1 because the upstream failures are cheap to check and deterministic to fix, and because tuning a model around a pipeline problem can waste weeks. The procedure is also how the book wants you to separate retrieval from generation, which the retrieval section develops.
+
+One more failure deserves a name here because it is a security failure wearing a context failure's clothes. Retrieved documents, tool results, emails, and web pages are text, and text can contain instructions. A model cannot reliably tell the difference between text you meant as evidence and text that claims to be a command. OWASP's Top 10 for Agentic Applications, released December 9, 2025, lists "ASI06 – Memory & Context Poisoning" among its ten risks, and its announcement sums up the observed pattern: "Memory poisoning reshaped behaviour long after the initial interaction." Provenance is the attribute that addresses this. The Operating it module covers the full threat model. This module's job is narrower: know where every item in the window came from, and never let the model be the component that decides what it is allowed to see.
+
+### Knowledge starts as data
+
+Retrieval-augmented generation gets the attention. The pipeline that builds the corpus gets less, and it decides more. If the right passage is not in the index, at the right revision, with the right access scope attached, no retrieval method will find it and no model will use it. The book's Chapter 11 puts it in one line: "ETL, database integrity, and access control become determinants of answer quality."
+
+You have built ETL before. The steps are the same. Here is what each one has to preserve when the consumer is a model.
+
+#### Ingestion and parsing
+
+Ingestion pulls documents from source systems: a documentation platform, a ticketing system, a wiki, a file share, a database. The first decision is which sources are authoritative for which facts. A support assistant that indexes both the official knowledge base and the community forum needs to know that the knowledge base is the authority on procedures and the forum is, at best, evidence of what users experience. That distinction has to be recorded at ingestion as provenance, because by the time a passage is in the window it is just text.
+
+Parsing turns documents into text and structure. This is where quiet damage happens. A PDF table flattened into a line of numbers loses its column headers. A slide deck parsed in reading order interleaves two columns. A warning box rendered in a sidebar gets separated from the procedure step it qualifies. The book's failure exercise for ingestion is exactly that: "parsing separates a warning from the procedure it qualifies." The procedure is retrieved. The warning is in a different chunk, or not indexed at all. The model gives the steps without the warning, faithfully, from correct sources. A claim-support check will not catch it, because every passage the model saw was accurate.
+
+Keep structure. Headings, list nesting, table headers, and callouts carry meaning that the text alone does not. A good parser emits text plus a structural path, such as "Admin Guide 7.4 > Certificates > Rotation > Step 3", and keeps qualifying elements attached to what they qualify.
+
+#### Identity, versions, and effective dates
+
+Every unit of knowledge in the corpus needs an identity that survives re-ingestion: a stable document id, a revision, a section anchor, and a location. Without them you cannot cite, you cannot debug, and you cannot tell two revisions of one document from two different documents. The talk's research puts it plainly: "Keep source locations and revisions."
+
+Versions are the second axis. Product documentation describes products with versions. A procedure that is correct for version 8 is wrong for version 7. Both documents are current. Both are valid. They apply to different users. The book names this case: "two valid documents describe different product versions." The corpus has to carry the scope of each document, the product versions or plans or regions it applies to, as metadata the retrieval step can filter on. If applicability lives only in a sentence inside the document, retrieval will rank by similarity and ignore it.
+
+Effective dates are the third. A policy has a date from which it applies and sometimes a date when it stops. A price, a limit, or a legal term can change without the document's title changing. Record the effective date as data, not prose.
+
+#### Access scope
+
+Permissions have to travel with the content. If a document is visible only to one tenant, or to one role, that scope must be attached to every chunk derived from it and enforced at retrieval time, before anything reaches the model. The book's project design states the boundary precisely: "Retrieval accepts the question and an application-supplied identity scope and returns evidence with document identity, version, and source location. The model does not choose its own authorization scope." The talk's research says the same thing in five words: "Enforce authorization outside the model."
+
+Why outside? Because anything inside the context can be read back out. An instruction such as "do not reveal tenant B's documents to tenant A" is a request to the model, not a control. If tenant B's document is in tenant A's context, the breach has already happened. The talk's owner slide puts the consequence in one line: "Memory exposed to the wrong user or tenant is a breach." The same is true of a retrieved passage.
+
+#### Updates, deletions, and freshness
+
+A corpus is a derived copy of its sources. Every change in a source has to reach the copy: new documents, new revisions, retired documents, deletions, and permission changes. The book's completion evidence for ingestion is to "demonstrate correct propagation of updates, deletions, and permission changes." Its failure exercise starts with the simplest version: "A deleted article remains in the index."
+
+Treat each of those changes as an event with a deadline. How long may a deleted document stay retrievable? How long may a revoked permission still admit a user to a passage? Those are freshness service levels. Write them down. Monitor the sync job against them, and alert when it falls behind. The book's assessment table lists the observable check for permission changes: "Revoked data cannot be retrieved or reused from cache or memory." Notice the last three words. A deletion that reaches the index but not the semantic cache or the memory store has not been propagated.
+
+The failure mode here is silent. A sync job that fails returns nothing. The index keeps serving the last good copy. Retrieval keeps returning results with high scores. The model keeps citing them. Nothing errors. The only signal is that the corpus is getting older, and you will see it only if you log the index's last successful sync and compare document revisions with their sources.
+
+#### Duplicates, conflicts, and corruption
+
+Deduplication matters more than it looks. Ten copies of the same paragraph across ten pages crowd the top results and push distinct evidence out. They also inflate apparent consensus: a model that sees the same claim five times may treat it as well supported. The talk's illustrative case says it in one sentence: "Duplicate records do not create independent cases."
+
+Conflicts need a policy. When two sources disagree, decide in the pipeline which one is authoritative for which facts, and mark the other. When the pipeline cannot decide, keep both, keep their scopes, and let the answer expose the conflict. Corrupted documents, such as a failed OCR, a truncated file, or an encoding error, should fail ingestion loudly rather than enter the index as noise.
+
+A useful test: pick ten questions whose answers changed in the last quarter. For each, find the old and new source revisions, and check which one the index holds. The check takes minutes, and it tests the step most likely to fail without an error.
+
+### Retrieval is search you already know
+
+The talk's definition is deliberately plain: "RAG means retrieving relevant external information and supplying it to the model." It says nothing about vectors, embeddings, or databases. That is on purpose. The talk's research is explicit: "Do not equate RAG with a required vector database, internet access, or a guarantee of answer correctness."
+
+The term comes from a 2020 paper by Patrick Lewis and colleagues. They combined two kinds of memory: "the parametric memory is a pre-trained seq2seq model and the non-parametric memory is a dense vector index of Wikipedia." The parametric memory is what the model learned in training. The non-parametric memory is a store you can read, update, and cite. The paper's motivation still holds. For a model alone, "providing provenance for their decisions and updating their world knowledge remain open research problems." Retrieval addresses both for the facts you control. You can update a document today. You cannot update a model's weights today. You can point to the passage behind a claim. You cannot point to a weight. The 2020 architecture trained the retriever and generator together, which most application pipelines today do not. Keep the idea and leave the architecture.
+
+The book's Chapter 12 transfer statement is the frame for this section: "Search indexing and performance measurement extend to semantic representations." If you have built search, you already know most of what follows.
+
+#### Lexical, semantic, and hybrid
+
+Lexical search matches terms. The standard ranking function is BM25. Anthropic's contextual retrieval post describes it in one line: "BM25 (Best Matching 25) is a ranking function that uses lexical matching to find precise word or phrase matches." It rewards documents that contain the query's rarer terms, adjusted for document length. It is fast, explainable, and excellent at identifiers: error codes, product names, configuration keys, ticket numbers, function names. It fails on vocabulary mismatch. A user who asks how to "stop everyone getting kicked out when we swap the cert" may share no terms with an article titled "SAML certificate rotation with overlap".
+
+Semantic search compares meaning. An embedding model maps a passage to a vector, a list of numbers, so that passages with similar meaning land near each other. The talk's later revision gives the teaching definition: "Semantic search compares numerical representations called embeddings." At query time you embed the question and look for nearby passage vectors, usually with an approximate nearest-neighbor index that trades a little recall for a lot of speed. Semantic search handles paraphrase well. It fails on exact matches. Anthropic's post again: "While embedding models excel at capturing semantic relationships, they can miss crucial exact matches." An error code is a string, and the vector for "SAML-417" may sit closer to other SAML errors than to the one article that names it.
+
+Hybrid retrieval runs both and combines the rankings. A common way is reciprocal rank fusion, which scores each document by its rank in each list rather than by raw scores that are not comparable across methods. The book's retrieval failure exercise is the reason hybrid exists: "Exact error codes disappear under semantic matching, while paraphrased questions defeat a lexical-only baseline." Each method fixes the other's blind spot, and introduces its own. Hybrid is a sensible default for mixed corpora. It is not a law.
+
+After the first ranking, a reranker can reorder the top candidates. A reranker reads the query and each candidate together and scores relevance more precisely than the first-stage retrieval can, at higher cost per candidate. So you retrieve broadly and cheaply, then rerank narrowly and expensively, and send only the best few to the model.
+
+Anthropic published one set of numbers on how much these layers add, on its own datasets and setup in September 2024. Its technique, contextual retrieval, prepends a short model-written explanation of where each chunk sits in its document before indexing. Measured as the failure rate of retrieving the right chunk in the top twenty, contextual embeddings cut failures by 35 percent. Adding contextual BM25 cut them by 49 percent. Adding a reranker on top cut them by 67 percent, from 5.7 percent of queries to 1.9 percent. Those are one vendor's measurements on its own data. What transfers is the shape: lexical and semantic signals combined beat either one, and reranking adds more. Your numbers come from your eval set.
+
+#### Chunking, metadata, and query rewriting
+
+Chunking decides the unit of retrieval. Too large and each chunk carries irrelevant text into the window. Too small and each chunk loses the context it needs to be understood. Anthropic's post gives the canonical small-chunk failure. A chunk reads "The company's revenue grew by 3% over the previous quarter." It names neither the company nor the quarter. As the post puts it, problems arise "when individual chunks lack sufficient context." Chunk along the document's own structure where you can, and carry the structural path and document identity with every chunk.
+
+Metadata filters apply hard constraints before or during ranking: tenant scope, product version, language, document status, effective date. Similarity cannot do this job. A version-8 procedure and a version-7 procedure are nearly identical text and will score nearly identical similarity. Only a filter on applicability, built from metadata the pipeline recorded, can separate them. The book names the opposite failure too: "inappropriate filtering". A filter that is too strict hides the right answer. Measure both.
+
+Query rewriting turns what the user typed into what the index can match. Conversational questions depend on earlier turns. "And for the cloud version?" means nothing to an index. A rewrite step resolves references, expands abbreviations, or splits a compound question into several queries. It is another model call with its own failure modes, so it belongs in your traces and your evals.
+
+#### Agentic search
+
+A coding agent mostly does not use an embedding index at all. It searches the repository with tools: list files, grep for a symbol, read the file that matches, follow the import. That is retrieval too. The talk names it alongside the others: "Grep, file reads, embeddings, and hybrid retrieval are methods to choose for the data and task."
+
+Cognition's SWE-grep is a public account of engineering this. In October 2025 Cognition described SWE-grep and SWE-grep-mini as "fast agentic models specialized in highly parallel context retrieval". The motivation was cost in time. Cognition reported its agent trajectories "often spending >60% of their first turn just retrieving context." The models use a restricted tool set, "(grep, read, glob, ...)", and are trained to "natively issue up to 8 parallel tool calls per turn in a maximum of 4 turns." Cognition claims they "match the retrieval capabilities of frontier coding models, while taking an order of magnitude less time." On embeddings for code, the post is blunt: "The embeddings can even be counterproductive, as the agent can give too much weight to irrelevant information." It shipped as the Fast Context subagent in Windsurf.
+
+Read that as a design argument for one kind of corpus, not as a verdict. Code has exact identifiers, explicit structure, and a tool, grep, that matches them perfectly. The talk's research is careful: "SWE-grep illustrates choosing retrieval for code. It does not establish that grep is universally preferable to embeddings." A corpus of support conversations, where users describe the same problem a hundred ways, has the opposite character. Notice also the architecture. Retrieval runs in a separate, fast model with its own context, and only the findings return to the main agent. That is a subagent used as a context boundary, which the state section returns to.
+
+Anthropic's article describes the same pattern for agents generally as just-in-time retrieval: keep "lightweight identifiers (file paths, stored queries, web links, etc.)" in the context and load the content only when needed. The trade is latency and an extra decision for a smaller window.
+
+#### Measure retrieval separately
+
+The book makes one rule non-negotiable: "Measure retrieval separately from generated answers." If you only measure the final answer, a wrong answer tells you nothing about where it went wrong. The diagnostic procedure in the previous section needs a retrieval measurement at step 3.
+
+Retrieval measurement is search evaluation, which you may already know. Build a labeled set: real questions, each with the passages that answer it. Run retrieval. Compute a few numbers.
+
+- **Recall at k.** Of the relevant passages, what fraction appear in the top k? This is the number that matters most for RAG, because the model can only use what it receives.
+- **Precision at k.** Of the top k, what fraction are relevant? Low precision means distractors, which the context rot evidence says cost reliability.
+- **Ranked measures.** Measures such as mean reciprocal rank or normalized discounted cumulative gain, which reward putting relevant passages higher.
+
+Report them by query type. The book's teaching target for its fictional support application is "Recall at 5 of at least 0.90 on answerable retrieval cases", with the interpretation "Define relevant evidence and report results by query type". Treat that as the book's authoring default, not a standard. The useful part is the breakdown. A retrieval system can score well on average and fail completely on one query type, such as error codes or version-specific procedures, that matters most.
+
+Keep the labeled set current. When a source document gets a new revision, the label for every query it answers may change. A retrieval eval that last ran before the revision measures a corpus that no longer exists.
+
+#### Do you need retrieval at all?
+
+Sometimes the answer is no. Anthropic's 2024 post says so directly: if your knowledge base is smaller than about 200,000 tokens, roughly 500 pages, you "can just include the entire knowledge base in the prompt that you give the model." Two research papers compared the approaches more carefully. Zhuowan Li and colleagues, at EMNLP 2024, found that with enough resources, long context "consistently outperforms RAG in terms of average performance", while RAG keeps "a distinct advantage" in cost. They proposed Self-Route, which lets the model decide per query whether retrieval suffices, and reached "a comparable performance to LC" at much lower cost. Xinze Li and colleagues, in a December 2024 preprint, found that "LC generally outperforms RAG in question-answering benchmarks", that summarization-based retrieval did about as well, that chunk-based retrieval "lags behind", and that earlier studies had underrated how much context relevance matters.
+
+Do not read those as a verdict for long context either. Both studies measured models and datasets of 2024, on public question-answering benchmarks. Neither, as their abstracts describe them, measured version filtering, tenant isolation, freshness, or citation, which are the problems a product corpus brings. The book asks you to "Compare retrieval, long-context input, and hybrid approaches under a common evaluation." That is the decision procedure. Measure all three on your cases, with your quality bar and your cost and latency constraints. Then choose. Remember that a long-context design still needs a corpus pipeline. Somebody still has to decide which version of which document goes into the window, and that decision is retrieval whether or not you call it that.
+
+### Constructing the context for one call
+
+Retrieval returns candidates. Construction decides what the model actually sees: which candidates enter, in what order, wrapped in what, next to which instructions, with what rules for the answer. The book's Chapter 13 transfer statement names the shift: "Dependency management now includes the evidence supplied to the model." You pin your library versions and you know where each one came from. Do the same for the evidence in each call.
+
+#### Select after you retrieve
+
+Retrieval and selection are different steps. The talk's later revision says it in one line: "Select which results enter the input, keeping their source references." A retrieval system that returns twelve candidates has not decided that all twelve belong. Selection applies the rules retrieval cannot: drop passages outside the user's access scope, drop passages for the wrong version, collapse duplicates, cap the total, and keep the best-supported few.
+
+Access belongs here as a hard gate. "Enforce access before inclusion," in the talk's later revision. Do it in code, from the identity the application authenticated, never from anything the model said. Then log what was dropped and why. A filtered-out count of zero on every call is as suspicious as a count of fifty.
+
+#### Separate instructions from evidence
+
+The model needs to know which text is your instruction and which text is material to reason about. Put them in clearly separated, labeled blocks. Give each evidence passage its identity: document id, revision, section, applicability, and date. Tell the model what the evidence is for and how much to trust each source class. The talk's later revision: "Distinguish instructions from evidence."
+
+This is partly about quality and partly about safety. A retrieved passage that says "ignore previous instructions" is still evidence, and labeling it as such does not make the model immune. It does make the model's job clearer, and it makes your traces readable. The hard controls stay outside the model, as the Operating it module develops.
+
+Instructions have their own budget problem. Anthropic's article describes a range. At one end, brittle if-then rules that try to cover every case. At the other, vague guidance that assumes shared context the model does not have. "The optimal altitude strikes a balance: specific enough to guide behavior effectively, yet flexible enough to provide the model with strong heuristics." In practice, that means instructions that state goals, constraints, and the reasoning behind them, plus a few well-chosen examples. Anthropic's advice on examples is to curate "a set of diverse, canonical examples" rather than "a laundry list of edge cases". The workshop's first artifact lets you check this on a real manifest.
+
+#### Place, then test the placement
+
+Order matters, and the right order depends on your model. The talk's later revision gives the rule: "test where key information works best." The Liu result says the middle of a long input is the risky place for the models studied. Manus, in its July 2025 post, reported a related trick from production. Its agent keeps a todo file and rewrites it as it works, which puts the current objectives at the end of the context. In Ji's words, "Manus is reciting its objectives into the end of the context." Codex's instruction chain relies on the same effect for precedence: later files override earlier ones because they come later.
+
+Test placement the way you test anything else. Build cases where the key fact sits in different positions. Measure. Keep the arrangement that holds up.
+
+#### Tie claims to passages
+
+A grounded answer connects each factual claim to the passage that supports it. The book's topic: "Connect generated claims to supporting passages." That requires two checks, not one. The first is that the citation exists: the cited document and section were in the input. The second is that the passage supports the claim. The book's failure exercise is precisely the case where the first check passes and the second fails: "A real citation does not support its adjacent claim." A citation that points to a real, relevant document can still be attached to a sentence the document does not say. Check support, not just existence. The talk's later revision says it for summaries: "A generated summary still needs supporting sources."
+
+#### When the evidence is missing or in conflict
+
+Some questions have no answer in the corpus. Some have two answers that apply to different users. Some have two answers that contradict each other. The book covers all three: "Handle insufficient evidence, contradictory sources, and unanswerable questions."
+
+For each, decide the behavior in advance and test it. When evidence is missing, abstain or ask a clarifying question, and say what was searched. When sources apply to different scopes, resolve the user's scope from an authoritative record if you can, and if you cannot, show each answer with its scope and ask. When sources contradict within the same scope, expose the contradiction and prefer the authoritative source by your pipeline's rules. The book's assessment table states the observable checks: for missing evidence, "The system abstains or requests useful clarification", and for conflicting documents, "The answer resolves version scope or exposes the conflict."
+
+Measure abstention in both directions. The book is careful here. Its grounded-answer target comes with the note "Also report answer completeness and abstention so silence cannot game the metric", and its abstention target with the note "Also report false abstentions on answerable requests". A system that refuses everything has perfect claim support and no value.
+
+### State, memory, and compaction
+
+The model is stateless. Everything that looks like memory is your harness putting text back into the next call. The book's Chapter 14 transfer statement: "State modeling and retention rules remain distinct from the model's text history." That sentence is the design principle for this section. You already model state. Do not let the text history become your state model by accident.
+
+#### Five kinds of state
+
+The book asks you to "Distinguish conversation history, application state, saved preferences, retrieved knowledge, and learned parameters." They have different owners, lifetimes, and authorities.
+
+- **Conversation history** is what was said. It is evidence of what the user asked and what the assistant claimed. It is not evidence that anything happened.
+- **Application state** is what is true in your systems: the workspace edition, the ticket status, the refund that was or was not issued. It lives in a database with an owner, and it is the authority.
+- **Saved preferences and memory** are what the system chose to remember about a user across sessions. They are claims with an age and a source.
+- **Retrieved knowledge** is the corpus, with its revisions and scopes.
+- **Learned parameters** are the model's weights. You do not change them per user. Fine-tuning is a separate elective.
+
+A common design error is letting history stand in for application state. The user said in turn 2 that they are on version 7.4. The workspace record says the same. Which one does the harness trust when they disagree, or when turn 2 is compacted away? The book's workshop answers it: build "reconstruction from authoritative application records." Read the edition from the workspace record every time it matters. Treat the user's sentence as a hint, and the record as the fact.
+
+#### Compaction
+
+Compaction, in Anthropic's description, is "taking a conversation nearing the context window limit, summarizing its contents, and reinitiating a new context window with the summary." It is a lossy transformation of state, done by a model, under a prompt, at a threshold. Every one of those is a decision.
+
+The book compares three strategies: "Compare summarization, selection, and reconstruction of context." Summarization paraphrases the history. It is general and lossy, and the summarizer decides what matters with no knowledge of what will matter later. Selection keeps some items verbatim and drops others: the last few turns raw, the decisions, the open questions. Reconstruction rebuilds the needed context from authoritative records instead of from the transcript. Most good designs combine them. Keep recent turns raw. Reconstruct facts from records. Summarize only the remainder.
+
+The lightest form of compaction is often the best first step. Anthropic calls it "One of the safest lightest touch forms of compaction": tool result clearing. Once a tool result has been used, replace it with a short note of what it contained and where to fetch it again. A raw ticket list of ten thousand tokens that contributed one ticket id should not ride along for the rest of the session. Codex's `tool_output_token_limit` is a vendor's version of the same idea.
+
+What should compaction never lose? The talk's owner slide answers with a customer-facing example: "A compaction that drops a constraint can produce a wrong answer." Constraints, decisions, commitments, and unresolved questions are state. The talk's later revision: "Check that constraints and unresolved work survive." The robust design is not a better summary prompt, though you should write one. It is a structured record the harness maintains outside the summary: the user's constraints, the decisions made, the open items. The harness injects that record into every call, and compaction never touches it. Then a summary that forgets a constraint costs nothing, because the constraint never depended on the summary.
+
+Test compaction like any other lossy transformation. The book's topic: "Test whether important information survives long interactions and whether obsolete information persists." Build sessions that plant a constraint early, run past the threshold, and probe for the constraint afterward. Then the reverse: plant a fact, correct it, run past the threshold, and check the old fact did not come back. The book's completion evidence asks you to "document what compaction preserves, loses, and cannot establish." The last word matters. A summary that says "the user's refund was processed" cannot establish that it was. Only the payment record can.
+
+Compaction done well is worth a lot. OpenAI's August 2026 post on the Codex harness reported that on ARC-AGI-3, "retained reasoning and context compaction raised GPT-5.6 Sol's score from 13.3% to 38.3%" while "reducing output tokens sixfold." That is a vendor's result for its own harness and model on one benchmark. It is still a vivid demonstration that the same model behaves very differently depending on what its harness keeps.
+
+#### Memory
+
+Memory is state that outlives the session. The talk's research is careful to say it is not a defect: "Cross-session memory can be intentional." A support assistant that remembers a customer's edition, or a coding agent that remembers your repository's test command, saves real time. Anthropic's article describes the agent-side pattern as structured note-taking, where "the agent regularly writes notes persisted to memory outside of the context window." Manus describes the file system as its version: it treats "the file system as the ultimate context in Manus".
+
+The book lists the lifecycle: "Design memory creation, retrieval, correction, expiration, and deletion." Each step is a design decision with a failure attached.
+
+- **Creation.** Who decides what becomes a memory, and from what source? An inference from a conversation is weaker than a fact from a record. Store the source with the memory.
+- **Retrieval.** Which memories enter which calls? All of them, always, is the bucket approach.
+- **Correction.** When the user says "that is wrong, we moved to 7.4", the old memory must be replaced, not joined by a contradictory new one. The book's failure exercise: "an outdated preference survives an explicit correction."
+- **Expiration.** Unconfirmed memories should age out. Codex's thirty-day default for unused memories is one vendor's choice.
+- **Deletion.** A user's deletion request, and a revoked permission, must reach the memory store, as the corpus section required for the index.
+
+Scope is the security property. Every memory belongs to a user and a tenant, and retrieval of memory must filter on both, in code. The talk's sentence again: "Memory exposed to the wrong user or tenant is a breach."
+
+An instructive public incident in this area is a researcher's demonstration from 2024. Johann Rehberger, who writes as Embrace The Red, showed that ChatGPT's long-term memory could be written by content the assistant read. In his September 20, 2024 post, "Spyware Injection Into Your ChatGPT's Long-Term Memory (SpAIware)", he describes a website or document that, through prompt injection, can "invoke the memory tool to store arbitrary memories." The planted memory instructed the assistant to send each conversation to an attacker's server. Because memories are injected into every new session, "all new conversation going forward will contain the attackers instructions." Rehberger reports that OpenAI fixed the exfiltration channel in the macOS app in "ChatGPT version 1.2024.247". On whether memory manipulation itself was fixed, his post's answer at the time was "No." His advice to users: review stored memories regularly.
+
+Read the incident as an owner. The memory feature did what it was designed to do. The failure was a provenance decision: content from an untrusted source was allowed to create durable state that every later call would trust. That is poisoning with persistence. Codex's `memories.disable_on_external_context` key, which keeps threads that used MCP tools or web search out of memory generation when set to true, is a direct design response to that class of risk. Its default on the day checked was false. Defaults are someone else's budget decision. Yours may differ.
+
+#### Subagents as context boundaries
+
+A subagent gets its own context, does focused work, and returns a result. Anthropic's article: "specialized sub-agents can handle focused tasks with clean context windows." From the context point of view, that is a firewall. The exploration, the dead ends, and the raw tool output stay in the subagent's window. Only the findings cross. SWE-grep is one: a fast retrieval model with its own small window, returning file locations to the main agent.
+
+The talk's later revision gives the rule for the boundary: "Choose what each receives, and have it return findings with sources." The same information-loss risk applies as with compaction. A handoff is a summary. If the subagent drops a constraint or flattens an uncertainty, the main agent cannot recover it. Return sources with findings so the main agent can check, and treat the handoff format as a contract you test. When to spawn a subagent at all is an Orchestration decision.
+
+One last piece of field advice from Manus runs against intuition. Ji recommends keeping failures in the context: "leave the wrong turns in the context. When the model sees a failed action, and the resulting observation or stack trace, it implicitly updates its internal beliefs". Curation does not mean deleting everything unpleasant. A failed attempt with its error is high-signal, relevant, fresh, and small. It earns its place. Ji also warns about the opposite of variety: "The more uniform your context, the more brittle your agent becomes." Repeated identical patterns in the history invite the model to keep repeating them.
+
+### Caching rewards a stable prefix
+
+Context decisions show up on the bill, and caching is where the effect is largest. The talk spends one build on it. "Caching is another context decision."
+
+The mechanism, briefly. When a model processes an input, it computes intermediate state for every token, called the key-value cache, or KV cache. If the next request begins with exactly the same tokens, a provider can reuse that state instead of recomputing it. Reused input is faster and, on providers that price it, cheaper. The match is by prefix. The cache helps up to the first token that differs, and nothing after that point is reused.
+
+Manus published a widely cited first-hand account of what this means for an agent. Yichao "Peak" Ji, July 2025: "the KV-cache hit rate is the single most important metric for a production-stage AI agent." The reason is the shape of agent traffic. Each step appends a tool result and a short action to a long, growing context. In Manus, "the average input-to-output token ratio is around 100:1." Almost all the tokens are input, and almost all of the input repeats the previous call. Ji's pricing example used Claude Sonnet's prices at the time: "cached input tokens cost 0.30 USD/MTok, while uncached ones cost 3 USD/MTok", a tenfold gap. The talk is careful to scope those numbers: they are "that team's experience and prices."
+
+Here is the arithmetic for one agent step under that example's prices, input side only. The step sends 50,000 input tokens. With no cache hits, input costs 50,000 times 3 dollars per million, which is 15 cents. With the first 45,000 tokens served from cache, input costs 45,000 times 30 cents per million plus 5,000 times 3 dollars per million, which is about 2.9 cents. That is roughly 81 percent less for the same tokens. Across a fifty-step task, the difference compounds. Prices and cache-write rules differ by provider and change over time. Check your provider's current pricing before you trust any number, including these.
+
+What breaks the cache is any change near the front. Ji names the classic one: a timestamp at the beginning of the system prompt, "especially one precise to the second", which makes every call's prefix unique. Others are less obvious. A serializer that does not "guarantee stable key ordering when serializing JSON objects" changes the bytes without changing the meaning. Adding or removing a tool definition mid-task changes everything after it. Ji's rule: "avoid dynamically adding or removing tools mid-iteration." Manus instead keeps the tool list fixed and constrains which tools the model may choose at each step, so the prefix never changes.
+
+So the cache-friendly layout is the budget-friendly layout. Put stable content first: system instructions, tool definitions, fixed examples. Put per-session content next. Append new steps at the end and never edit earlier ones in place. Keep volatile values, such as the current time, out of the prefix or at the end. Log the cached share of input tokens per call, and alert when it drops.
+
+Now the talk's qualification. "Preserve stable prompt prefixes when useful. Measure the savings, and update context or tool access when correctness or authorization requires it. A stale policy is not acceptable just because it improves cache hits." A cache is an optimization. If a policy document in the prefix changes, the prefix changes, and the cache misses for a while. That is correct behavior. If a user loses access to a tool, the tool list changes. That is also correct. A team that holds a stale policy in the prefix to protect its hit rate has turned a cost metric into a correctness bug. The order of priority is correctness, then authorization, then cost.
+
+Caching interacts with curation in one more way. A bloated but stable prefix can be cheap and still bad. Twenty-two tool definitions cached at a tenth of the price are still twenty-two tool definitions the model reads every call, with the confusion that Breunig's evidence describes. Cheap is not the same as free.
+
+### When you are the owner
+
+The talk's owner slide lists what you now own: the context budget, the compaction policy, the memory convention, and the retrieval strategy. Each of those was a vendor default when you were the user. Now each one is a document you write, a configuration you version, and a behavior you evaluate. The slide also says why the stakes rise: "Customer-facing raises the stakes, because the context now holds another person's data." Its band reads "Pitfall: adding instead of curating." The talk says it in full: "adding context instead of curating it. A big window is not permission to fill it."
+
+#### Why adding is the default
+
+Adding is what happens when nobody owns the budget. Every addition is locally reasonable. The model missed a fact, so add the document. A summary dropped a constraint, so raise the threshold. Retrieval missed a passage, so raise top_k. A customer complained about a feature, so add a paragraph to the instructions. A new integration shipped, so add its tools. Each change fixes the case in front of you, and the demo works again. None of them removes anything, because removal has no visible benefit on the day you do it and a visible risk.
+
+Over months the window fills with material that was relevant to some past case. The talk's research names the result: Chroma "shows degradation well before the window is full." Distractors accumulate. Versions clash. The key instruction sinks into the middle. Cost and latency climb, and the cache stops helping because the prefix keeps changing. Then a failure appears that none of the additions caused alone, and the team's instinct is to add again.
+
+The deeper problem is that adding usually leaves the cause in place. A stale index stays stale when you retrieve more from it. A compaction prompt that ignores constraints still ignores them at a higher threshold; it just runs less often. A missing version filter is still missing when you append every version of the guide. Adding treats the symptom by raising the dose, and the side effects are the failure modes from How context fails.
+
+#### What curation looks like
+
+Curation is a small set of operations, each with a cause it addresses.
+
+- **Remove.** Delete what no call type needs: stale instructions, unused tools, examples that do not match the request type.
+- **Filter.** Apply access, version, status, and date as hard constraints before ranking, not as hopes inside a prompt.
+- **Refresh.** Fix the pipeline so the index, caches, and memory hold current revisions. Monitor freshness as a service level.
+- **Retrieve on demand.** Replace preloaded reference material with retrieval or just-in-time loading behind an identifier.
+- **Clear.** Replace used tool results with short notes.
+- **Pin.** Keep constraints, decisions, and open items in a structured record outside the history, injected every call.
+- **Reconstruct.** Read facts from authoritative records instead of trusting the transcript or a memory.
+- **Delegate.** Give exploratory work to a subagent with its own window and take back findings with sources.
+- **Expire and correct.** Age out unconfirmed memories, and replace corrected ones.
+
+Each of those has a test. That is the other half of ownership. Every change to the context, whether a new instruction, a different chunk size, a new compaction prompt, or a new tool, is a change to the system's behavior and goes through the eval suite before it ships. The Verification and evals module builds that suite. From this module it needs specific cases: retrieval cases labeled by query type with current revisions, constraint-survival cases that cross the compaction threshold, correction cases for memory, version-conflict cases, missing-evidence cases, and tenant-isolation cases.
+
+#### The owner's artifacts
+
+Ownership is concrete when it is written down. For each call type in your system, keep four short documents next to the code.
+
+1. A context budget: the table from the start of this module, with ceilings and inclusion rules, and the measured actuals from your traces.
+2. A compaction policy: the threshold, what is kept raw, what is pinned, what is reconstructed, the summary prompt, and the survival tests.
+3. A memory convention: what may be remembered, from which sources, with what scope, for how long, and how correction and deletion work.
+4. A retrieval strategy: the corpus and its pipeline, the freshness service levels, the method and filters, the selection rules, and the retrieval eval with its last run date.
+
+When a failure arrives, those four documents are where you look first, and where the fix goes. Change the rule, not just the dose.
+
+The talk's last line for this area is the sentence to carry into the rest of the program, and it is the one this module has been unpacking from the beginning.
 
 <Takeaway />
 
@@ -39,7 +732,26 @@ The module draws on talk beat 2.2 and on book chapters 11, 12, 13, 14. Each conc
 
 <Workshop>
 
-The workshop will be an analysis exercise on provided artifacts. No code. It will state the task in one paragraph and give a rubric.
+The three artifacts below come from one fictional support assistant, all synthetic and written for this module. The first is the context manifest for one call. The second is the retrieval result set behind that same call. The third is a later session with the same customer, where automatic compaction ran. Read all three before you write.
+
+<Artifact id="context-and-knowledge-window-budget" />
+
+<Artifact id="context-and-knowledge-retrieval-stale" />
+
+<Artifact id="context-and-knowledge-compaction-drop" />
+
+You have just become the owner of this assistant. Write a short memo to your team, in plain prose or a list, of about 500 to 800 words, not counting the budget table. For each artifact, name the context failures you find, using this module's vocabulary, and point to the exact rows, fields, or lines that show each one. For each failure, say which of the four attributes it violates (relevance, freshness, provenance, size) and which owner document it belongs to (budget, compaction policy, memory convention, or retrieval strategy). Then propose a revised context budget for this call type, as a table or list of components with ceilings and inclusion rules, and name the three eval cases you would add first so the same failures cannot return unnoticed. Explain which of your changes remove or fix something and which add something, and justify every addition.
+
+Apply this rubric to your own memo before you save it.
+
+- Finds at least five distinct failures across the three artifacts, and cites the evidence for each from the artifact itself rather than from the module.
+- Separates the stale index from the version mismatch: one is a freshness failure in the pipeline, the other is a missing filter in retrieval.
+- Notices that the memory entry and the workspace tool result disagree, and says which one is authoritative and why.
+- Explains why the compaction dropped the edition and the change window, in terms of the compaction prompt and the absence of pinned items, not only that it happened.
+- Identifies at least one cost problem that is also a quality problem, such as the raw tool results, the unused tools, or the timestamp that defeats the cache.
+- Proposes a budget with a rule for each component, not just smaller numbers.
+- Names eval cases that would have caught these failures: for example, a retrieval case whose label tracks the current revision, a constraint-survival case across the compaction threshold, and a version-conflict case.
+- Keeps additions rare and justified. If the memo's main fix is a larger window, a larger top_k, or more reference material, revise it.
 
 </Workshop>
 
@@ -47,11 +759,23 @@ The workshop will be an analysis exercise on provided artifacts. No code. It wil
 
 <FailureExercise>
 
-The failure exercise will plant a failure in an artifact and ask you to find it and explain it.
+The same team responded to the compaction incident with a change. The record below shows the change, the first production run after it, and the dashboard a week later. It is synthetic and written for this module, and the failure in it is planted on purpose.
+
+<Artifact id="context-and-knowledge-more-context-fix" />
+
+The team's spot-check says the change worked: the assistant now remembers the customer's edition and change window. Do you agree? In a few paragraphs, say what the change did and did not fix, find the reason the turn-6 answer is still wrong for this customer, and point to the lines in the record that prove it. Then say what the team should have changed instead, and how they would have known before shipping.
 
 <Fragment slot="explanation">
 
-The explanation appears here after a response is saved.
+The change is the pitfall: adding context instead of curating it. Every line in the diff adds or raises. Nothing is removed, filtered, refreshed, or pinned. The compaction threshold went from 60,000 to 180,000. Retrieval went from twelve chunks to forty. Four versions of the admin guide and the full changelog went into the system prompt. Memory stopped expiring. Nine tools were added. The evaluation was three spot-checked conversations.
+
+The spot-check could not test the change. At turn 6 of session s-7954 the history is 9,800 tokens, below even the old 60,000 threshold, so this session would not have compacted before CTX-88 either. The answer keeps the edition and the change window because the session is short, not because of the change. Worse, the change adds about 142,800 tokens that are not history to a 200,000-token window, so history can never reach the new 180,000 threshold. The dashboard shows the result: compaction events fell from 31 per 100 sessions to zero, and context-length errors rose from zero to 34. The loss is not fixed. The compaction prompt still ignores constraints, nothing is pinned, and long sessions now hit the window limit before compaction can run.
+
+The customer asked how to rotate the certificate without signing everyone out, and the answer says all users will need to sign in again. That is false for 7.4.2 and later, and turn 1 of the history says the customer runs 7.4.3. The record proves it in three places. The retrieval span shows KB-1180 with index revision r5 and source revision r6, and the index's last successful sync is 2026-08-29: the pipeline that should have ingested r6 is still broken, so retrieving forty chunks instead of twelve pulled more from the same stale index. The second citation is the 7.x admin guide's section 9.3, whose applicability reads "7.0 to 7.3": appending every version of the guide created a clash between versions, and there is still no edition filter to resolve it. And the passage that holds the right answer, from the 7.4 guide, was in the window, uncited, at token 41,870 of 152,648: in the middle of a context that grew sevenfold, surrounded by text that contradicts it.
+
+So the change made three failures worse and left the one that prompted it in place. Distraction and position: the right passage is present and unused. Clash: four guide versions and a stale article disagree. Staleness: untouched, because nobody looked at the sync job. It also made the system slower and more expensive. Input per call rose from 21,400 to 148,900 tokens at the median, p95 latency from 6.2 to 19.7 seconds, and cost per answer from about 5 cents to about 37 cents. The cached share stayed at zero because the system prompt still begins with the current time, to the second, so no two calls share a prefix. The appended changelog would also reset the cache every day when it is regenerated. Removing the unused-memory limit does nothing about mem-0193, an inferred entry that says the workspace runs version 8 in the cloud: it is quoted often enough that it never aged out under the old rule either. What the change does is keep every other unconfirmed entry alive forever. An inferred entry needs confirmation against the workspace record, not a longer life. And the retrieval eval set has not run since 2026-08-12, before r6 existed, so nothing would have flagged any of this.
+
+What curation would have looked like: fix the sync job's permission and re-ingest, so the index holds KB-1180 r6. Add an edition filter, fed from the workspace record, to retrieval. Pin the customer's constraints, edition and change window, in a structured record outside the summary, and rewrite the compaction prompt to preserve constraints and open items. Clear raw list_tickets results after use. Remove the appended guides and changelog, and retrieve from them on demand with the same filters. Correct mem-0193 against the workspace record, and expire inferred entries that are never confirmed. Move the timestamp out of the prefix. Then run the retrieval set with labels updated for r6, plus a constraint-survival case across the compaction threshold and a version-conflict case, before shipping. Each of those removes a cause. The original threshold of 60,000 could have stayed.
 
 </Fragment>
 

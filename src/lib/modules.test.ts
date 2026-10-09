@@ -25,14 +25,17 @@ describe('modules over astro:content', () => {
     expect(shuffled.sort(compareModules).map((m) => m.id)).toEqual([...MODULE_SLUGS]);
   });
 
-  test('orientation is published and the thirteen Phase 2 and 3 modules are drafts', async () => {
+  test('orientation, foundations, and the six area modules are published and the six Phase 3 modules are drafts', async () => {
     const modules = await getAllModules();
-    // Phase 1 (blueprint section 1.3): orientation is real content with draft: false. Foundations, the six
-    // area modules (models is the fixture), the closing module, and the five electives stay drafts.
+    // Phase 2 (blueprint section 1.3): orientation, foundations, and the six area modules are real content with
+    // draft: false. The closing module and the five electives stay drafts until Phase 3.
     const drafts = modules.filter((m) => m.data.draft).map((m) => m.id);
-    expect(drafts).toHaveLength(13);
-    expect(drafts).not.toContain('orientation');
-    expect(modules.find((m) => m.id === 'orientation')?.data.draft).toBe(false);
+    expect(drafts.sort()).toEqual(
+      ['ai-engineering-team', 'career-and-learning', 'fine-tuning-and-adaptation', 'inference-and-hosting', 'multimodal-systems', 'self-assessment'],
+    );
+    for (const slug of ['orientation', 'foundations', 'models', 'context-and-knowledge', 'tools-and-extensibility', 'orchestration', 'verification-and-evals', 'operating-it']) {
+      expect(modules.find((m) => m.id === slug)?.data.draft, slug).toBe(false);
+    }
     // vitest.config.ts sets PREVIEW_DRAFTS, so drafts count as published here, as in the e2e build.
     expect(await getPublishedModules()).toHaveLength(14);
     expect((await getPublishedModule('orientation'))?.id).toBe('orientation');

@@ -142,9 +142,13 @@ Spec 9.3. After the Models module, a content review with the representative lear
 |---|---|---|---|---|---|
 | 2.1 | Representative learner review of Models | Friction report | | | |
 | 2.2 | Accessibility pass on one module page and `/modules` | Keyboard and VoiceOver, plus the axe spec | | | |
-| 2.3 | Foundations and the six area modules flip to `draft: false` and pass the content check | `npm run content:check` | | | |
+| 2.3 | Foundations and the six area modules flip to `draft: false` and pass the content check | `npm run content:check` | integrator agent | 2026-10-09 | `npm run content:check`: `Content check: 0 errors, 0 warnings`. `node scripts/content-check.ts --drafts-as-published`: 10 errors, 0 warnings, every error in one of the five Phase 3 elective skeletons (no outcomes, no self-check), none naming foundations, an area module, orientation, or an artifact |
 
 Evidence:
+
+- Row 2.1 (2026-10-09). By the author's decision, the representative learner review was stood in by two review agents per module, a learner reviewer and a fidelity reviewer, for Models and for the other six modules alike, and every module was fixed once after its reviews. All seven were written in one pass rather than Models first. No human learner has read Models yet, so the row stays open; `docs/decisions.md` open item 8 and the 2026-10-09 integrator entry record this.
+- Row 2.2 (2026-10-09). The automated half runs in CI: `e2e/a11y.spec.ts` scans `/modules/models` (and its self-check in three states), `/modules/verification-and-evals`, and `/modules` in both themes with axe, and asserts no horizontal page scroll at 320 px. On 2026-10-09 it passed (44 passed). The manual keyboard and VoiceOver pass on one module page and on `/modules` stays open for the author. One thing for that pass: at 320 px a wide Markdown table scrolls inside itself, and axe run at that width reports `scrollable-region-focusable` on those tables (21 nodes across the seven modules), because a Markdown table cannot take `tabindex`. Chromium and Firefox focus a scroller from the keyboard on their own; check Safari with VoiceOver.
+- Phase 1 rows that name `/modules/models` as a draft (the paragraph above Part A, rows 1.11 and 1.19) describe the Phase 1 image and stand as written for it. Against a Phase 2 image, `/modules/models` answers 200 without `PREVIEW_DRAFTS`, and a Phase 3 draft such as `/modules/inference-and-hosting` is the route that answers 404.
 
 ## Phase 3 gate: closing content
 

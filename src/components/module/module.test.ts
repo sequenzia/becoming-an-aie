@@ -177,9 +177,9 @@ describe('ModuleMeta', () => {
     const models = await entry('models');
     const anonymous = await render(ModuleMeta, { props: { entry: models, prerequisites: [FOUNDATIONS] }, locals: locals(moduleContext(models, [FOUNDATIONS])) });
     expect(anonymous).toContain('<dl class="module-meta">');
-    expect(anonymous).toContain('<dd>45 minutes</dd>');
+    expect(anonymous).toContain('<dd>52 minutes</dd>');
     expect(anonymous).toContain('<a href="/modules/foundations">Foundations</a>');
-    expect(anonymous).toContain('<time datetime="2026-10-03">2026-10-03</time>');
+    expect(anonymous).toContain('<time datetime="2026-10-09">2026-10-09</time>');
     expect(anonymous).toContain('<th scope="col">You already do this</th>');
     expect(anonymous).toContain(`<td>${TRANSFER_TABLE.testing.from}</td><td>${TRANSFER_TABLE.testing.to}</td>`);
     expect(anonymous).not.toContain('Your status');
@@ -212,20 +212,28 @@ describe('Artifact', () => {
     expect(html.includes('May be stale')).toBe(ageDays > orientation.data.staleAfterDays);
   });
 
-  test('renders tool and version for the synthetic fixture trace and a stale notice past the threshold', async () => {
+  test('renders a Models synthetic artifact without a tool line, tool and version when set, and a stale notice past the threshold', async () => {
     const models = await entry('models');
     const context = moduleContext(models);
     context.data = { ...models.data, staleAfterDays: 1 };
-    const html = await render(Artifact, { props: { id: 'models-fixture-trace' }, locals: locals(context) });
+    // The Models workshop report sets neither tool nor version, so the meta line starts at "checked on".
+    const html = await render(Artifact, { props: { id: 'models-selection-report' }, locals: locals(context) });
+    expect(html).toContain('<h3 class="card-title">Ticket triage, model selection run</h3>');
     expect(html).toContain('<span class="visually-hidden">Origin: </span>synthetic</span>');
-    expect(html).toContain('<code>aie-fixture-harness 0.1.0</code> · checked on <time datetime="2026-10-03">2026-10-03</time>');
-    expect(html).toContain('Not a measured result from any real system.');
-    // The body's fenced JSON renders through Shiki, so the value is asserted alone.
-    expect(html).toContain('data-language="json"');
-    expect(html).toContain('acme-large-20250301');
+    expect(html).toMatch(/<p class="artifact-meta">\s*checked on <time datetime="2026-10-09">2026-10-09<\/time>/);
+    expect(html.match(/<p class="artifact-meta">[\s\S]*?<\/p>/)?.[0]).not.toContain('<code>');
+    expect(html).toContain('Not a measured result from any real model.');
+    // The body's fenced YAML renders through Shiki, so the value is asserted alone.
+    expect(html).toContain('data-language="yaml"');
+    expect(html).toContain('triage-selection-2026-10-02');
     // staleAfterDays 1 makes the card stale from the second day after its date.
-    const ageDays = Math.floor((Date.now() - Date.UTC(2026, 9, 3)) / 86_400_000);
+    const ageDays = Math.floor((Date.now() - Date.UTC(2026, 9, 9)) / 86_400_000);
     expect(html.includes('May be stale')).toBe(ageDays > 1);
+
+    // No Models artifact sets tool or version, so the tool line is pinned on a Phase 2 artifact that sets both.
+    const evals = await entry('verification-and-evals');
+    const judge = await render(Artifact, { props: { id: 'verification-and-evals-judge-report' }, locals: locals(moduleContext(evals)) });
+    expect(judge).toContain('<code>acme-evalkit 2.3.1</code> · checked on <time datetime="2026-10-09">2026-10-09</time>');
   });
 
   test('throws for an unknown id instead of rendering a hole', async () => {
@@ -324,12 +332,24 @@ describe('ModuleLayout', () => {
     expect(html).toContain('<title>Models · Becoming an AI Engineer</title>');
     expect(html).toContain('<p class="module-summary">The model is a component you select, measure, and replace.');
     expect(html).toContain('<dl class="module-meta">');
-    // Draft under preview: the chip and the line.
-    expect(html).toContain('<span class="chip chip-status-draft">Draft</span>');
-    expect(html).toContain('Draft preview.');
+    // Published since Phase 2: no Draft chip and no draft line.
+    expect(html).not.toContain('chip-status-draft');
+    expect(html).not.toContain('Draft preview.');
     // Prerequisite notice for the anonymous reader.
     expect(html).toContain('aria-label="Prerequisite"');
     expect(html).toContain('<div class="module-body"><h2 id="transfer-connection">Transfer connection</h2><p>Body.</p></div>');
+
+    // A draft under preview (an elective, still a skeleton until Phase 3): the chip and the line.
+    const elective = await entry('inference-and-hosting');
+    const draft = await render(ModuleLayout, {
+      props: { entry: elective },
+      locals: locals(moduleContext(elective)),
+      slots: { default: '<p>Body.</p>' },
+      request: new Request('http://localhost/modules/inference-and-hosting'),
+    });
+    expect(elective.data.draft).toBe(true);
+    expect(draft).toContain('<span class="chip chip-status-draft">Draft</span>');
+    expect(draft).toContain('Draft preview.');
   });
 
   test('orientation gets the page header with the kicker and no strip, draft line, or notice', async () => {
@@ -418,7 +438,7 @@ describe('module pages over the real MDX', () => {
     expect(html).not.toContain(String.fromCharCode(0x2014));
   });
 
-  test('the on-demand page renders the fixture module with the strip, both forms, and no explanation', async () => {
+  test('the on-demand page renders the Models module with the strip, both forms, and no explanation', async () => {
     const { default: ModulePage } = await import('../../pages/modules/[slug].astro');
     const container = await pageContainer();
     const html = clean(
@@ -435,15 +455,32 @@ describe('module pages over the real MDX', () => {
     expect(html).toContain('<p class="takeaway"><b>Takeaway.</b> The model is a versioned, expiring dependency. Treat it like one.</p>');
     expect(html).toContain('<section class="workshop" aria-labelledby="workshop">');
     expect(html).toContain('<section class="failure-exercise" aria-labelledby="failure-exercise">');
-    // The same artifact twice on one page, no duplicate ids anywhere.
-    expect((html.match(/<h3 class="card-title">Fixture trace, a pinned model with nothing measuring it<\/h3>/g) ?? []).length).toBe(2);
+    // Two cards inside h3 subsections at level 4, the workshop and failure cards at level 3, no duplicate ids anywhere.
+    expect(html).toContain('<h4 class="card-title">Ticket triage output contract and five outputs</h4>');
+    expect(html).toContain('<h4 class="card-title">Weekly eval runs against a moving alias</h4>');
+    expect(html).toContain('<h3 class="card-title">Ticket triage, model selection run</h3>');
+    expect(html).toContain('<h3 class="card-title">Pull request, migrate before the retirement date</h3>');
     const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
     expect(new Set(ids).size).toBe(ids.length);
     // Server-side reveal: no explanation, no band, for an anonymous reader.
-    expect(html).not.toContain('The fix is not a different model id.');
+    expect(html).not.toContain('The model id is hardcoded, and there is no eval suite behind the change.');
     expect(html).not.toContain('band-pitfall');
     expect(islandProps(html)).toContain('"persist":[0,"account"]');
     expect(html).toContain('aria-label="Prerequisite"');
     expect(html).toContain('Foundations');
+
+    // The same artifact twice on one page: Tools and extensibility places its copied tool set in Topics
+    // (level 4) and again in the Workshop (level 3), and the page still has no duplicate ids.
+    const tools = clean(
+      await container.renderToString(ModulePage, {
+        request: new Request('http://localhost/modules/tools-and-extensibility'),
+        params: { slug: 'tools-and-extensibility' },
+        locals: { user: null, session: null },
+        routeType: 'page',
+      }),
+    );
+    expect((tools.match(/<h[34] class="card-title">A tool set copied from a REST API, illustrative<\/h[34]>/g) ?? []).length).toBe(2);
+    const toolIds = [...tools.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
+    expect(new Set(toolIds).size).toBe(toolIds.length);
   });
 });
